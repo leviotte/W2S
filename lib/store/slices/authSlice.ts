@@ -27,7 +27,7 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 import type { StoreState, UserProfile } from "../types";
 
 export interface AuthSlice {

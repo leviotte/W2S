@@ -14,7 +14,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 
 export interface Wishlist {
   id: string;

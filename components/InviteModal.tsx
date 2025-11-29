@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 import emailjs from "@emailjs/browser";
 import RequiredFieldMarker from "./RequiredFieldMarker";
 

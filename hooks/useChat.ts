@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import { Event } from '@/types/event';
 import { Message } from '@/types/chat';
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 
 export const useChat = (event: Event | undefined, currentUserId: string) => {
   const { updateEvent } = useStore();

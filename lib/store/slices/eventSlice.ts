@@ -12,7 +12,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/config/firebase";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 import { StoreState } from "../types";
 import { Event } from "@/types/event";
 import { sanitizeEventUpdate } from "@/utils/eventUpdates";

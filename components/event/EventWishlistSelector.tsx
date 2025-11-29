@@ -3,8 +3,8 @@
 
 import React, { useState } from "react";
 import { useStore } from "@/store/useStore";
-import WishlistSelector from "./WishlistSelector";
-import { toast } from "react-toastify";
+import WishlistSelector from "../WishlistSelector";
+import { toast } from "sonner";
 
 interface EventWishlistSelectorProps {
   onWishlistSelect: (wishlistId: string) => void;

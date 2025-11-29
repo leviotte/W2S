@@ -1,4 +1,4 @@
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 
 /**
  * Compress an image file to a maximum dimension of 1024x1024 and JPEG quality 0.7

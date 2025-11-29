@@ -12,7 +12,7 @@ import {
 import CountdownTimer from "./CountdownTimer";
 import EventDetailsForm from "./event/EventDetailsForm";
 import { EventDetailsData } from "../types/event";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/config/firebase";
 import { useStore } from "@/store/useStore";

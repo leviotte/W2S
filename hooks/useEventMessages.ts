@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 import { useStore } from '@/store/useStore';
 import { Event } from '@/types/event';
 import { UserProfile } from '@/store/useStore';

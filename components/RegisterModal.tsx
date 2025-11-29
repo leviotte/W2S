@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useStore } from "@/store/useStore";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 import { validateBirthdate } from "@/utils/validation";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";

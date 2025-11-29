@@ -2,8 +2,8 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { X, Mail, Copy } from "lucide-react";
-import { toast } from "react-toastify";
-import { useModal } from "../hooks/useModal";
+import { toast } from "sonner";
+import { useModal } from "../../hooks/useModal";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface EventInviteModalProps {

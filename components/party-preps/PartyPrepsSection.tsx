@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Plus, HelpCircle } from "lucide-react";
 import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
 import { restrictToWindowEdges } from "@dnd-kit/modifiers";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 
 import { useStore } from "@/store/useStore";
 import TaskList from "./TaskList";
