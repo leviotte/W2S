@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 import { ErrorBoundary } from "react-error-boundary";
 
 import EventDetails from "@/components/EventDetails";
@@ -20,7 +20,7 @@ import { useEventMessages } from "@/hooks/useEventMessages";
 import { useEventParticipants } from "@/hooks/useEventParticipants";
 
 import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "@/config/firebase";
+import { db } from "@/lib/firebase";
 
 import { X, MessageSquareMoreIcon } from "lucide-react";
 

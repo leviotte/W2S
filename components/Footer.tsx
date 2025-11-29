@@ -8,7 +8,7 @@ import { FaXTwitter } from "react-icons/fa6";
 import Link from "next/link";
 import { useStore } from "@/store/useStore";
 import { collection, getDocs, query } from "firebase/firestore";
-import { db } from "@/config/firebase";
+import { db } from "@/lib/firebase";
 
 export default function Footer() {
   const [account, setAccount] = useState<{ id: string; [key: string]: any } | null>(null);

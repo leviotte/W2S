@@ -11,7 +11,7 @@ import {
   User
 } from "firebase/auth";
 
-import { auth } from "@/config/firebase";
+import { auth } from "@/lib/firebase";
 import { databaseService } from "./database";
 
 export interface RegisterPayload {

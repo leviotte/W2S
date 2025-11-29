@@ -16,7 +16,7 @@ import {
   uploadBytesResumable,
   getDownloadURL,
 } from "firebase/storage";
-import { db, app } from "@/config/firebase";
+import { db, app } from "@/lib/firebase";
 
 interface BackImage {
   id: string;

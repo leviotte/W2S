@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { db } from "@/config/firebase";
+import { db } from "@/lib/firebase";
 import { getDocs, collection, getDoc, doc } from "firebase/firestore";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useStore } from "@/store/useStore";

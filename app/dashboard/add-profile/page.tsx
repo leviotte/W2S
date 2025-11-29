@@ -3,10 +3,10 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 import { Asterisk } from "lucide-react";
 import * as Tooltip from "@radix-ui/react-tooltip";
-import { db, storage } from "@/config/firebase";
+import { db, storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import PhotoSection from "@/components/profile/PhotoSection";
 import { SpinnerRoundFilled } from "spinners-react";

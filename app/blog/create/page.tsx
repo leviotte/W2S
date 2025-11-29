@@ -1,18 +1,21 @@
+// app/blog/create/page.tsx
+"use client"; // client component nodig voor useState, ReactQuill, Firebase
+
 import React, { useState, useCallback } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import "react-quill/dist/quill.snow.css";
 import ReactQuill from "react-quill";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { app, db, auth } from "../config/firebase.ts";
-import { useNavigate } from "react-router-dom";
+import { app, db, auth } from "@/config/firebase";
+import { useRouter } from "next/navigation";
 import {
   getStorage,
   ref,
   uploadBytesResumable,
   getDownloadURL,
 } from "firebase/storage";
-import AffiliateProducts from "@/components/AffiliateProductsOnBlog.tsx";
-import { toast } from "react-toastify";
+import AffiliateProducts from "@/components/AffiliateProductsOnBlog";
+import { toast } from "sonner";
 
 // Types
 interface AmazonProduct {
@@ -56,105 +59,95 @@ const SectionEditor = ({
   updateSection: (index: number, field: keyof Section, value: string) => void;
   addItemToBlog: (sectionIndex: number, product: AmazonProduct) => void;
   removeItemFromSection: (sectionIndex: number, itemId: string) => void;
-}) => {
-  return (
-    <div className="space-y-4 p-4 border rounded-lg relative">
-      <div className="flex justify-between items-center">
-        <label className="block text-sm font-medium text-gray-600">
-          Section {index + 1}
-        </label>
-        {index > 0 && (
-          <button
-            onClick={() => removeSection(index)}
-            className="p-1 text-[#b34c4c] hover:bg-red-50 rounded-full"
-          >
-            <Trash2 className="h-5 w-5" />
-          </button>
-        )}
-      </div>
+}) => (
+  <div className="space-y-4 p-4 border rounded-lg relative">
+    <div className="flex justify-between items-center">
+      <label className="block text-sm font-medium text-gray-600">
+        Section {index + 1}
+      </label>
+      {index > 0 && (
+        <button
+          onClick={() => removeSection(index)}
+          className="p-1 text-[#b34c4c] hover:bg-red-50 rounded-full"
+        >
+          <Trash2 className="h-5 w-5" />
+        </button>
+      )}
+    </div>
 
-      <div className="input-group">
-        <label className="block text-sm font-medium text-gray-600">
-          Sub Title:
-        </label>
-        <input
-          className="w-full p-2 mt-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-lime-500"
-          type="text"
-          placeholder="Title..."
-          value={section.subTitle}
-          onChange={(e) => updateSection(index, "subTitle", e.target.value)}
-        />
-      </div>
+    <div className="input-group">
+      <label className="block text-sm font-medium text-gray-600">
+        Sub Title:
+      </label>
+      <input
+        className="w-full p-2 mt-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-lime-500"
+        type="text"
+        placeholder="Title..."
+        value={section.subTitle}
+        onChange={(e) => updateSection(index, "subTitle", e.target.value)}
+      />
+    </div>
 
+    <div className="mt-4">
+      <ReactQuill
+        theme="snow"
+        value={section.content}
+        onChange={(value) => updateSection(index, "content", value)}
+        placeholder="Write detailed content here..."
+      />
+    </div>
+
+    {section.items.length > 0 && (
       <div className="mt-4">
-        <ReactQuill
-          theme="snow"
-          value={section.content}
-          onChange={(value) => updateSection(index, "content", value)}
-          placeholder="Write detailed content here..."
-        />
-      </div>
-
-      {/* Added Items */}
-      {section.items.length > 0 && (
-        <div className="mt-4">
-          <h3 className="text-md font-semibold">Added Items:</h3>
-          <ul className="space-y-2">
-            {section.items.map((item) => (
-              <li
-                key={item.id}
-                className="flex items-center gap-4 p-2 border rounded-md"
-              >
+        <h3 className="text-md font-semibold">Added Items:</h3>
+        <ul className="space-y-2">
+          {section.items.map((item) => (
+            <li
+              key={item.id}
+              className="flex items-center gap-4 p-2 border rounded-md"
+            >
+              {item.image && (
                 <img
                   src={item.image}
                   alt={item.title}
                   className="w-12 h-12 object-cover rounded-md"
                 />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{item.title}</p>
-                  <p className="text-xs text-gray-600">{item.price}</p>
-                </div>
-                <button
-                  onClick={() => removeItemFromSection(index, item.id)}
-                  className="p-1 text-[#b34c4c] hover:bg-red-600 rounded-full"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Affiliate Products */}
-      <div className="mb-10 lg:px-10 lg:mx-10 py-10 pt-2">
-        <AffiliateProducts
-          addItemToBlog={(product) => addItemToBlog(index, product)}
-        />
+              )}
+              <div className="flex-1">
+                <p className="text-sm font-medium">{item.title}</p>
+                {item.price && <p className="text-xs text-gray-600">{item.price}</p>}
+              </div>
+              <button
+                onClick={() => removeItemFromSection(index, item.id)}
+                className="p-1 text-[#b34c4c] hover:bg-red-600 rounded-full"
+              >
+                <Trash2 className="h-5 w-5" />
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
-    </div>
-  );
-};
+    )}
 
-// Main component
+    <div className="mb-10 lg:px-10 lg:mx-10 py-10 pt-2">
+      <AffiliateProducts addItemToBlog={(product) => addItemToBlog(index, product)} />
+    </div>
+  </div>
+);
+
+// Main Page Component
 export default function CreatePostPage() {
   const [headTitle, setHeadTitle] = useState("");
   const [headDescription, setHeadDescriptionText] = useState("");
   const [headImage, setHeadImage] = useState<File | string>("");
   const [subDescription, setSubDescriptionText] = useState("");
-  const [sections, setSections] = useState<Section[]>([
-    { subTitle: "", content: "", items: [] },
-  ]);
-
-  const [imageUploadProgress, setImageUploadProgress] = useState<number | null>(
-    null
-  );
+  const [sections, setSections] = useState<Section[]>([{ subTitle: "", content: "", items: [] }]);
+  const [imageUploadProgress, setImageUploadProgress] = useState<number | null>(null);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
 
-  const navigate = useNavigate();
+  const router = useRouter();
   const postsCollectionRef = collection(db, "posts");
 
-  // Upload image to Firebase
   const handleUploadImage = useCallback(async () => {
     if (!headImage || !(headImage instanceof File)) {
       setImageUploadError("Please select a valid image to upload");
@@ -185,9 +178,7 @@ export default function CreatePostPage() {
     );
   }, [headImage]);
 
-  // Sections manipulation
-  const addSection = () =>
-    setSections([...sections, { subTitle: "", content: "", items: [] }]);
+  const addSection = () => setSections([...sections, { subTitle: "", content: "", items: [] }]);
 
   const updateSection = (index: number, field: keyof Section, value: string) => {
     const updated = [...sections];
@@ -195,8 +186,7 @@ export default function CreatePostPage() {
     setSections(updated);
   };
 
-  const removeSection = (index: number) =>
-    setSections(sections.filter((_, i) => i !== index));
+  const removeSection = (index: number) => setSections(sections.filter((_, i) => i !== index));
 
   const addItemToBlog = (sectionIndex: number, product: AmazonProduct) => {
     setSections((prev) =>
@@ -225,29 +215,16 @@ export default function CreatePostPage() {
     setSections((prev) =>
       prev.map((section, idx) =>
         idx === sectionIndex
-          ? {
-              ...section,
-              items: section.items.filter((item) => item.id !== itemId),
-            }
+          ? { ...section, items: section.items.filter((item) => item.id !== itemId) }
           : section
       )
     );
   };
 
-  // Create post
   const createPost = async () => {
-    if (!headTitle.trim()) {
-      toast.error("Title is required.");
-      return;
-    }
-    if (!headImage || headImage instanceof File) {
-      toast.error("Please upload an image before submitting the post.");
-      return;
-    }
-    if (!auth.currentUser) {
-      toast.error("You must be logged in to create a post.");
-      return;
-    }
+    if (!headTitle.trim()) return toast.error("Title is required.");
+    if (!headImage || headImage instanceof File) return toast.error("Please upload an image before submitting.");
+    if (!auth.currentUser) return toast.error("You must be logged in to create a post.");
 
     await addDoc(postsCollectionRef, {
       headTitle,
@@ -256,28 +233,22 @@ export default function CreatePostPage() {
       subDescription,
       sections,
       createdAt: serverTimestamp(),
-      author: {
-        name: auth.currentUser.displayName,
-        id: auth.currentUser.uid,
-      },
+      author: { name: auth.currentUser.displayName, id: auth.currentUser.uid },
     });
 
     toast.success("Post created successfully!");
-    navigate("/blog");
+    router.push("/blog");
   };
 
   return (
     <div className="flex justify-center items-center min-h-screen pb-5">
       <div className="w-full max-w-4xl p-8 space-y-6 bg-white rounded-xl max-h-full shadow-lg">
-        <h1 className="text-2xl font-semibold text-gray-700 text-center">
-          Create Post
-        </h1>
+        <h1 className="text-2xl font-semibold text-gray-700 text-center">Create Post</h1>
+
         <div className="space-y-4">
-          {/* Head Title */}
+          {/* Title */}
           <div className="input-group">
-            <label className="block text-sm font-medium text-gray-600">
-              Title:
-            </label>
+            <label className="block text-sm font-medium text-gray-600">Title:</label>
             <input
               className="w-full p-2 mt-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-lime-500"
               type="text"
@@ -289,9 +260,7 @@ export default function CreatePostPage() {
 
           {/* Head Description */}
           <div className="input-group">
-            <label className="block text-sm font-medium text-gray-600">
-              Head Description:
-            </label>
+            <label className="block text-sm font-medium text-gray-600">Head Description:</label>
             <textarea
               className="w-full p-2 mt-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-lime-500"
               placeholder="Enter a description for the blog..."
@@ -303,9 +272,7 @@ export default function CreatePostPage() {
 
           {/* Image Upload */}
           <div className="input-group">
-            <label className="block text-sm font-medium text-gray-600">
-              Add Image:
-            </label>
+            <label className="block text-sm font-medium text-gray-600">Add Image:</label>
             <div className="flex flex-row border rounded-md focus:outline-none px-4">
               <input
                 className="w-full p-2 mt-1 focus:ring-2 focus:ring-lime-500"
@@ -320,28 +287,18 @@ export default function CreatePostPage() {
                 Upload
               </button>
             </div>
-            {imageUploadError && (
-              <span className="text-red-400">{imageUploadError}</span>
-            )}
-            {imageUploadProgress !== null && (
-              <span>{imageUploadProgress}% uploading...</span>
-            )}
+            {imageUploadError && <span className="text-red-400">{imageUploadError}</span>}
+            {imageUploadProgress !== null && <span>{imageUploadProgress}% uploading...</span>}
             {typeof headImage === "string" && (
               <div className="mt-2">
-                <img
-                  src={headImage}
-                  alt="Uploaded"
-                  className="w-full h-auto rounded-md"
-                />
+                <img src={headImage} alt="Uploaded" className="w-full h-auto rounded-md" />
               </div>
             )}
           </div>
 
           {/* Sub Description */}
           <div className="input-group">
-            <label className="block text-sm font-medium text-gray-600">
-              Sub Description:
-            </label>
+            <label className="block text-sm font-medium text-gray-600">Sub Description:</label>
             <textarea
               className="w-full p-2 mt-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-lime-500"
               placeholder="This description comes below the image..."
@@ -364,16 +321,13 @@ export default function CreatePostPage() {
             />
           ))}
 
-          {/* Add Section Button */}
           <button
             onClick={addSection}
             className="flex items-center gap-2 px-4 py-2 text-lime-600 border border-lime-600 rounded-md hover:bg-lime-50"
           >
-            <Plus className="h-4 w-4" />
-            Add Section
+            <Plus className="h-4 w-4" /> Add Section
           </button>
 
-          {/* Submit */}
           <button
             className="w-full p-2 mt-4 text-white bg-warm-olive rounded-md hover:bg-lime-600 transition duration-300 ease-in-out"
             onClick={createPost}

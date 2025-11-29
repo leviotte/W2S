@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, deleteField } from "firebase/firestore";
-import { db } from "@/config/firebase";
+import { db } from "@/lib/firebase";
 import { useParams } from "next/navigation";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 import ManageRequestsTable from "@/components/ManageRequestsTable";
 
 interface EventRequest {

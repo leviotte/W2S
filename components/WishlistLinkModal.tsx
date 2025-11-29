@@ -1,8 +1,10 @@
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+"use client";
+
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { X, Plus } from "lucide-react";
-import { useStore } from "../store/useStore";
+import { useStore } from "@/store/useStore";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 
 interface WishlistLinkModalProps {
   isOpen: boolean;
@@ -18,7 +20,7 @@ export default function WishlistLinkModal({
   participantId,
 }: WishlistLinkModalProps) {
   const { wishlists, updateEvent, loadEvents, events } = useStore();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const [selectedWishlistId, setSelectedWishlistId] = useState<string>("");
   const [showNewWishlistForm, setShowNewWishlistForm] = useState(false);
@@ -113,7 +115,10 @@ export default function WishlistLinkModal({
      UI
   -------------------------------------------------------- */
   return (
-    <div onClick={(e) => e.stopPropagation()} className="flex min-h-full items-center justify-center p-4">
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="flex min-h-full items-center justify-center p-4"
+    >
       <div className="relative w-full max-w-md bg-white rounded-lg shadow-xl">
         <div className="p-6">
 
@@ -200,7 +205,7 @@ export default function WishlistLinkModal({
                   {/* BUTTON TO CREATE NEW */}
                   <button
                     onClick={() =>
-                      navigate(
+                      router.push(
                         `/dashboard?tab=wishlists&subTab=create&event=${event.id}&participant=${participantId}`
                       )
                     }

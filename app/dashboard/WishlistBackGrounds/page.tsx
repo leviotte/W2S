@@ -20,7 +20,7 @@ import {
   deleteObject,
 } from "firebase/storage";
 
-import { db, app } from "@/config/firebase";
+import { db, app } from "@/lib/firebase";
 import { Switch } from "@/components/ui/switch";
 
 interface BackImage {

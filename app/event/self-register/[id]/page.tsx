@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "@/config/firebase";
+import { db } from "@/lib/firebase";
 import { Event } from "@/types/event";
 import { HashLoader } from "react-spinners";
 import { useStore } from "@/store/useStore";
 import { useAuth } from "@/components/AuthContext";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 
 const EventParticipationPage = () => {
   const { id } = useParams<{ id: string }>();

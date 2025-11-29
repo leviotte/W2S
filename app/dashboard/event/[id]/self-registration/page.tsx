@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { db } from "@/config/firebase";
+import { db } from "@/lib/firebase";
 import { getDoc, doc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 import { HashLoader } from "react-spinners";
 import { useStore } from "@/store/useStore";
 import { useAuth } from "@/components/AuthContext";

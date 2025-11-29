@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import NameDrawingAnimation from "./NameDrawingAnimation";
 import { useStore } from "@/store/useStore";
 import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/config/firebase";
+import { db } from "@/lib/firebase";
 
 interface Participant {
   id: string;

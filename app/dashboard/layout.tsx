@@ -5,7 +5,7 @@ import { ReactNode, useState, useEffect, useCallback, createContext, useContext 
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { auth, db } from "@/config/firebase";
+import { auth, db } from "@/lib/firebase";
 import LoginModal from "@/components/LoginModal";
 import RegisterModal from "@/components/RegisterModal";
 import { useStore } from "@/store/useStore";

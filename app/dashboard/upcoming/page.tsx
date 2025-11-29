@@ -15,7 +15,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { MdEvent, MdMoreVert, MdCheck, MdClose } from "react-icons/md";
 import { Circle, UserPlus, AlertCircle, ListChecks, GiftIcon, PartyPopper } from "lucide-react";
 import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "@/config/firebase";
+import { db } from "@/lib/firebase";
 import { motion } from "framer-motion";
 
 interface Participant {

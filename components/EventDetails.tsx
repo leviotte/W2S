@@ -14,7 +14,7 @@ import EventDetailsForm from "./event/EventDetailsForm";
 import { EventDetailsData } from "../types/event";
 import { toast } from "sonner";
 import { doc, updateDoc } from "firebase/firestore";
-import { db } from "@/config/firebase";
+import { db } from "@/lib/firebase";
 import { useStore } from "@/store/useStore";
 
 interface EventDetailsProps {

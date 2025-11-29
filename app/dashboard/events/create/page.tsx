@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { Plus, X } from "lucide-react";
 import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/config/firebase";
+import { db } from "@/lib/firebase";
 import { useStore } from "@/store/useStore";
 import RequiredFieldMarker from "@/components/RequiredFieldMarker";
 import { useAuth } from "@/components/AuthContext";

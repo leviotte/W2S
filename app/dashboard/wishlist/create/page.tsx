@@ -4,10 +4,10 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 import AffiliateProducts from "@/components/AffiliateProductsOnBlog";
 import { collection, doc, getDoc, getDocs, query } from "firebase/firestore";
-import { db } from "@/config/firebase";
+import { db } from "@/lib/firebase";
 import { useStore } from "@/store/useStore";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 

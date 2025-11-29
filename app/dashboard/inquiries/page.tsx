@@ -23,7 +23,7 @@ import {
   startAfter,
   orderBy,
 } from "firebase/firestore";
-import { db } from "@/config/firebase";
+import { db } from "@/lib/firebase";
 import {
   Table,
   TableBody,
@@ -46,7 +46,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 
 interface Inquiry {
   id: string;

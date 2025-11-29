@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "@/config/firebase";
+import { auth } from "@/lib/firebase";
 import { FirebaseError } from "firebase/app";
 import { Loader2 } from "lucide-react";
 

@@ -11,7 +11,7 @@ import {
   getDocs,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "@/config/firebase";
+import { db } from "@/lib/firebase";
 import { toast } from "sonner";
 import { StoreState } from "../types";
 import { Event } from "@/types/event";

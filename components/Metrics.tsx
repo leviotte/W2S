@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import CountUp from "react-countup";
 import { collection, getCountFromServer, getDocs, DocumentData } from "firebase/firestore";
-import { db } from "@/config/firebase";
+import { db } from "@/lib/firebase";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
