@@ -1,15 +1,18 @@
-import type { NextConfig } from 'next';
+import { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  images: {
-    remotePatterns: [
+  reactStrictMode: true,
+  swcMinify: true,
+  compiler: {
+    styledComponents: true, // indien we styled-components gebruiken
+  },
+  async rewrites() {
+    return [
       {
-        protocol: 'https',
-        hostname: 'firebasestorage.googleapis.com',
-        port: '',
-        pathname: '/v0/b/wish2share4u.appspot.com/**',
+        source: "/:path*",
+        destination: "/index.html", // SPA fallback
       },
-    ],
+    ];
   },
 };
 
