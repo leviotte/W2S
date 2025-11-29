@@ -1,5 +1,5 @@
 import { Product, filterAndSearchProducts, AgeGroup, Gender } from "./productFilterService";
-import dummyProducts from "../data/dummyProducts";
+import dummyProducts from "../../data/dummyProducts";
 
 interface CategoryFilterOptions {
   minPrice?: number;

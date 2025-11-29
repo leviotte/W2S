@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import { Product } from "../services/productFilterService";
+import { Product } from "../lib/services/productFilterService";
 
 interface AffiliateFilters {
   keyword?: string;

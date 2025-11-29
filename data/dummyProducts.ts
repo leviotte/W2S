@@ -1,4 +1,4 @@
-import { Product } from "../services/productFilterService";
+import { Product } from "../lib/services/productFilterService";
 
 const dummyProducts: Product[] = [
   {

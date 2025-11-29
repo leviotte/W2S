@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import redisClient from "../../../lib/redis";
-import { getAmazonProducts } from "../../../services/amazonService";
-import { getBolProducts } from "../../../services/bolService";
+import { getAmazonProducts } from "../../../lib/services/amazonService";
+import { getBolProducts } from "../../../lib/services/bolService";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);

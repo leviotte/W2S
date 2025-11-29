@@ -8,7 +8,7 @@ import { toast } from "react-toastify";
 
 import { useStore } from "@/store/useStore";
 import TaskList from "./TaskList";
-import ParticipantList from "./ParticipantList";
+import ParticipantList from "../ParticipantList";
 import DraggableParticipant from "./DraggableParticipant";
 
 interface PartyPrepsProps {
