@@ -8,24 +8,20 @@ import { useStore } from "@/store/useStore";
 
 interface Props {
   organizedEvents: { onGoing: number; all: number; past: number };
-  wishlists?: {
-    total: number;
-    public: number;
-    private: number;
-  };
+  wishlists?: { total: number; public: number; private: number };
 }
 
 export default function DashEventCards({ organizedEvents, wishlists }: Props) {
   const router = useRouter();
-  const [mounted, setMounted] = useState(false); // voorkomt SSR hydration errors
-  const { events: allEvents, loadEvents } = useStore();
+  const [mounted, setMounted] = useState(false);
+  const { loadEvents } = useStore();
 
   useEffect(() => {
     setMounted(true);
     loadEvents();
   }, []);
 
-  if (!mounted) return null; // wacht tot mount voor CSR-only hooks
+  if (!mounted) return null;
 
   const events = [
     {
@@ -41,24 +37,9 @@ export default function DashEventCards({ organizedEvents, wishlists }: Props) {
       label: "Mijn Wishlists",
       onClick: () => router.push("/dashboard?tab=wishlists&subTab=list"),
       stats: [
-        {
-          icon: ListTodo,
-          label: "Totaal",
-          value: wishlists?.total || 0,
-          color: "text-blue-600",
-        },
-        {
-          icon: Globe,
-          label: "Openbaar",
-          value: wishlists?.public || 0,
-          color: "text-green-600",
-        },
-        {
-          icon: Lock,
-          label: "Privé",
-          value: wishlists?.private || 0,
-          color: "text-amber-600",
-        },
+        { icon: ListTodo, label: "Totaal", value: wishlists?.total || 0, color: "text-blue-600" },
+        { icon: Globe, label: "Openbaar", value: wishlists?.public || 0, color: "text-green-600" },
+        { icon: Lock, label: "Privé", value: wishlists?.private || 0, color: "text-amber-600" },
       ],
     },
   ];
@@ -74,15 +55,13 @@ export default function DashEventCards({ organizedEvents, wishlists }: Props) {
           className="bg-white dark:bg-green-900 cursor-pointer shadow-md rounded-xl p-6 flex flex-col gap-4 transition-shadow duration-500 hover:shadow-lime-700 hover:shadow-md"
           onClick={event.onClick}
         >
-          <h3 className="text-lg font-semibold text-green-900 dark:text-white mb-1">
-            {event.label}
-          </h3>
+          <h3 className="text-lg font-semibold text-green-900 dark:text-white mb-1">{event.label}</h3>
 
           <div className="flex flex-wrap items-center gap-4 text-gray-700 dark:text-gray-300">
             {event.label === "Mijn Wishlists" ? (
               <>
-                {event.stats.map((stat, index) => (
-                  <div key={index} className="flex items-center gap-2">
+                {event.stats.map((stat, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
                     <stat.icon className={`w-5 h-5 ${stat.color}`} />
                     <span className="text-sm">{stat.label}</span>
                     <span className="text-lg font-bold">{stat.value}</span>

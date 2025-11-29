@@ -1,49 +1,39 @@
-import { collection, getDocs, doc, updateDoc, getFirestore } from "firebase/firestore";
-import { initializeApp } from "firebase/app";
+// scripts/backfillProfileNames.ts
+/**
+ * Run locally:
+ *   node -r ts-node/register scripts/backfillProfileNames.ts
+ *
+ * Ensure FIREBASE_SERVICE_ACCOUNT env var is set (stringified JSON).
+ */
 
-// ⚠️ Gebruik environment variables voor gevoelige Firebase-config
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
-};
+import { initFirebaseAdmin } from "../lib/firebaseAdmin";
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-const backfillProfiles = async () => {
+async function run() {
   try {
-    const profilesRef = collection(db, "profiles");
-    const profileSnapshots = await getDocs(profilesRef);
-
-    const updatePromises = profileSnapshots.docs.map(async (docSnapshot) => {
-      const profileData = docSnapshot.data();
-      const name: string = profileData.name || "";
-
-      // Alleen updaten als name_lower nog niet bestaat
-      if (!profileData.name_lower) {
-        await updateDoc(doc(db, "profiles", docSnapshot.id), {
-          name_lower: name.toLowerCase(),
-        });
-        console.log(`Updated profile: ${docSnapshot.id}`);
+    const db = initFirebaseAdmin();
+    const snapshot = await db.collection("profiles").get();
+    const updates: Array<Promise<any>> = [];
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const name = data.name || "";
+      if (!data.name_lower) {
+        updates.push(
+          db.collection("profiles").doc(doc.id).update({
+            name_lower: (name || "").toLowerCase(),
+          })
+        );
       }
     });
-
-    await Promise.all(updatePromises);
-    console.log("Backfill complete!");
-  } catch (error) {
-    console.error("Error during backfill:", error);
+    await Promise.all(updates);
+    console.log("Updated", updates.length, "profiles");
+  } catch (err) {
+    console.error("Backfill script failed:", err);
+    process.exitCode = 1;
   }
-};
-
-// Alleen lokaal of via node script uitvoeren, niet via route
-if (require.main === module) {
-  backfillProfiles();
 }
 
-export default backfillProfiles;
+if (require.main === module) {
+  run();
+}
+
+export default run;
