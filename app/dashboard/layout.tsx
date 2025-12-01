@@ -9,7 +9,7 @@ import { auth, db } from "@/lib/firebase";
 import LoginModal from "@/components/LoginModal";
 import RegisterModal from "@/components/RegisterModal";
 import { useStore } from "@/lib/store/useStore";
-import { UserProfile } from "@/store/types";
+import { UserProfile } from "@/lib/store/useStore";
 
 interface AuthContextType {
   showLoginModal: (onSuccess?: () => void) => void;

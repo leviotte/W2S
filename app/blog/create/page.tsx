@@ -1,21 +1,18 @@
-// app/blog/create/page.tsx
-"use client"; // client component nodig voor useState, ReactQuill, Firebase
+"use client";
 
 import React, { useState, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { Plus, Trash2 } from "lucide-react";
-import "react-quill/dist/quill.snow.css";
-import ReactQuill from "react-quill";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { app, db, auth } from "@/config/firebase";
+import { app, db, auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
-import {
-  getStorage,
-  ref,
-  uploadBytesResumable,
-  getDownloadURL,
-} from "firebase/storage";
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import AffiliateProducts from "@/components/AffiliateProductsOnBlog";
 import { toast } from "sonner";
+
+// Dynamically import ReactQuill for client-side only
+const ReactQuill = dynamic(() => import("react-quill-new-new"), { ssr: false });
+import "react-quill-new/dist/quill.snow.css";
 
 // Types
 interface AmazonProduct {
@@ -76,9 +73,7 @@ const SectionEditor = ({
     </div>
 
     <div className="input-group">
-      <label className="block text-sm font-medium text-gray-600">
-        Sub Title:
-      </label>
+      <label className="block text-sm font-medium text-gray-600">Sub Title:</label>
       <input
         className="w-full p-2 mt-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-lime-500"
         type="text"
@@ -102,17 +97,8 @@ const SectionEditor = ({
         <h3 className="text-md font-semibold">Added Items:</h3>
         <ul className="space-y-2">
           {section.items.map((item) => (
-            <li
-              key={item.id}
-              className="flex items-center gap-4 p-2 border rounded-md"
-            >
-              {item.image && (
-                <img
-                  src={item.image}
-                  alt={item.title}
-                  className="w-12 h-12 object-cover rounded-md"
-                />
-              )}
+            <li key={item.id} className="flex items-center gap-4 p-2 border rounded-md">
+              {item.image && <img src={item.image} alt={item.title} className="w-12 h-12 object-cover rounded-md" />}
               <div className="flex-1">
                 <p className="text-sm font-medium">{item.title}</p>
                 {item.price && <p className="text-xs text-gray-600">{item.price}</p>}
@@ -179,15 +165,12 @@ export default function CreatePostPage() {
   }, [headImage]);
 
   const addSection = () => setSections([...sections, { subTitle: "", content: "", items: [] }]);
-
   const updateSection = (index: number, field: keyof Section, value: string) => {
     const updated = [...sections];
     updated[index][field] = value;
     setSections(updated);
   };
-
   const removeSection = (index: number) => setSections(sections.filter((_, i) => i !== index));
-
   const addItemToBlog = (sectionIndex: number, product: AmazonProduct) => {
     setSections((prev) =>
       prev.map((section, idx) =>
@@ -210,7 +193,6 @@ export default function CreatePostPage() {
       )
     );
   };
-
   const removeItemFromSection = (sectionIndex: number, itemId: string) => {
     setSections((prev) =>
       prev.map((section, idx) =>

@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardContent,
   CardDescription,
-} from "@/components/ui/card";
+} from "@/components/ui/Card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { MdEvent, MdMoreVert, MdCheck, MdClose } from "react-icons/md";

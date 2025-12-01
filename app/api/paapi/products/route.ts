@@ -1,7 +1,35 @@
 // app/api/amazon/products/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { AmazonPaApiClient, SearchItemsRequest } from "amazon-pa-api5-node-ts";
+import AmazonPaApiClient from "amazon-pa-api5-node-ts";
 
+// Typen voor de Amazon response items
+interface AmazonItem {
+  asin: string;
+  detailPageUrl?: string;
+  images?: {
+    primary?: {
+      small?: { url: string };
+      medium?: { url: string };
+    };
+  };
+  itemInfo?: {
+    title?: { displayValue: string };
+  };
+  offers?: {
+    listings?: { price?: { displayAmount: string } }[];
+  };
+}
+
+// Typen voor je frontend-output
+interface AmazonProduct {
+  id: string;
+  title: string;
+  image: string;
+  price: string;
+  url: string;
+}
+
+// Singleton client
 const client = new AmazonPaApiClient({
   accessKey: process.env.PAAPI_ACCESS_KEY!,
   secretKey: process.env.PAAPI_SECRET_KEY!,
@@ -15,7 +43,7 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const keywords = url.searchParams.get("keywords") || "fitness";
 
-    const request: SearchItemsRequest = {
+    const response = await client.searchItems({
       Keywords: keywords,
       SearchIndex: "All",
       Resources: [
@@ -24,12 +52,10 @@ export async function GET(req: NextRequest) {
         "Offers.Listings.Price",
         "DetailPageURL",
       ],
-    };
+    });
 
-    const response = await client.searchItems(request);
-
-    const items =
-      response.items?.map((item) => ({
+    const items: AmazonProduct[] =
+      (response.items as AmazonItem[] | undefined)?.map((item) => ({
         id: item.asin,
         title: item.itemInfo?.title?.displayValue || "Unnamed Product",
         image: item.images?.primary?.small?.url || "",
@@ -39,7 +65,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ items });
   } catch (error) {
-    console.error("Amazon PAAPI Error:", error);
+    console.error("❌ Amazon PAAPI Error:", error);
     return NextResponse.json({ error: "PAAPI request failed" }, { status: 500 });
   }
 }

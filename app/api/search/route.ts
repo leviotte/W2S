@@ -14,35 +14,48 @@ const SearchQuerySchema = z.object({
 // ----------------------
 // TYPE DEFINITIONS
 // ----------------------
-type SearchResult =
-  | {
-      id: string;
-      type: "account";
-      firstName: string | null;
-      lastName: string | null;
-      name: string;
-      email?: string;
-      photoURL?: string;
-      address?: { city?: string; country?: string };
-      birthdate?: string;
-      age?: number;
-      gender?: string;
-    }
-  | {
-      id: string;
-      type: "profile";
-      name: string;
-      photoURL?: string;
-      address?: { city?: string; country?: string };
-      birthdate?: string;
-      age?: number;
-      gender?: string;
-    };
+type AccountResult = {
+  id: string;
+  type: "account";
+  firstName: string | null;
+  lastName: string | null;
+  name: string;
+  email?: string;
+  photoURL?: string;
+  address?: { city?: string; country?: string };
+  birthdate?: string;
+  age?: number;
+  gender?: string;
+};
+
+type ProfileResult = {
+  id: string;
+  type: "profile";
+  name: string;
+  photoURL?: string;
+  address?: { city?: string; country?: string };
+  birthdate?: string;
+  age?: number;
+  gender?: string;
+};
+
+type SearchResult = AccountResult | ProfileResult;
+
+// ----------------------
+// TYPE GUARDS
+// ----------------------
+function isAccount(item: SearchResult): item is AccountResult {
+  return item.type === "account";
+}
+
+function isProfile(item: SearchResult): item is ProfileResult {
+  return item.type === "profile";
+}
 
 // ----------------------
 // AGE CALCULATOR
 // ----------------------
-function calculateAge(birthdate?: string) {
+function calculateAge(birthdate?: string): number | undefined {
   if (!birthdate) return undefined;
   const d = new Date(birthdate);
   if (isNaN(d.getTime())) return undefined;
@@ -61,7 +74,9 @@ if (!admin.apps.length) {
   admin.initializeApp({
     credential:
       admin.credential.applicationDefault() ??
-      admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || "{}")),
+      admin.credential.cert(
+        JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || "{}")
+      ),
   });
 }
 
@@ -74,6 +89,7 @@ export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
 
+    // Validate input
     const parseResult = SearchQuerySchema.safeParse({
       firstName: url.searchParams.get("firstName")?.trim(),
       lastName: url.searchParams.get("lastName")?.trim(),
@@ -107,20 +123,18 @@ export async function GET(req: NextRequest) {
       const snap = await q.get();
 
       snap.forEach((doc) => {
-        const d = doc.data() ?? {};
+        const d = doc.data();
 
-        // Optional match: last name starts with filter
+        if (!d) return;
+
+        // Optional last name filter
         if (lowerLast) {
-          const match =
-            (d.lastName ?? "")
-              .toLowerCase()
-              .startsWith(lowerLast);
-
+          const match = (d.lastName ?? "").toLowerCase().startsWith(lowerLast);
           if (!match) return;
         }
 
-        const first = d.firstName ?? null;
-        const last = d.lastName ?? null;
+        const first: string | null = d.firstName ?? null;
+        const last: string | null = d.lastName ?? null;
 
         results.push({
           id: doc.id,
@@ -130,10 +144,7 @@ export async function GET(req: NextRequest) {
           name: `${first ?? ""} ${last ?? ""}`.trim(),
           email: d.email,
           photoURL: d.photoURL,
-          address: {
-            city: d.address?.city,
-            country: d.address?.country,
-          },
+          address: { city: d.address?.city, country: d.address?.country },
           birthdate: d.birthdate,
           age: calculateAge(d.birthdate),
           gender: d.gender,
@@ -157,14 +168,11 @@ export async function GET(req: NextRequest) {
       const snap = await q.get();
 
       snap.forEach((doc) => {
-        const d = doc.data() ?? {};
+        const d = doc.data();
+        if (!d) return;
 
         if (lowerLast) {
-          const match =
-            (d.name ?? "")
-              .toLowerCase()
-              .includes(lowerLast);
-
+          const match = (d.name ?? "").toLowerCase().includes(lowerLast);
           if (!match) return;
         }
 
@@ -173,10 +181,7 @@ export async function GET(req: NextRequest) {
           type: "profile",
           name: d.name ?? "",
           photoURL: d.avatarURL,
-          address: {
-            city: d.address?.city,
-            country: d.address?.country,
-          },
+          address: { city: d.address?.city, country: d.address?.country },
           birthdate: d.birthdate,
           age: calculateAge(d.birthdate),
           gender: d.gender,
@@ -190,17 +195,19 @@ export async function GET(req: NextRequest) {
     // SORTING
     // ----------------------
     const sorted = results.sort((a, b) => {
-      const aName = ("name" in a ? a.name : `${a.firstName} ${a.lastName}`).toLowerCase();
-      const bName = ("name" in b ? b.name : `${b.firstName} ${b.lastName}`).toLowerCase();
-      return aName.localeCompare(bName);
+      const aName = isAccount(a)
+        ? `${a.firstName ?? ""} ${a.lastName ?? ""}`
+        : a.name;
+      const bName = isAccount(b)
+        ? `${b.firstName ?? ""} ${b.lastName ?? ""}`
+        : b.name;
+
+      return aName.toLowerCase().localeCompare(bName.toLowerCase());
     });
 
     return NextResponse.json({ results: sorted }, { status: 200 });
   } catch (err) {
     console.error("Fatal search error:", err);
-    return NextResponse.json(
-      { error: "Internal error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

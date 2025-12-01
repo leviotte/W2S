@@ -1,7 +1,7 @@
 // app/api/tools/backfill-profiles/route.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { initFirebaseAdmin } from "@/lib/firebaseAdmin";
+import { initFirebaseAdmin } from "@/lib/firebasAdmin";
 
 const BACKFILL_SECRET = process.env.BACKFILL_SECRET || process.env.ADMIN_API_KEY;
 
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     const db = initFirebaseAdmin();
     const profilesSnapshot = await db.collection("profiles").get();
 
-    const updates: Array<Promise<void>> = [];
+    const updates: Array<Promise<FirebaseFirestore.WriteResult>> = [];
     profilesSnapshot.forEach((doc) => {
       const data = doc.data();
       const name: string = data.name || "";

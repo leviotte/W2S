@@ -4,27 +4,27 @@ import { useEffect, useState } from "react";
 import { useSearchParams, usePathname } from "next/navigation";
 
 // Dashboard componenten
-import ProfilePage from "@/components/ProfilePage";
-import AddProfilePage from "@/components/AddProfilePage";
-import Blog from "@/components/Blog";
-import UpcomingEventsPage from "@/components/UpcomingEventsPage";
-import PastEventsPage from "@/components/PastEventsPage";
-import CreateEventPage from "@/components/CreateEventPage";
-import EventPage from "@/components/EventPage";
-import EventInvitesPage from "@/components/EventInvitesPage";
-import EventReminderPage from "@/components/EventReminderPage";
-import RequestPage from "@/components/WishlistRequestPage";
-import CreateWishlistPage from "@/components/CreateWishlistPage";
-import WishlistsPage from "@/components/WishlistsPage";
+import ProfilePage from "./profile/page";
+import AddProfilePage from "./add-profile/page";
+import BlogPage from "../blog/page";
+import UpcomingEventsPage from "./upcoming/page";
+import PastEventsPage from "./events/past/page";
+import CreateEventPage from "./events/create/page";
+import EventPage from "./event/[id]/page";
+import EventInvitesPage from "./events/[id]/invites/page";
+import EventReminderPage from "../event/reminder/[id]/page";
+import WishlistRequestPage from "@/components/WishlistRequestForm";
+import CreateWishlistPage from "./wishlist/create/page";
+import WishlistsPage from "./wishlists/page";
 import WishlistDetailPage from "@/components/WishlistDetailPage";
 import WishlistEventPage from "@/components/WishlistFromEvent";
 import UserProfilePage from "@/components/UserProfilePage";
-import DashboardInfo from "@/components/DashboardInfo";
-import FollowersFollowingList from "@/components/FollowersFollowingList";
+import DashboardInfo from "./info/page";
+import FollowersFollowingList from "./profiles/[profileId]/followers-following/page";
 
 // Wrapper component voor SSR + SEO
-import BackgroundPattern from "@/components/BackgroundPattern";
-import BackgroundTheme from "@/components/BackgroundTheme";
+import BackgroundPattern from "@/components/background/BackgroundPattern";
+import BackgroundTheme from "@/components/background/BackgroundTheme";
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();
@@ -52,9 +52,11 @@ export default function DashboardPage() {
           {tab === "events" && subTab === "past" && <PastEventsPage />}
           {tab === "events" && subTab === "create" && <CreateEventPage />}
           {tab === "events" && subTab === "details" && <EventPage />}
-          {tab === "event" && subTab === "invites" && <EventInvitesPage />}
+          {tab === "event" && subTab === "invites" && <EventInvitesPage params={{
+                      id: ""
+                  }} />}
           {tab === "event" && subTab === "reminder" && <EventReminderPage />}
-          {tab === "event" && subTab === "request" && <RequestPage />}
+          {tab === "event" && subTab === "request" && <WishlistRequestPage />}
           {tab === "wishlists" && subTab === "create" && <CreateWishlistPage />}
           {tab === "wishlists" && subTab === "list" && <WishlistsPage />}
           {tab === "wishlists" && subTab === "details" && <WishlistDetailPage />}
@@ -62,7 +64,9 @@ export default function DashboardPage() {
           {tab === "users" && subTab === "profile" && <UserProfilePage />}
           {(tab === "dashboard" || (tab === "" && subTab === "")) && <DashboardInfo />}
           {tab === "user" && (subTab === "followers" || subTab === "following") && (
-            <FollowersFollowingList />
+            <FollowersFollowingList params={{
+                          profileId: ""
+                      }} />
           )}
         </main>
       </BackgroundPattern>

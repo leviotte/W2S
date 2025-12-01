@@ -9,11 +9,11 @@ import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
 import { Plus, Trash2 } from "lucide-react";
-import AffiliateProducts from "@/components/AffliateProductsOnBlog";
+import AffiliateProducts from "@/components/AffiliateProductsOnBlog";
 
 // Dynamisch importeren van ReactQuill zodat SSR geen problemen geeft
-const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });
-import "react-quill/dist/quill.snow.css";
+const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false });
+import "react-quill-new/dist/quill.snow.css";
 
 interface AmazonProduct {
   ASIN: string;

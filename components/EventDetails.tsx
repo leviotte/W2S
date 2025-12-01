@@ -11,11 +11,11 @@ import {
 } from "lucide-react";
 import CountdownTimer from "./CountdownTimer";
 import EventDetailsForm from "./event/EventDetailsForm";
-import { EventDetailsData } from "../types/event";
+import { EventDetailsData } from "./event/EventDetailsForm";
 import { toast } from "sonner";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { useStore } from "@/store/useStore";
+import { useStore } from "@/lib/store/useStore";
 
 interface EventDetailsProps {
   name: string;
