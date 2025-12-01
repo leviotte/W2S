@@ -14,7 +14,7 @@ import DateInput from "@/components/DateInput";
 import { collection, getDocs } from "firebase/firestore";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { useStore } from "@/store/useStore";
+import { useStore } from "@/lib/store/useStore";
 
 const RequiredFieldMarker = () => (
   <Tooltip.Provider>

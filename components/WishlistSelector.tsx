@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useStore } from "@/store/useStore";
+import { useStore } from "@/lib/store/useStore";
 
 /**
  * State-of-the-art Next.js 16 upgrade for WishlistSelector

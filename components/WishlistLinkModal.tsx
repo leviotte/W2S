@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { X, Plus } from "lucide-react";
-import { useStore } from "@/store/useStore";
+import { useStore } from "@/lib/store/useStore";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 

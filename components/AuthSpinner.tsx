@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useAuth } from "./AuthContext";
+import { useAuth } from "@/app/dashboard/layout";
 import { HashLoader } from "react-spinners";
 
 interface AuthSpinnerProps {

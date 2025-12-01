@@ -2,9 +2,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import DashEventCards from "@/components/DashEventCards";
+import DashEventCards from "@/components/dashboard/DashEventCards";
 import FollowersFollowingCards from "@/components/FollowersFollowingCards";
-import { useStore } from "@/store/useStore";
+import { useStore } from "@/lib/store/useStore";
 import { setupRealtimeListener } from "@/utils/followActions";
 import { getOrganizedEventCount } from "@/utils/eventUpdates";
 

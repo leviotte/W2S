@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import AffiliateProducts from "@/components/AffiliateProductsOnBlog";
 import { collection, doc, getDoc, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { useStore } from "@/store/useStore";
+import { useStore } from "@/lib/store/useStore";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 interface AmazonProduct {

@@ -14,7 +14,7 @@ import {
   CircleUserRound,
   Plus,
 } from "lucide-react";
-import { useStore } from "@/store/useStore";
+import { useStore } from "@/lib/store/useStore";
 import { useAuth } from "@/dashboard/layout";
 import NotificationBadge from "@/components/NotificationBadge";
 import {

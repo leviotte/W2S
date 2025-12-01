@@ -6,8 +6,8 @@ import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "fireb
 import { db } from "@/lib/firebase";
 import { Event } from "@/types/event";
 import { HashLoader } from "react-spinners";
-import { useStore } from "@/store/useStore";
-import { useAuth } from "@/components/AuthContext";
+import { useStore } from "@/lib/store/useStore";
+import { useAuth } from "@/app/dashboard/layout";
 import { toast } from "sonner";
 
 const EventParticipationPage = () => {

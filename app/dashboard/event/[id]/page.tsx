@@ -9,13 +9,13 @@ import EventDetails from "@/components/EventDetails";
 import DrawnNameSection from "@/components/DrawnNameSection";
 import WishlistsSection from "@/components/WishlistsSection";
 import GroupChat from "@/components/GroupChat";
-import LoadingSpinner from "@/components/LoadingSpinner";
+import Loadingspinner from "@/components/LoadingSpinner";
 import ErrorFallback from "@/components/ErrorFallback";
 import PartyPrepsSection from "@/components/PartyPreps/PartyPrepsSection";
 import AdvancedEventProgressChecklist from "@/components/EventProgress";
 import ParticipantProgress from "@/components/ParticipantProgress";
 
-import { useStore } from "@/store/useStore";
+import { useStore } from "@/lib/store/useStore";
 import { useEventMessages } from "@/hooks/useEventMessages";
 import { useEventParticipants } from "@/hooks/useEventParticipants";
 

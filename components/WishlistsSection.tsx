@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { Gift, Trash, UserPlus, UserMinus } from 'lucide-react';
 import { toast } from 'sonner';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db } from '@/lib/firebase';
 import WishlistLinkModal from '@/components/WishlistLinkModal';
 import type { Participant } from '@/types/event';
 

@@ -6,8 +6,8 @@ import { db } from "@/lib/firebase";
 import { getDoc, doc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { toast } from "sonner";
 import { HashLoader } from "react-spinners";
-import { useStore } from "@/store/useStore";
-import { useAuth } from "@/components/AuthContext";
+import { useStore } from "zustand";
+import { useAuth } from "@/app/dashboard/layout";
 import { Event } from "@/types/event";
 
 interface Props {

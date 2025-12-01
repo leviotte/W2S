@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useStore } from "@/store/useStore";
+import { useStore } from "@/lib/store/useStore";
 import WishlistSelector from "../WishlistSelector";
 import { toast } from "sonner";
 

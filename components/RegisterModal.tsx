@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useStore } from "@/store/useStore";
+import { useStore } from "@/lib/store/useStore";
 import { toast } from "sonner";
 import { validateBirthdate } from "@/utils/validation";
 import { cn } from "@/lib/utils";

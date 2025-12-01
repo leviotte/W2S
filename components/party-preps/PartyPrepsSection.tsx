@@ -6,7 +6,7 @@ import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor } from "
 import { restrictToWindowEdges } from "@dnd-kit/modifiers";
 import { toast } from "sonner";
 
-import { useStore } from "@/store/useStore";
+import { useStore } from "@/lib/store/useStore";
 import TaskList from "./TaskList";
 import ParticipantList from "../ParticipantList";
 import DraggableParticipant from "./DraggableParticipant";

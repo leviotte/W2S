@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Mail, Copy } from "lucide-react";
-import { toast } from "react-toastify";
-import { useStore } from "@/store/useStore";
+import { toast } from "sonner";
+import { useStore } from "@/lib/store/useStore";
 import InviteMethodCard from "@/components/invites/InviteMethodCard";
 
 const EventReminderPage = () => {
