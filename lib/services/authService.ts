@@ -1,3 +1,4 @@
+// lib/services/authService.ts
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -8,11 +9,11 @@ import {
   updatePassword as fbUpdatePassword,
   EmailAuthProvider,
   reauthenticateWithCredential,
-  User
+  User,
 } from "firebase/auth";
 
-import { auth } from "@/lib/firebase";
-import { databaseService } from "./database";
+import { getClientAuth } from "@/lib/firebase";
+import { databaseService } from "./databaseService";
 
 export interface RegisterPayload {
   email: string;
@@ -21,32 +22,33 @@ export interface RegisterPayload {
   lastName: string;
 }
 
+/**
+ * Client-side auth helper. Must be invoked from client-only code.
+ */
+const auth = getClientAuth();
+
 export const authService = {
   /**
-   * Register new user + create Firestore profile
+   * Register new user + create Firestore profile.
+   * Note: databaseService.create uses serverTimestamp for createdAt/updatedAt.
    */
   async register({ email, password, firstName, lastName }: RegisterPayload) {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    // Firestore user profile
+    // Create a user profile in Firestore (client write).
+    // databaseService.create will add serverTimestamp fields.
     await databaseService.create("users", user.uid, {
       firstName,
       lastName,
       email,
-      firstName_lower: firstName.toLocaleLowerCase(),
-      lastName_lower: lastName.toLocaleLowerCase(),
-      notifications: {
-        email: true
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      firstName_lower: (firstName || "").toLowerCase(),
+      lastName_lower: (lastName || "").toLowerCase(),
+      notifications: { email: true },
     });
 
     // Update Firebase Auth profile
-    await updateProfile(user, {
-      displayName: `${firstName} ${lastName}`
-    });
+    await updateProfile(user, { displayName: `${firstName} ${lastName}` });
 
     // Trigger email verification
     await sendEmailVerification(user);
@@ -58,6 +60,7 @@ export const authService = {
    * Login user
    */
   async login(email: string, password: string): Promise<User> {
+    // setPersistence already configured in lib/firebase via setPersistence
     const user = (await signInWithEmailAndPassword(auth, email, password)).user;
     return user;
   },
@@ -83,10 +86,8 @@ export const authService = {
     if (!user.email) {
       throw new Error("User has no email defined");
     }
-
     const credential = EmailAuthProvider.credential(user.email, currentPassword);
-
     await reauthenticateWithCredential(user, credential);
     await fbUpdatePassword(user, newPassword);
-  }
+  },
 };
