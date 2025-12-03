@@ -1,136 +1,93 @@
-// app/services/amazonService.ts
-import { AmazonPaApiClient, SearchItemsRequest } from "amazon-pa-api5-node-ts";
+// src/lib/services/amazonService.ts
+import { Product } from '@/types/products';
+import { AmazonPaApiClient, type SearchItemsRequest } from 'amazon-pa-api5-node-ts';
 
-export interface AmazonProduct {
-  ID: string;
-  URL: string;
-  Title: string;
-  ShortName: string;
-  ImageURL: string;
-  Ean: string | null;
-  Price: number;
-  Source: "AMZ";
-}
+// Senior Mentor Tip: Zorg dat je path aliases hebt geconfigureerd in je tsconfig.json
+// "paths": { "@/*": ["./src/*"] }
 
-// Age and gender contextual search mapping (in Dutch)
-const ageGenderMapping = {
-  "under-12": { women: "voor meisjes kinderen", men: "voor jongens kinderen", unisex: "voor kinderen" },
-  "12-18": { women: "voor tienermeisjes", men: "voor tienerjongens", unisex: "voor tieners" },
-  "18-25": { women: "voor jonge vrouwen", men: "voor jonge mannen", unisex: "voor jongeren" },
-  "25-35": { women: "voor vrouwen", men: "voor mannen", unisex: "voor volwassenen" },
-  "35-50": { women: "voor vrouwen", men: "voor mannen", unisex: "voor volwassenen" },
-  "over-50": { women: "voor oudere vrouwen", men: "voor oudere mannen", unisex: "voor ouderen" },
-};
-
-// Popular Dutch search filters for product enhancing
-const dutchSearchFilters = [
-  "beste kwaliteit", "populair", "aanbevolen", "bestseller",
-  "nieuw", "trending", "aanbieding"
-];
-
-// Map Amazon categories to valid SearchIndex values
-const categoryMapping: Record<string, string> = {
-  "Clothing & Jewelry": "Apparel",
-  "Food & Drinks": "Grocery",
-  "Toys & Games": "Toys",
-  "Sports & Outdoors": "SportingGoods",
-  "Cell Phones & Accessories": "Electronics",
-  "Arts, Crafts & Sewing": "ArtsAndCrafts",
-  "All": "All"
-};
-
-// Singleton PAAPI client
+// Singleton PAAPI client. Herbruikt de connectie voor optimale prestaties.
 const client = new AmazonPaApiClient({
-  accessKey: process.env.PAAPI_ACCESS_KEY!,
-  secretKey: process.env.PAAPI_SECRET_KEY!,
-  partnerTag: process.env.PAAPI_PARTNER_TAG!,
-  host: "webservices.amazon.com",
-  region: "us-east-1",
+  accessKey: process.env.AWS_ACCESS_KEY_WISH!,
+  secretKey: process.env.AWS_SECRET_KEY_WISH!,
+  partnerTag: process.env.AWS_PARTNER_TAG!,
+  host: process.env.AWS_HOST || 'webservices.amazon.com.be',
+  region: process.env.AWS_REGION || 'eu-west-1',
 });
 
+const categoryMapping: Record<string, string> = {
+  'Kleding & Sieraden': 'Apparel',
+  'Eten & Drinken': 'Grocery',
+  'Speelgoed & Spellen': 'Toys',
+  'Sport & Outdoor': 'SportingGoods',
+  'Telefoons & Accessoires': 'Electronics',
+  'Knutselen & Naaien': 'ArtsAndCrafts',
+  'All': 'All',
+};
+
 /**
- * Fetch Amazon products with optional filters
+ * Haalt producten op van de Amazon PA-API, gestandaardiseerd naar onze Product interface.
  */
-export const getAmazonProducts = async (
+export async function getAmazonProducts(
   keyword: string,
-  category: string = "All",
-  minPrice?: number,
-  maxPrice?: number,
-  page: number = 1,
-  pageSize: number = 10,
-  age?: keyof typeof ageGenderMapping,
-  gender?: "women" | "men" | "unisex"
-): Promise<AmazonProduct[]> => {
+  category: string,
+  minPriceStr: string,
+  maxPriceStr: string,
+  sortBy: string,
+): Promise<Product[]> {
   if (!keyword) return [];
 
-  // Enhance search keyword with filters
-  let searchKeyword = keyword;
-  if (age && gender) searchKeyword += ` ${ageGenderMapping[age][gender]}`;
-  searchKeyword += " " + dutchSearchFilters.join(" ");
+  // Amazon's API vereist prijzen in centen (als integer).
+  const minPrice = minPriceStr ? Math.round(parseFloat(minPriceStr) * 100) : undefined;
+  const maxPrice = maxPriceStr ? Math.round(parseFloat(maxPriceStr) * 100) : undefined;
 
   const request: SearchItemsRequest = {
-    Keywords: searchKeyword,
-    SearchIndex: categoryMapping[category] || "All",
+    Keywords: keyword,
+    SearchIndex: categoryMapping[category] || 'All',
     Resources: [
-      "Images.Primary.Medium",
-      "ItemInfo.Title",
-      "Offers.Listings.Price",
-      "ItemInfo.ExternalIds",
-      "DetailPageURL",
+      'Images.Primary.Medium',
+      'ItemInfo.Title',
+      'ItemInfo.ExternalIds',
+      'Offers.Listings.Price',
+      'CustomerReviews.Count',
+      'CustomerReviews.StarRating',
+      'DetailPageURL',
     ],
-    ItemPage: page,
+    ItemCount: 20,
+    PartnerType: 'Associates',
+    Condition: 'New',
+    MinPrice: minPrice,
+    MaxPrice: maxPrice,
+    // Vertaal onze generieke sortBy naar de specifieke waarden van Amazon.
+    SortBy: sortBy === 'PRICE_ASC' ? 'Price:LowToHigh' : sortBy === 'PRICE_DESC' ? 'Price:HighToLow' : 'Relevance',
   };
 
   try {
+    // Deze library gebruikt zijn eigen fetch-implementatie, dus Next.js caching
+    // via het { next: ... } object is hier niet van toepassing. Caching gebeurt in de API route.
     const response = await client.searchItems(request);
 
-    const items: AmazonProduct[] =
-      response.items?.map((item) => {
-        const title = item.itemInfo?.title?.displayValue || "Unnamed Product";
-        const imageUrl = item.images?.primary?.medium?.url || "No Image";
-        const url = item.detailPageUrl || "#";
-        const priceStr = item.offers?.listings?.[0]?.price?.displayAmount;
-        const ean = item.itemInfo?.externalIds?.eans?.[0] || null;
+    if (!response.SearchResult?.Items) {
+      console.warn(`Amazon: Geen resultaten voor '${keyword}'`);
+      return [];
+    }
 
-        return {
-          ID: item.asin,
-          URL: url,
-          Title: title,
-          ShortName: extractShortName(title),
-          ImageURL: imageUrl,
-          Ean: ean,
-          Price: extractPrice(priceStr),
-          Source: "AMZ",
-        };
-      }) || [];
-
-    return items;
-  } catch (error) {
-    console.error("❌ PAAPI request failed:", error);
-    return [];
+    // Map de Amazon response naar onze gestandaardiseerde Product interface.
+    return response.SearchResult.Items.map((item): Product => {
+      return {
+        source: 'Amazon',
+        id: item.ASIN!,
+        title: item.ItemInfo?.Title?.DisplayValue || 'Geen titel',
+        url: item.DetailPageURL!,
+        imageUrl: item.Images?.Primary?.Medium?.URL || '/placeholder-image.jpg',
+        price: item.Offers?.Listings?.[0]?.Price?.Amount || 0,
+        ean: item.ItemInfo?.ExternalIds?.EANs?.DisplayValues?.[0],
+        rating: item.CustomerReviews?.StarRating,
+        reviewCount: item.CustomerReviews?.Count,
+      };
+    });
+  } catch (error: any) {
+    // De API library geeft gedetailleerde errors, die we hier loggen.
+    console.error('Fout bij Amazon PA-API request:', JSON.stringify(error?.data, null, 2));
+    return []; // Geef altijd een lege array terug, zodat de hele app niet crasht.
   }
-};
-
-// -------------------- Helpers --------------------
-
-function extractShortName(name: string): string {
-  if (!name) return "Unnamed Product";
-  const words = name.toLowerCase().split(" ");
-  const filtered = words.filter(
-    (word) =>
-      ![
-        "gb", "5g", "4g", "256gb", "128gb", "64gb",
-        "black", "blue", "green", "series", "pro",
-        "watch", "case", "cover", "accessory",
-        "phone", "smartwatch",
-      ].includes(word)
-  );
-  return filtered.slice(0, 3).join(" ") || "Unnamed Product";
-}
-
-function extractPrice(priceString?: string): number {
-  if (!priceString) return 0;
-  let cleaned = priceString.replace(/[^\d.,]/g, "").replace(/\s/g, "").replace(",", ".");
-  const parsed = parseFloat(cleaned);
-  return isNaN(parsed) ? 0 : parsed;
 }
