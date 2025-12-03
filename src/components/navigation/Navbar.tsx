@@ -14,9 +14,9 @@ import {
   CircleUserRound,
   Plus,
 } from "lucide-react";
-import { useStore } from "@/src/lib/store/useStore";
+import { useStore } from "@/lib/store/useStore";
 import { useAuth } from "@/dashboard/layout";
-import NotificationBadge from "@/src/components/NotificationBadge";
+import NotificationBadge from "@/components/NotificationBadge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +24,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/src/components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 
 export default function Navbar() {
   const { currentUser, logout, events, profiles } = useStore();

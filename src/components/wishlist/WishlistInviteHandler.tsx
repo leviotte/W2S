@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { UserPlus } from "lucide-react";
-import ShareWishlistModal from "../SearchWishlistModal";
+import ShareWishlistModal from "./SearchWishlistModal";
 
 interface WishlistInviteHandlerProps {
   recipientFirstName?: string;

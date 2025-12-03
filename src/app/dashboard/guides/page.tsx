@@ -5,13 +5,13 @@ import dynamic from "next/dynamic";
 import userGuideSVG from "/user_guide.svg";
 import { PenTool, Calendar, Gift, Heart, Ticket } from "lucide-react";
 
-const DrawingGuidePage = dynamic(() => import("./guides/DrawingGuidePage"));
-const EventGuidePage = dynamic(() => import("./guides/EventGuidePage"));
+const DrawingGuidePage = dynamic(() => import("../../guides/drawing/page"));
+const EventGuidePage = dynamic(() => import("../../guides/event/page"));
 const SubscriptionGuidePage = dynamic(
-  () => import("./guides/SubscriptionGuidePage")
+  () => import("../../guides/subscription/page")
 );
 const WishlistGuidePage = dynamic(
-  () => import("./guides/WishlistGuidePage")
+  () => import("../../guides/wishlist/page")
 );
 
 export default function GuidesPage() {

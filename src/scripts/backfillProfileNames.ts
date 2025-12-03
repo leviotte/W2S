@@ -1,39 +1,58 @@
-// scripts/backfillProfileNames.ts
 /**
- * Run locally:
- *   node -r ts-node/register scripts/backfillProfileNames.ts
+ * Dit script vult de 'name_lower' velden in voor bestaande profielen.
+ * Draai lokaal met:
+ *   npx ts-node --project tsconfig.node.json scripts/backfillProfileNames.ts
  *
- * Ensure FIREBASE_SERVICE_ACCOUNT env var is set (stringified JSON).
+ * Zorg ervoor dat de FIREBASE environment variabelen correct zijn ingesteld in je .env.local file.
  */
 
-import { db, auth } from "@/lib/server/firebaseAdmin";
+// Forceer de 'development' environment voor ts-node zodat .env.local wordt geladen
+process.env.NODE_ENV = 'development'; 
 
-async function run() {
+import { db } from '../lib/server/firebaseAdmin';
+
+async function runBackfill() {
+  console.log('Starting profile backfill script...');
   try {
-    const db = initFirebaseAdmin();
-    const snapshot = await db.collection("profiles").get();
-    const updates: Array<Promise<any>> = [];
+    // De 'db' wordt direct geïmporteerd en is al geïnitialiseerd.
+    const profilesRef = db.collection('profiles');
+    const snapshot = await profilesRef.get();
+
+    if (snapshot.empty) {
+      console.log('No profiles found to update.');
+      return;
+    }
+
+    const updates: Promise<FirebaseFirestore.WriteResult>[] = [];
+    
     snapshot.forEach((doc) => {
       const data = doc.data();
-      const name = data.name || "";
+      const name = data.name || '';
+
+      // Controleer of 'name_lower' niet bestaat of leeg is
       if (!data.name_lower) {
+        console.log(`Queueing update for profile ${doc.id} (Name: "${name}")`);
         updates.push(
-          db.collection("profiles").doc(doc.id).update({
-            name_lower: (name || "").toLowerCase(),
+          profilesRef.doc(doc.id).update({
+            name_lower: name.toLowerCase(),
           })
         );
       }
     });
+
+    if (updates.length === 0) {
+        console.log("All profiles already have 'name_lower'. No updates needed.");
+        return;
+    }
+
     await Promise.all(updates);
-    console.log("Updated", updates.length, "profiles");
+    console.log(`Successfully updated ${updates.length} profiles.`);
+
   } catch (err) {
-    console.error("Backfill script failed:", err);
-    process.exitCode = 1;
+    console.error('Backfill script failed:', err);
+    process.exitCode = 1; // Geef aan dat het script is mislukt
   }
 }
 
-if (require.main === module) {
-  run();
-}
-
-export default run;
+// Draai het script
+runBackfill();

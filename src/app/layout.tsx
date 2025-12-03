@@ -1,6 +1,6 @@
 // app/layout.tsx
 import type { Metadata } from "next";
-import '../styles/globals.css';
+import '@/app/globals.css';
 
 import Providers from "../components/layout/Providers";
 import Navbar from "@/components/navigation/Navbar";
