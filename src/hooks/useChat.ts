@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useStore } from '@/src/lib/store/useStore';
-import { Event } from '@/src/types/event';
-import { Message } from '@/src/types/chat';
+import { useStore } from '@/lib/store/useStore';
+import { Event } from '@/types/event';
+import { Message } from '@/types/chat';
 import { toast } from 'sonner';
 
 export const useChat = (event: Event | undefined, currentUserId: string) => {

@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { Search, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/src/lib/firebase';
-import LoadingSpinner from '@/src/components/LoadingSpinner';
-import WishlistInviteHandler from '@/src/components/wishlist/WishlistInviteHandler';
+import { db } from '@/lib/client/firebase';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import WishlistInviteHandler from '@/components/wishlist/WishlistInviteHandler';
 
 export default function WishlistRequestPage() {
   const [formData, setFormData] = useState({ firstName: '', lastName: '' });

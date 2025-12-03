@@ -1,7 +1,7 @@
 // app/api/tools/backfill-profiles/route.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { initFirebaseAdmin } from "@/src/lib/firebasAdmin";
+import { db, auth } from "@/lib/server/firebaseAdmin";
 
 const BACKFILL_SECRET = process.env.BACKFILL_SECRET || process.env.ADMIN_API_KEY;
 

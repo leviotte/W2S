@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, deleteField } from "firebase/firestore";
-import { db } from "@/src/lib/firebase";
+import { db } from "@/lib/client/firebase";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
-import ManageRequestsTable from "@/src/components/ManageRequestsTable";
+import ManageRequestsTable from "@/components/ManageRequestsTable";
 
 interface EventRequest {
   id: string;

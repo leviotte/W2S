@@ -2,10 +2,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import Hero from "@/src/components/Hero";
-import Features from "@/src/components/Features";
-import HowItWorks from "@/src/components/HowItWorks";
-import SearchButton from "@/src/components/SearchButton";
+import Hero from "@/components/Hero";
+import Features from "@/components/Features";
+import HowItWorks from "@/components/HowItWorks";
+import SearchButton from "@/components/SearchButton";
 
 export default function HomePage() {
   const router = useRouter();

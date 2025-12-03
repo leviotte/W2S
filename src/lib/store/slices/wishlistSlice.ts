@@ -13,7 +13,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { db } from "@/src/lib/firebase";
+import { db } from "@/lib/client/firebase";
 import { toast } from "sonner";
 
 export interface Wishlist {

@@ -13,11 +13,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/src/components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useStore } from "@/src/lib/store/useStore";
+import { useStore } from "@/lib/store/useStore";
 
 import {
   collection,
@@ -27,7 +27,7 @@ import {
   DocumentData,
 } from "firebase/firestore";
 
-import { db } from "@/src/lib/firebase";
+import { db } from "@/lib/client/firebase";
 
 interface User {
   id: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import RequiredFieldMarker from "@/src/components/RequiredFieldMarker";
+import RequiredFieldMarker from "@/components/RequiredFieldMarker";
 
 const inputClasses =
   "mt-1 block w-full rounded-md border-2 border-gray-300 shadow-sm focus:border-warm-olive focus:ring-warm-olive";

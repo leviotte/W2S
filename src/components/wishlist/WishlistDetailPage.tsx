@@ -11,10 +11,10 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { db } from "@/src/lib/firebase";
+import { db } from "@/lib/client/firebase";
 import { Gift, Edit2, Save, Trash2, Plus, X, Image } from "lucide-react";
 import { toast } from "react-toastify";
-import UserAvatar from "@/src/components/UserAvatar";
+import UserAvatar from "@/components/UserAvatar";
 import { AffiliateProducts } from "../AffiliateProducts";
 
 interface WishlistItem {

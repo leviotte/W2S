@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { Message } from "@/components/types/chat";
-import ChatMessage from "@/src/components/chat/ChatMessage";
-import { shouldShowDate, formatChatDate } from "@/src/utils/chat";
-import LoadingSpinner from "@/src/components/LoadingSpinner";
+import ChatMessage from "@/components/chat/ChatMessage";
+import { shouldShowDate, formatChatDate } from "@/utils/chat";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 interface VirtualizedMessageListProps {
   messages: Message[];

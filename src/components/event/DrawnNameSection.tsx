@@ -4,9 +4,9 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Gift } from "lucide-react";
 import { useRouter } from "next/navigation";
 import NameDrawingAnimation from "./NameDrawingAnimation";
-import { useStore } from "@/src/lib/store/useStore";
+import { useStore } from "@/lib/store/useStore";
 import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/src/lib/firebase";
+import { db } from "@/lib/client/firebase";
 
 interface Participant {
   id: string;

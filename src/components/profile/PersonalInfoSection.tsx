@@ -1,7 +1,7 @@
 "use client";
 
-import RequiredFieldMarker from "@/src/components/RequiredFieldMarker";
-import DateInput from "@/src/components/DateInput";
+import RequiredFieldMarker from "@/components/RequiredFieldMarker";
+import DateInput from "@/components/DateInput";
 
 export interface PersonalInfo {
   firstName: string;

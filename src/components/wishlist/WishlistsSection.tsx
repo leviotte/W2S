@@ -8,9 +8,9 @@ import { useRouter } from 'next/navigation';
 import { Gift, Trash, UserPlus, UserMinus } from 'lucide-react';
 import { toast } from 'sonner';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@/src/lib/firebase';
-import WishlistLinkModal from '@/src/components/wishlist/WishlistLinkModal';
-import type { Participant } from '@/src/types/event';
+import { db } from '@/lib/client/firebase';
+import WishlistLinkModal from '@/components/wishlist/WishlistLinkModal';
+import type { Participant } from '@/types/event';
 
 interface WishlistsSectionProps {
   participants: Participant[];

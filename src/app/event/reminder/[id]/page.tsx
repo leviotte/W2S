@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Mail, Copy } from "lucide-react";
 import { toast } from "sonner";
-import { useStore } from "@/src/lib/store/useStore";
-import InviteMethodCard from "@/src/components/invites/InviteMethodCard";
+import { useStore } from "@/lib/store/useStore";
+import InviteMethodCard from "@/components/invites/InviteMethodCard";
 
 const EventReminderPage = () => {
   const { id } = useParams<{ id: string }>();

@@ -9,7 +9,7 @@ import {
   doc,
   onSnapshot,
 } from "firebase/firestore";
-import { db } from "@/src/lib/firebase"; // pas path aan indien nodig
+import { db } from "@/lib/client/firebase"; // pas path aan indien nodig
 
 interface Category {
   id: string;

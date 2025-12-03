@@ -1,9 +1,9 @@
 import React, { useState, useRef } from "react";
 import { Edit2, Trash2, Check, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import UserAvatar from "@/src/components/UserAvatar";
-import { Message } from "@/src/types/event";
-import { getPseudonymForUser } from "@/src/utils/pseudonyms";
+import UserAvatar from "@/components/UserAvatar";
+import { Message } from "@/types/event";
+import { getPseudonymForUser } from "@/utils/pseudonyms";
 
 
 interface ChatMessageProps {

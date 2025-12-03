@@ -1,4 +1,4 @@
-import { Message } from "@/src/types/event";
+import { Message } from "@/types/event";
 
 export const formatChatDate = (timestamp: string): string => {
   const date = new Date(timestamp);

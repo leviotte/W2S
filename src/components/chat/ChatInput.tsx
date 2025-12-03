@@ -2,9 +2,9 @@ import React, { useState, useRef } from "react";
 import { Send, Smile, Image as GifIcon } from "lucide-react";
 import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 import { IGif } from "@giphy/js-types";
-import { useClickOutside } from "@/src/hooks/useClickOutside";
-import AutoGrowTextarea from "@/src/components/chat/AutoGrowTextarea";
-import GifPicker from "@/src/components/chat/GifPicker";
+import { useClickOutside } from "@/hooks/useClickOutside";
+import AutoGrowTextarea from "@/components/chat/AutoGrowTextarea";
+import GifPicker from "@/components/chat/GifPicker";
 
 interface ChatInputProps {
   onSendMessage: (

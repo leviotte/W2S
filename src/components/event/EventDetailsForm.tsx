@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { Save, X } from "lucide-react";
 import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/src/lib/firebase";
+import { db } from "@/lib/client/firebase";
 
 export interface EventDetailsData {
   name: string;

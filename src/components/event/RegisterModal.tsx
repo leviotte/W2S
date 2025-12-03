@@ -1,16 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useStore } from "@/src/lib/store/useStore";
+import { useStore } from "@/lib/store/useStore";
 import { toast } from "sonner";
-import { validateBirthdate } from "@/src/utils/validation";
-import { cn } from "@/src/lib/utils";
-import { Card, CardContent } from "@/src/components/ui/card";
-import { Label } from "@/src/components/ui/label";
-import { Input } from "@/src/components/ui/input";
-import { Button } from "@/src/components/ui/button";
+import { validateBirthdate } from "@/utils/validation";
+import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import DateInput from "@/src/components/DateInput";
+import DateInput from "@/components/DateInput";
 import { useRouter } from "next/navigation";
 
 interface RegisterModalProps {

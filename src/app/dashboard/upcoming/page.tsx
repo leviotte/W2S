@@ -2,20 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import CountdownTimer from "@/src/components/CountdownTimer";
-import { useStore } from "@/src/lib/store/useStore";
+import CountdownTimer from "@/components/CountdownTimer";
+import { useStore } from "@/lib/store/useStore";
 import {
   Card,
   CardHeader,
   CardContent,
   CardDescription,
-} from "@/src/components/ui/card";
-import { Popover, PopoverContent, PopoverTrigger } from "@/src/components/ui/popover";
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/src/components/ui/alert-dialog";
+} from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { MdEvent, MdMoreVert, MdCheck, MdClose } from "react-icons/md";
 import { Circle, UserPlus, AlertCircle, ListChecks, GiftIcon, PartyPopper } from "lucide-react";
 import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "@/src/lib/firebase";
+import { db } from "@/lib/client/firebase";
 import { motion } from "framer-motion";
 
 interface Participant {

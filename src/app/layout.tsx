@@ -3,12 +3,12 @@ import type { Metadata } from "next";
 import '../styles/globals.css';
 
 import Providers from "../components/layout/Providers";
-import Navbar from "@/src/components/navigation/Navbar";
-import Footer from "@/src/components/Footer";
-import BackgroundPattern from "@/src/components/background/BackgroundPattern";
-import BackgroundTheme from "@/src/components/background/BackgroundTheme";
-import CookiesConsent from "@/src/components/CookieConsent";
-import ScrollRestoration from "@/src/components/layout/ScrollRestoration";
+import Navbar from "@/components/navigation/Navbar";
+import Footer from "@/components/Footer";
+import BackgroundPattern from "@/components/background/BackgroundPattern";
+import BackgroundTheme from "@/components/background/BackgroundTheme";
+import CookiesConsent from "@/components/CookieConsent";
+import ScrollRestoration from "@/components/layout/ScrollRestoration";
 
 export const metadata: Metadata = {
   title: "Wish2Share",

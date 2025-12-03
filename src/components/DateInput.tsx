@@ -1,7 +1,7 @@
 // src/components/DateInput.tsx
 import React, { memo } from "react";
-import { Label } from "@/src/components/ui/label";
-import { Input } from "@/src/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import RequiredFieldMarker from "./RequiredFieldMarker";
 
 interface DateInputProps {

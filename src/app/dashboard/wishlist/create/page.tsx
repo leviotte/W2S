@@ -5,11 +5,11 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { AffiliateProducts } from "@/src/components/AffiliateProducts";
+import { AffiliateProducts } from "@/components/AffiliateProducts";
 import { collection, doc, getDoc, getDocs, query } from "firebase/firestore";
-import { db } from "@/src/lib/firebase";
-import { useStore } from "@/src/lib/store/useStore";
-import { useRequireAuth } from "@/src/hooks/useRequireAuth";
+import { db } from "@/lib/client/firebase";
+import { useStore } from "@/lib/store/useStore";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 interface AmazonProduct {
   ASIN: string;

@@ -5,22 +5,22 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { ErrorBoundary } from "react-error-boundary";
 
-import EventDetails from "@/src/components/event/EventDetails";
-import DrawnNameSection from "@/src/components/event/DrawnNameSection";
-import WishlistsSection from "@/src/components/wishlist/WishlistsSection";
-import GroupChat from "@/src/components/event/GroupChat";
-import LoadingSpinner from "@/src/components/LoadingSpinner";
-import ErrorFallback from "@/src/components/ErrorFallback";
-import PartyPrepsSection from "@/src/components/party-preps/PartyPrepsSection";
-import AdvancedEventProgressChecklist from "@/src/components/event/AdvancedEventProgressChecklist";
-import ParticipantProgress from "@/src/components/event/ParticipantProgress";
+import EventDetails from "@/components/event/EventDetails";
+import DrawnNameSection from "@/components/event/DrawnNameSection";
+import WishlistsSection from "@/components/wishlist/WishlistsSection";
+import GroupChat from "@/components/event/GroupChat";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import ErrorFallback from "@/components/ErrorFallback";
+import PartyPrepsSection from "@/components/party-preps/PartyPrepsSection";
+import AdvancedEventProgressChecklist from "@/components/event/AdvancedEventProgressChecklist";
+import ParticipantProgress from "@/components/event/ParticipantProgress";
 
-import { useStore } from "@/src/lib/store/useStore";
-import { useEventMessages } from "@/src/hooks/useEventMessages";
-import { useEventParticipants } from "@/src/hooks/useEventParticipants";
+import { useStore } from "@/lib/store/useStore";
+import { useEventMessages } from "@/hooks/useEventMessages";
+import { useEventParticipants } from "@/hooks/useEventParticipants";
 
 import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "@/src/lib/firebase";
+import { db } from "@/lib/client/firebase";
 
 import { X, MessageSquareMoreIcon } from "lucide-react";
 

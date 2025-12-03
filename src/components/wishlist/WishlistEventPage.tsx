@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { db } from "@/src/lib/firebase";
+import { db } from "@/lib/client/firebase";
 import {
   collection,
   doc,
@@ -15,9 +15,9 @@ import {
 } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { Gift, Edit2, Save, Trash2, Plus, X, Image } from "lucide-react";
-import UserAvatar from "@/src/components/UserAvatar";
+import UserAvatar from "@/components/UserAvatar";
 import { AffiliateProducts } from "../AffiliateProducts";
-import { useStore } from "@/src/lib/store/useStore";
+import { useStore } from "@/lib/store/useStore";
 
 interface WishlistItem {
   id: string;

@@ -5,11 +5,11 @@ import { ReactNode, useState, useEffect, useCallback, createContext, useContext 
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { auth, db } from "@/src/lib/firebase";
-import LoginModal from "@/src/components/LoginModal";
-import RegisterModal from "@/src/components/event/RegisterModal";
-import { useStore } from "@/src/lib/store/useStore";
-import { UserProfile } from "@/src/lib/store/useStore";
+import { auth, db } from "@/lib/client/firebase";
+import LoginModal from "@/components/LoginModal";
+import RegisterModal from "@/components/event/RegisterModal";
+import { useStore } from "@/lib/store/useStore";
+import { UserProfile } from "@/lib/store/useStore";
 
 interface AuthContextType {
   showLoginModal: (onSuccess?: () => void) => void;

@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { toast } from 'sonner';
-import { useStore } from '@/src/lib/store/useStore';
-import { Event } from '@/src/types/event';
-import { UserProfile } from '@/src/lib/store/useStore';
+import { useStore } from '@/lib/store/useStore';
+import { Event } from '@/types/event';
+import { UserProfile } from '@/lib/store/useStore';
 
 export const useEventMessages = (event: Event | undefined, currentUser: UserProfile | null) => {
   const { updateEvent } = useStore();

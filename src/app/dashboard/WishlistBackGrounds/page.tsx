@@ -20,8 +20,8 @@ import {
   deleteObject,
 } from "firebase/storage";
 
-import { db, app } from "@/src/lib/firebase";
-import { Switch } from "@/src/components/ui/switch";
+import { db, app } from "@/lib/client/firebase";
+import { Switch } from "@/components/ui/switch";
 
 interface BackImage {
   id: string;

@@ -2,8 +2,8 @@
 
 import "server-only";
 import { cache } from "react";
-import { AmazonSearchResultSchema } from "@/src/types/amazon";
-import { parseAmazonItem } from "@/src/lib/amazon/parse";
+import { AmazonSearchResultSchema } from "@/types/amazon";
+import { parseAmazonItem } from "@/lib/amazon/parse";
 
 const API_HOST = "https://webservices.amazon.com/paapi5/searchitems";
 const PARTNER_TAG = process.env.AMAZON_TAG!;

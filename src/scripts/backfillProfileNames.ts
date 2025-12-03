@@ -6,7 +6,7 @@
  * Ensure FIREBASE_SERVICE_ACCOUNT env var is set (stringified JSON).
  */
 
-import { initFirebaseAdmin } from "@/src/lib/firebasAdmin";
+import { db, auth } from "@/lib/server/firebaseAdmin";
 
 async function run() {
   try {

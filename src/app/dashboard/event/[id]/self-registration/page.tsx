@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { db } from "@/src/lib/firebase";
+import { db } from "@/lib/client/firebase";
 import { getDoc, doc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { toast } from "sonner";
 import { HashLoader } from "react-spinners";
 import { useStore } from "zustand";
-import { useAuth } from "@/src/app/dashboard/layout";
-import { Event } from "@/src/types/event";
+import { useAuth } from "@/app/dashboard/layout";
+import { Event } from "@/types/event";
 
 interface Props {
   params: { id: string };

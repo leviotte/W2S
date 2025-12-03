@@ -10,12 +10,12 @@ import {
   where,
   getDocs,
 } from "firebase/firestore";
-import { db } from "@/src/lib/firebase";
-import LoadingSpinner from "@/src/components/LoadingSpinner";
+import { db } from "@/lib/client/firebase";
+import LoadingSpinner from "@/components/LoadingSpinner";
 import { MapPin, Cake } from "lucide-react";
-import FollowButton from "@/src/components/FollowButton";
-import FollowersFollowingCount from "@/src/components/FollowersFollowingCount";
-import { useStore } from "@/src/lib/store/useStore";
+import FollowButton from "@/components/FollowButton";
+import FollowersFollowingCount from "@/components/FollowersFollowingCount";
+import { useStore } from "@/lib/store/useStore";
 
 interface Wishlist {
   id: string;

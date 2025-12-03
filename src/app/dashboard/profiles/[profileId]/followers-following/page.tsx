@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { db } from "@/src/lib/firebase";
+import { db } from "@/lib/client/firebase";
 import { getDocs, collection, getDoc, doc } from "firebase/firestore";
-import LoadingSpinner from "@/src/components/LoadingSpinner";
-import { useStore } from "@/src/lib/store/useStore";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import { useStore } from "@/lib/store/useStore";
 
 interface Props {
   params: { profileId: string };

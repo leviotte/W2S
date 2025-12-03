@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { Plus, X } from "lucide-react";
 import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/src/lib/firebase";
-import { useStore } from "@/src/lib/store/useStore";
-import RequiredFieldMarker from "@/src/components/RequiredFieldMarker";
+import { db } from "@/lib/client/firebase";
+import { useStore } from "@/lib/store/useStore";
+import RequiredFieldMarker from "@/components/RequiredFieldMarker";
 import { useAuth } from "../../layout";
 
 interface Participant {

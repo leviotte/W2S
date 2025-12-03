@@ -1,6 +1,6 @@
 "use server";
 
-import { authService } from "@/src/lib/services/authService";
+import { authService } from "@/lib/services/authService";
 
 export async function registerAction(formData: FormData) {
   return await authService.register({

@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { cn } from "@/src/lib/utils";
-import { Button } from "@/src/components/ui/button";
-import { Card, CardContent } from "@/src/components/ui/card";
-import { Input } from "@/src/components/ui/input";
-import { Label } from "@/src/components/ui/label";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useStore } from "../lib/store/useStore";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";

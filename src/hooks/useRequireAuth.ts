@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useStore } from '@/src/lib/store/useStore';
-import { useAuth } from '@/src/app/dashboard/layout';
+import { useStore } from '@/lib/store/useStore';
+import { useAuth } from '@/app/dashboard/layout';
 
 export const useRequireAuth = () => {
   const { currentUser } = useStore();

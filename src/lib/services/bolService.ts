@@ -1,5 +1,5 @@
 // src/lib/services/bolService.ts
-import { Product } from '@/types/product'; // Gebruik een pad-alias voor schone imports!
+import { Product } from "@/types/products";
 
 const BOL_AUTH_URL = 'https://login.bol.com/token';
 const BOL_CATALOG_API_URL = 'https://api.bol.com/marketing/catalog/v1/products/search';

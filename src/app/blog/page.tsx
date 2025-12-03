@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { collection, deleteDoc, doc, getDocs } from "firebase/firestore";
-import { db } from "@/src/lib/firebase";
+import { db } from "@/lib/client/firebase";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "zustand";
-import { Button } from "@/src/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
 export default function BlogPage() {

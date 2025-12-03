@@ -5,11 +5,11 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search as SearchIcon, Filter as FilterIcon } from "lucide-react";
 import { collection, query, where, getDocs, orderBy, startAt, endAt } from "firebase/firestore";
-import { db } from "@/src/lib/firebase"; // pas aan naar jouw firebase config path
+import { db } from "@/lib/client/firebase"; // pas aan naar jouw firebase config path
 import { toast } from "sonner";
-import UserAvatar from "@/src/components/UserAvatar";
-import LoadingSpinner from "@/src/components/LoadingSpinner";
-import WishlistInviteHandler from "@/src/components/wishlist/WishlistInviteHandler";
+import UserAvatar from "@/components/UserAvatar";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import WishlistInviteHandler from "@/components/wishlist/WishlistInviteHandler";
 
 interface SearchResult {
   id: string;

@@ -3,8 +3,8 @@ import React, { useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { cn } from "@/src/lib/utils";
-import { useStore } from "@/src/lib/store/useStore";
+import { cn } from "@/lib/utils";
+import { useStore } from "@/lib/store/useStore";
 
 /**
  * State-of-the-art Next.js 16 upgrade for WishlistSelector

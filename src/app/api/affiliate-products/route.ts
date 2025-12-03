@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAmazonProducts } from "@/src/lib/services/amazonService";
-import { getBolProducts } from "@/src/lib/services/bolService";
+import { getAmazonProducts } from "@/lib/services/amazonService";
+import { getBolProducts } from "@/lib/services/bolService";
 import stringSimilarity from "string-similarity";
-import { getAgeGroup, getGender, filterProducts } from "@/src/lib/services/productFilterService";
-import { getCategoryProducts } from "@/src/lib/services/categoryService";
+import { getAgeGroup, getGender, filterProducts } from "@/lib/services/productFilterService";
+import { getCategoryProducts } from "@/lib/services/categoryService";
 
 const dummyProducts = [
   {

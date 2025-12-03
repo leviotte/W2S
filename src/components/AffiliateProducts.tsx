@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { useAmazonSearch } from "@/src/hooks/useAmazonSearch";
+import { useAmazonSearch } from "@/hooks/useAmazonSearch";
 
 interface FilterProps {
   keyword?: string;

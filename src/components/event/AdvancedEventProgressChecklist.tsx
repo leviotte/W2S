@@ -15,7 +15,7 @@ import {
   ListChecks,
   XIcon,
 } from "lucide-react";
-import { Event } from "@/src/types/event";
+import { Event } from "@/types/event";
 
 // Props types
 interface Participant {

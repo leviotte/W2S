@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from "react";
 import DOMPurify from "dompurify";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "@/src/lib/firebase";
+import { db } from "@/lib/client/firebase";
 
 interface Platform {
   URL: string;

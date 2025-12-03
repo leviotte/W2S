@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import LoginForm from "@/src/components/LoginForm";
-import PasswordResetForm from "@/src/components/PasswordResetForm";
+import LoginForm from "@/components/LoginForm";
+import PasswordResetForm from "@/components/PasswordResetForm";
 
 interface LoginModalProps {
   isOpen: boolean;

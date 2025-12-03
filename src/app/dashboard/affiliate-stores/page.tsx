@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, where } from "@/src/lib/firebase";
-import { db } from "@/src/lib/firebase";
+import { collection, getDocs, query, where } from "@/lib/client/firebase";
+import { db } from "@/lib/client/firebase";
 
 export default function AffiliateStoresPage() {
   const [stats, setStats] = useState({

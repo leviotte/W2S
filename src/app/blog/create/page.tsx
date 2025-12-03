@@ -4,10 +4,10 @@ import React, { useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { Plus, Trash2 } from "lucide-react";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { app, db, auth } from "@/src/lib/firebase";
+import { app, db, auth } from "@/lib/client/firebase";
 import { useRouter } from "next/navigation";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { AffiliateProducts } from "@/src/components/AffiliateProducts";
+import { AffiliateProducts } from "@/components/AffiliateProducts";
 import { toast } from "sonner";
 
 // Dynamically import ReactQuill for client-side only

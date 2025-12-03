@@ -3,11 +3,11 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "@/src/lib/firebase";
-import { Event } from "@/src/types/event";
+import { db } from "@/lib/client/firebase";
+import { Event } from "@/types/event";
 import { HashLoader } from "react-spinners";
-import { useStore } from "@/src/lib/store/useStore";
-import { useAuth } from "@/src/app/dashboard/layout";
+import { useStore } from "@/lib/store/useStore";
+import { useAuth } from "@/app/dashboard/layout";
 import { toast } from "sonner";
 
 const EventParticipationPage = () => {

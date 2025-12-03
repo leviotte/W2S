@@ -13,18 +13,18 @@ import CreateEventPage from "./events/create/page";
 import EventPage from "./event/[id]/page";
 import EventInvitesPage from "./events/[id]/invites/page";
 import EventReminderPage from "../event/reminder/[id]/page";
-import WishlistRequestPage from "@/src/components/wishlist/WishlistRequestForm";
+import WishlistRequestPage from "@/components/wishlist/WishlistRequestForm";
 import CreateWishlistPage from "./wishlist/create/page";
 import WishlistsPage from "./wishlists/page";
-import WishlistDetailPage from "@/src/components/wishlist/WishlistDetailPage";
-import WishlistEventPage from "@/src/components/wishlist/WishlistEventPage";
-import UserProfilePage from "@/src/components/profile/UserProfilePage";
+import WishlistDetailPage from "@/components/wishlist/WishlistDetailPage";
+import WishlistEventPage from "@/components/wishlist/WishlistEventPage";
+import UserProfilePage from "@/components/profile/UserProfilePage";
 import DashboardInfo from "./info/page";
 import FollowersFollowingList from "./profiles/[profileId]/followers-following/page";
 
 // Wrapper component voor SSR + SEO
-import BackgroundPattern from "@/src/components/background/BackgroundPattern";
-import BackgroundTheme from "@/src/components/background/BackgroundTheme";
+import BackgroundPattern from "@/components/background/BackgroundPattern";
+import BackgroundTheme from "@/components/background/BackgroundTheme";
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();

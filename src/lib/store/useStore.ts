@@ -4,7 +4,7 @@ import { createAuthSlice, AuthSlice } from "./slices/authSlice";
 import { createEventSlice, EventSlice } from "./slices/eventSlice";
 import { createWishlistSlice, WishlistSlice } from "./slices/wishlistSlice";
 import { collection, query, onSnapshot } from "firebase/firestore";
-import { db } from "@/src/lib/firebase";
+import { db } from "@/lib/client/firebase";
 
 export interface UserProfile {
   id: string;

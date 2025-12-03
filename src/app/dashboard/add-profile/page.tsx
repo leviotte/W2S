@@ -6,15 +6,15 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Asterisk } from "lucide-react";
 import * as Tooltip from "@radix-ui/react-tooltip";
-import { db, storage } from "@/src/lib/firebase";
+import { db, storage } from "@/lib/client/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import PhotoSection from "@/src/components/profile/PhotoSection";
+import PhotoSection from "@/components/profile/PhotoSection";
 import { SpinnerRoundFilled } from "spinners-react";
-import DateInput from "@/src/components/DateInput";
+import DateInput from "@/components/DateInput";
 import { collection, getDocs } from "firebase/firestore";
-import { Label } from "@/src/components/ui/label";
-import { Input } from "@/src/components/ui/input";
-import { useStore } from "@/src/lib/store/useStore";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { useStore } from "@/lib/store/useStore";
 
 const RequiredFieldMarker = () => (
   <Tooltip.Provider>

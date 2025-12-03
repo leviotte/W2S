@@ -11,12 +11,12 @@ import {
   getDocs,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "@/src/lib/firebase";
+import { db } from "@/lib/client/firebase";
 import { toast } from "sonner";
-import { StoreState } from "@/src/types/global";
-import { Event } from "@/src/types/event";
-import { sanitizeEventUpdate } from "@/src/utils/eventUpdates";
-import { useStore } from "@/src/lib/store/useStore";
+import { StoreState } from "@/types/global";
+import { Event } from "@/types/event";
+import { sanitizeEventUpdate } from "@/utils/eventUpdates";
+import { useStore } from "@/lib/store/useStore";
 
 // --- Types ---
 export interface EventSlice {

@@ -12,7 +12,7 @@ import {
   User,
 } from "firebase/auth";
 
-import { getClientAuth } from "@/src/lib/firebase";
+import { getClientAuth } from "@/lib/client/firebase";
 import { databaseService } from "./databaseService";
 
 export interface RegisterPayload {

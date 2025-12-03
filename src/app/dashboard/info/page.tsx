@@ -2,11 +2,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import DashEventCards from "@/src/components/dashboard/DashEventCards";
-import FollowersFollowingCards from "@/src/components/FollowersFollowingCards";
-import { useStore } from "@/src/lib/store/useStore";
-import { setupRealtimeListener } from "@/src/utils/followActions";
-import { getOrganizedEventCount } from "@/src/utils/eventUpdates";
+import DashEventCards from "@/components/dashboard/DashEventCards";
+import FollowersFollowingCards from "@/components/FollowersFollowingCards";
+import { useStore } from "@/lib/store/useStore";
+import { setupRealtimeListener } from "@/utils/followActions";
+import { getOrganizedEventCount } from "@/utils/eventUpdates";
 
 export default function DashboardInfo() {
   const { currentUser, wishlists, loadWishlists } = useStore();

@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import { db } from "@/src/lib/firebase";
+import { db } from "@/lib/client/firebase";
 import { doc, getDoc } from "firebase/firestore";
-import BackButton from "@/src/components/blog/BackButton";
+import BackButton from "@/components/blog/BackButton";
 
 export default async function PostPage({ params }: { params: { id: string } }) {
   const { id } = params;

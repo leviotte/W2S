@@ -26,9 +26,9 @@ import {
   deleteDoc,
   Timestamp,
 } from "firebase/firestore";
-import { auth, db } from "@/src/lib/firebase";
+import { auth, db } from "@/lib/client/firebase";
 import { toast } from "sonner";
-import type { StoreState, UserProfile } from "@/src/types/global";
+import type { StoreState, UserProfile } from "@/types/global";
 
 export interface AuthSlice {
   currentUser: UserProfile | null;

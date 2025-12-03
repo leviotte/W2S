@@ -4,8 +4,8 @@
 import { useState, useEffect } from "react";
 import { Gift, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useStore } from "@/src/lib/store/useStore";
-import { useAuth } from "@/src/app/dashboard/layout";
+import { useStore } from "@/lib/store/useStore";
+import { useAuth } from "@/app/dashboard/layout";
 
 const titles = [
   { text: "Trek Lootjes", id: 1 },

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '@/src/lib/firebase';
-import { useStore } from '@/src/lib/store/useStore';
+import { db } from '@/lib/client/firebase';
+import { useStore } from '@/lib/store/useStore';
 
 export interface WishlistItem {
   id: string;

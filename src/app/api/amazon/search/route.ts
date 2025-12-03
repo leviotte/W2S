@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAmazonProducts } from "@/src/lib/services/amazonService";
+import { getAmazonProducts } from "@/lib/services/amazonService";
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get("category") || "All";
     const page = parseInt(searchParams.get("page") || "1", 10);
     const pageSize = parseInt(searchParams.get("pageSize") || "10", 10);
-    const age = (searchParams.get("age") as keyof typeof import("@/src/lib/services/amazonService").ageGenderMapping) || undefined;
+    const age = (searchParams.get("age") as keyof typeof import("@/lib/services/amazonService").ageGenderMapping) || undefined;
     const gender = (searchParams.get("gender") as "women" | "men" | "unisex") || undefined;
 
     if (!keyword) {

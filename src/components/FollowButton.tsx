@@ -6,7 +6,7 @@ import {
   followUserOrProfile,
   unfollowUserOrProfile,
   setupRealtimeListener,
-} from "@/src/utils/followActions";
+} from "@/utils/followActions";
 
 interface FollowButtonProps {
   currentUserId: string;

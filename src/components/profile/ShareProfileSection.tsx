@@ -10,9 +10,9 @@ import {
   limit,
   onSnapshot,
 } from "firebase/firestore";
-import { db } from "@/src/lib/firebase"; // pas je path aan naar je firebase config
+import { db } from "@/lib/client/firebase"; // pas je path aan naar je firebase config
 import { toast } from "react-toastify";
-import { useStore } from "@/src/lib/store/useStore";
+import { useStore } from "@/lib/store/useStore";
 
 export interface Manager {
   id: string;

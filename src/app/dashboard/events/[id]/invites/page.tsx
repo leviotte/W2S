@@ -2,11 +2,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useStore } from "@/src/lib/store/useStore";
+import { useStore } from "@/lib/store/useStore";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Copy } from "lucide-react";
 import { toast } from "sonner";
-import  InviteMethodCard from "@/src/components/invites/InviteMethodCard";
+import  InviteMethodCard from "@/components/invites/InviteMethodCard";
 
 export default function EventInvitesPage({ params }: { params: { id: string } }) {
   const { id } = params;

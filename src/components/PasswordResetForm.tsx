@@ -2,14 +2,14 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { cn } from "@/src/lib/utils";
-import { Button } from "@/src/components/ui/button";
-import { Card, CardContent } from "@/src/components/ui/card";
-import { Input } from "@/src/components/ui/input";
-import { Label } from "@/src/components/ui/label";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "@/src/lib/firebase";
+import { auth } from "@/lib/client/firebase";
 import { FirebaseError } from "firebase/app";
 import { Loader2 } from "lucide-react";
 

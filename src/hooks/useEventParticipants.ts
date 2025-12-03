@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Event, Participant } from '@/src/types/event';
+import { Event, Participant } from '@/types/event';
 
 export const useEventParticipants = (event?: Event) => {
   const [participants, setParticipants] = useState<Participant[]>([]);

@@ -1,7 +1,7 @@
 import React from "react";
-import { Message } from "@/src/types/event";
-import ChatMessage from "@/src/components/chat/ChatMessage";
-import { shouldShowDate, formatChatDate } from "@/src/utils/chat";
+import { Message } from "@/types/event";
+import ChatMessage from "@/components/chat/ChatMessage";
+import { shouldShowDate, formatChatDate } from "@/utils/chat";
 
 interface MessageListProps {
   messages: Message[];

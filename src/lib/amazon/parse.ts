@@ -1,4 +1,4 @@
-import { AmazonItemRaw, AmazonItemParsed } from "@/src/types/amazon";
+import { AmazonItemRaw, AmazonItemParsed } from "@/types/amazon";
 
 export function parseAmazonItem(raw: AmazonItemRaw): {
   raw: AmazonItemRaw;

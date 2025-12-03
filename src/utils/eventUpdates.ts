@@ -1,6 +1,6 @@
 import { collection, getDocs } from "firebase/firestore";
-import { Event } from "@/src/types/event";
-import { db } from "@/src/lib/firebase";
+import { Event } from "@/types/event";
+import { db } from "@/lib/client/firebase";
 
 /**
  * Sanitize partial Event updates to prevent Firestore errors

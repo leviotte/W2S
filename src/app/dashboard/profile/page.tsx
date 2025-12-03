@@ -6,13 +6,13 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SpinnerRoundFilled } from "spinners-react";
 
-import { useStore } from "@/src/lib/store/useStore";
-import PhotoSection from "@/src/components/profile/PhotoSection";
-import PersonalInfoSection from "@/src/components/profile/PersonalInfoSection";
-import AddressSection from "@/src/components/profile/AddressSection";
-import PasswordChangeSection from "@/src/components/PasswordChangeSection";
-import ShareProfileSection from "@/src/components/profile/ShareProfileSection";
-import { Switch } from "@/src/components/ui/switch";
+import { useStore } from "@/lib/store/useStore";
+import PhotoSection from "@/components/profile/PhotoSection";
+import PersonalInfoSection from "@/components/profile/PersonalInfoSection";
+import AddressSection from "@/components/profile/AddressSection";
+import PasswordChangeSection from "@/components/PasswordChangeSection";
+import ShareProfileSection from "@/components/profile/ShareProfileSection";
+import { Switch } from "@/components/ui/switch";
 
 import {
   arrayRemove,
@@ -22,7 +22,7 @@ import {
   onSnapshot,
   updateDoc,
 } from "firebase/firestore";
-import { db } from "@/src/lib/firebase"; // pas aan als jouw firebase client init op een andere plek staat
+import { db } from "@/lib/client/firebase"; // pas aan als jouw firebase client init op een andere plek staat
 
 interface FormData {
   firstName: string;

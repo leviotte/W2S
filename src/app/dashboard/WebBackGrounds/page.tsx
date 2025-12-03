@@ -20,12 +20,12 @@ import {
   getDownloadURL,
 } from "firebase/storage";
 
-import { db, app } from "@/src/lib/firebase";
+import { db, app } from "@/lib/client/firebase";
 
-import { Switch } from "@/src/components/ui/switch";
+import { Switch } from "@/components/ui/switch";
 import EventBackGroundsPage from "../event-backgrounds/page";
-import WishlistBackGrounds from "@/src/app/dashboard/WebBackGrounds/page";
-import BackgroundCategoryManager from "@/src/components/background/BackgroundManager";
+import WishlistBackGrounds from "@/app/dashboard/WebBackGrounds/page";
+import BackgroundCategoryManager from "@/components/background/BackgroundManager";
 
 interface BackImage {
   id: string;

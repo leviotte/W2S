@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import ProfilePage from 
 import AddAccountPage from "../add-account/page";
-import Metrics from "@/src/components/Metrics";
+import Metrics from "@/components/Metrics";
 import WebBackGrounds from "../dashboard/WebBackGrounds/page";
 import AffiliateStoresPage from "../dashboard/affiliate-stores/page";
 import BlogPage from "../blog/page";

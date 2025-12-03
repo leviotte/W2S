@@ -14,7 +14,7 @@ import {
   DocumentReference,
 } from "firebase/firestore";
 
-import { getClientFirestore } from "@/src/lib/firebase";
+import { getClientFirestore } from "@/lib/client/firebase";
 
 const db = getClientFirestore();
 

@@ -1,5 +1,5 @@
 import { doc, collection, setDoc, deleteDoc, onSnapshot, Timestamp } from "firebase/firestore";
-import { db } from "@/src/lib/firebase";
+import { db } from "@/lib/client/firebase";
 
 /**
  * Follow a user or profile
