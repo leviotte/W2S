@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss"
 
 const config = {
-  darkMode: ["class"],
+  darkMode: "class",
   content: [
     './pages/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
@@ -15,15 +15,19 @@ const config = {
       padding: "2rem",
       screens: {
         "xs": "480px",
+        "sm": "640px",
+        "md": "768px",
+        "lg": "1024px",
+        "xl": "1280px",
         "2xl": "1400px",
       },
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "Arial", "sans-serif"]
+        sans: ["Inter", "Arial", "sans-serif"],
       },
       colors: {
-        // Jouw custom kleuren - BEHOUDEN!
+        // Jouw custom kleuren
         "warm-beige": "#F5F0E6",
         "warm-olive": "#606C38",
         "cool-olive": "#283618",
@@ -69,11 +73,11 @@ const config = {
         sm: "calc(var(--radius) - 4px)",
       },
       backgroundImage: {
-        "chatBox-background": "url('/chatBackground1.png')"
+        "chatBox-background": "url('/chatBackground1.png')",
       },
       spacing: {
         "72": "18rem",
-        "84": "21rem"
+        "84": "21rem",
       },
       keyframes: {
         "accordion-down": {
@@ -84,26 +88,24 @@ const config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
-        // Jouw animaties - BEHOUDEN!
         slideInLeft: {
           "0%": { transform: "translateX(-100%)", opacity: "0" },
-          "100%": { transform: "translateX(0)", opacity: "1" }
+          "100%": { transform: "translateX(0)", opacity: "1" },
         },
         slideInRight: {
           "0%": { transform: "translateX(100%)", opacity: "0" },
-          "100%": { transform: "translateX(0)", opacity: "1" }
+          "100%": { transform: "translateX(0)", opacity: "1" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        // Jouw animaties - BEHOUDEN!
         slideInLeft: "slideInLeft 0.2s ease-out",
         slideInRight: "slideInRight 0.2s ease-in-out",
       },
     },
   },
-  plugins: [require("tailwindcss-animate")], // We voegen de andere plugins later toe als we ze nodig hebben. Hou het voor nu clean.
+  plugins: [require("tailwindcss-animate")],
 } satisfies Config
 
 export default config

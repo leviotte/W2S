@@ -1,6 +1,6 @@
 // app/api/amazon/products/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import AmazonPaApiClient from "amazon-pa-api5-node-ts";
+import { DefaultApi } from "amazon-pa-api5-node-ts";
 
 // Typen voor de Amazon response items
 interface AmazonItem {
@@ -20,7 +20,7 @@ interface AmazonItem {
   };
 }
 
-// Typen voor je frontend-output
+// Typen voor frontend output
 interface AmazonProduct {
   id: string;
   title: string;
@@ -29,21 +29,20 @@ interface AmazonProduct {
   url: string;
 }
 
-// Singleton client
-const client = new AmazonPaApiClient({
-  accessKey: process.env.PAAPI_ACCESS_KEY!,
-  secretKey: process.env.PAAPI_SECRET_KEY!,
-  partnerTag: process.env.PAAPI_PARTNER_TAG!,
-  host: "webservices.amazon.com",
-  region: "us-east-1",
-});
+const client = new DefaultApi(); // Constructor vereist geen arguments
 
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const keywords = url.searchParams.get("keywords") || "fitness";
 
+    // Credentials + request parameters worden hier meegegeven
     const response = await client.searchItems({
+      AccessKey: process.env.PAAPI_ACCESS_KEY!,
+      SecretKey: process.env.PAAPI_SECRET_KEY!,
+      PartnerTag: process.env.PAAPI_PARTNER_TAG!,
+      Host: "webservices.amazon.com",
+      Region: "us-east-1",
       Keywords: keywords,
       SearchIndex: "All",
       Resources: [
@@ -66,6 +65,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ items });
   } catch (error) {
     console.error("❌ Amazon PAAPI Error:", error);
-    return NextResponse.json({ error: "PAAPI request failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: "PAAPI request failed" },
+      { status: 500 }
+    );
   }
 }

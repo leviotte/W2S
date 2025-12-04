@@ -6,14 +6,20 @@ import { db } from '@/lib/client/firebase';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import WishlistInviteHandler from '@/components/wishlist/WishlistInviteHandler';
 
+interface FormData {
+  firstName: string;
+  lastName: string;
+}
+
 export default function WishlistRequestPage() {
-  const [formData, setFormData] = useState({ firstName: '', lastName: '' });
+  const [formData, setFormData] = useState<FormData>({ firstName: '', lastName: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [suggestInvite, setSuggestInvite] = useState(false);
-  const [recipient, setRecipient] = useState({ firstName: '', lastName: '' });
+  const [recipient, setRecipient] = useState<FormData>({ firstName: '', lastName: '' });
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
     const first = formData.firstName.trim().toLowerCase();
     const last = formData.lastName.trim().toLowerCase();
 
@@ -36,7 +42,7 @@ export default function WishlistRequestPage() {
       const snap = await getDocs(q);
 
       if (snap.empty) {
-        setRecipient({ firstName: formData.firstName, lastName: formData.lastName });
+        setRecipient({ ...formData });
         setSuggestInvite(true);
         return;
       }
@@ -75,11 +81,13 @@ export default function WishlistRequestPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">First name *</nlabel>
+              <label className="block text-sm font-medium text-gray-700">First name *</label>
               <input
                 type="text"
                 value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setFormData({ ...formData, firstName: e.target.value })
+                }
                 className="mt-1 block w-full rounded-md border-2 border-gray-300 shadow-sm focus:border-warm-olive focus:ring-warm-olive"
                 placeholder="First name"
                 required
@@ -91,7 +99,9 @@ export default function WishlistRequestPage() {
               <input
                 type="text"
                 value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setFormData({ ...formData, lastName: e.target.value })
+                }
                 className="mt-1 block w-full rounded-md border-2 border-gray-300 shadow-sm focus:border-warm-olive focus:ring-warm-olive"
                 placeholder="Last name"
                 required
