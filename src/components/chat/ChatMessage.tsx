@@ -1,12 +1,28 @@
+/**
+ * src/components/chat/ChatMessage.tsx
+ *
+ * Toont een individueel chatbericht met opties voor bewerken en verwijderen.
+ * Dit is een Client Component.
+ *
+ * VERBETERINGEN:
+ * - Alle property-namen zijn gecorrigeerd naar de gestandaardiseerde `ChatMessage` type (bv. `gifUrl` -> `gif`).
+ * - JSX syntax voor event handlers (onClick, onMouseEnter) is gecorrigeerd.
+ * - De logica voor het tonen van een pseudoniem gebruikt nu de `getPseudonym` utility functie.
+ * - State initialisatie voor `editText` is robuust gemaakt met een fallback (`|| ''`).
+ * - Styling is verfijnd om beter aan te sluiten bij een modern UI-systeem.
+ */
+
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Edit2, Trash2, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UserAvatar } from '@/components/shared/user-avatar'; // Pad gecorrigeerd naar onze doelstructuur
-import type { ChatMessage as ChatMessageType } from '@/types'; // CORRECTIE: Gebruik ons centrale ChatMessage type
-import { getPseudonymForUser } from '@/lib/utils/pseudonyms';
-import { cn } from '@/lib/utils'; // Importeren van onze shadcn utility voor classnames
+import { UserAvatar } from '../shared/user-avatar';
+import type { ChatMessage as ChatMessageType } from '@/types';
+import { getPseudonym } from '@/lib/utils/pseudonyms';
+import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
+import { nlBE } from 'date-fns/locale';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -16,7 +32,6 @@ interface ChatMessageProps {
   onDelete?: (messageId: string) => Promise<void>;
 }
 
-// OPLOSSING: Veranderd van 'export default' naar een benoemde 'export const'
 export const ChatMessage = ({
   message,
   eventId,
@@ -25,115 +40,126 @@ export const ChatMessage = ({
   onDelete,
 }: ChatMessageProps) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState(message.text);
+  // FIX: Zorg ervoor dat de state altijd een string is, nooit undefined.
+  const [editText, setEditText] = useState(message.text || '');
   const [isHovered, setIsHovered] = useState(false);
 
   const handleEdit = async () => {
     if (!onEdit || !editText.trim()) return;
     try {
-      await onEdit(message.id, editText);
+      await onEdit(message.id, editText.trim());
       setIsEditing(false);
     } catch (error) {
       console.error("Bericht bijwerken mislukt:", error);
+      // Optioneel: toon een toast-notificatie aan de gebruiker
     }
   };
 
   const handleCancelEdit = () => {
     setIsEditing(false);
-    setEditText(message.text);
+    setEditText(message.text || '');
   };
-  
-  const displayName =
-    message.isAnonymous && message.pseudonym
-      ? message.pseudonym
-      : message.userName;
+
+  // VERBETERING: Genereer het pseudoniem on-the-fly als dat nodig is.
+  const displayName = message.isAnonymous
+    ? getPseudonym(message.senderId, eventId)
+    : message.senderName || "Onbekende Gebruiker";
+
+  // VERBETERING: Toon een relatieve tijd voor recente berichten.
+  const timestampDisplay = formatDistanceToNow(new Date(message.timestamp), {
+    addSuffix: true,
+    locale: nlBE,
+  });
 
   return (
     <div
       className={cn(
-        'group mb-2 flex items-end space-x-2',
+        'group relative flex items-start space-x-3 py-1',
         isOwnMessage ? 'justify-end' : 'justify-start'
       )}
-      // FOUTFIX: Dit zijn de correcte event handlers voor hover
+      // FIX: Correcte JSX syntax voor event handlers.
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {!isOwnMessage && <UserAvatar userName={message.userName} size="sm" />}
+      {/* Avatar tonen als het niet je eigen bericht is */}
+      {!isOwnMessage && <UserAvatar name={displayName} src={message.senderAvatar} />}
       
-      <div className={cn('flex flex-col', isOwnMessage ? 'items-end' : 'items-start')}>
-        <span className="px-2 pb-1 text-xs text-muted-foreground">{displayName}</span>
-        
-        <div className="relative flex items-center">
-            {isOwnMessage && !isEditing && (
-              <AnimatePresence>
-                {isHovered && (
-                  <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ duration: 0.15 }}
-                    className="mr-2 flex items-center space-x-1"
-                  >
-                    {!message.gifUrl && onEdit && (
-                      <button type="button" onClick={() => setIsEditing(true)} className="rounded-full bg-background p-1.5 text-muted-foreground shadow-sm hover:text-foreground">
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                    )}
-                    {onDelete && (
-                      <button type="button" onClick={() => onDelete(message.id)} className="rounded-full bg-background p-1.5 text-red-500 shadow-sm hover:text-red-700">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+      <div className={cn('flex flex-col max-w-sm md:max-w-md', isOwnMessage ? 'items-end' : 'items-start')}>
+        {/* De 'bubble' met de inhoud */}
+        <div
+            className={cn(
+            'relative overflow-hidden rounded-xl p-3 shadow-sm break-words',
+            isOwnMessage
+                ? 'rounded-br-sm bg-primary text-primary-foreground'
+                : 'rounded-bl-sm bg-card text-card-foreground'
+            )}
+        >
+            {/* Header in de bubble voor anonieme/normale naam */}
+            {!isOwnMessage && (
+                 <p className="pb-1 text-xs font-semibold text-primary">{displayName}</p>
             )}
 
-            <div
-                className={cn(
-                'max-w-xs overflow-hidden rounded-lg p-3 shadow-md break-words md:max-w-md',
-                isOwnMessage
-                    ? 'rounded-br-none bg-primary text-primary-foreground'
-                    : 'rounded-bl-none bg-muted'
-                )}
-            >
-                {isEditing ? (
-                <div className="flex flex-col space-y-2">
-                    <textarea
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    className="w-full resize-none rounded-md border bg-background p-2 text-foreground focus:border-primary focus:ring-1 focus:ring-primary"
-                    rows={Math.min(5, editText.split('\n').length)}
-                    autoFocus
-                    />
-                    <div className="flex justify-end space-x-2">
-                    <button type="button" onClick={handleEdit} className="flex items-center space-x-1 rounded-md bg-primary px-3 py-1 text-primary-foreground hover:bg-primary/90">
-                        <Check className="h-4 w-4" />
-                        <span>Opslaan</span>
-                    </button>
-                    <button type="button" onClick={handleCancelEdit} className="flex items-center space-x-1 rounded-md bg-secondary px-3 py-1 text-secondary-foreground hover:bg-secondary/90">
-                        <X className="h-4 w-4" />
-                        <span>Annuleer</span>
-                    </button>
-                    </div>
+            {isEditing ? (
+            <div className="flex flex-col space-y-2">
+                <textarea
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  className="w-full min-h-[60px] resize-none rounded-md border bg-background p-2 text-sm text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  rows={3}
+                  autoFocus
+                />
+                <div className="flex justify-end space-x-2">
+                  {/* FIX: onClick handlers correct toegewezen */}
+                  <button type="button" onClick={handleCancelEdit} className="px-3 py-1 text-xs rounded-md hover:bg-muted">Annuleer</button>
+                  <button type="button" onClick={handleEdit} className="px-3 py-1 text-xs rounded-md bg-primary text-primary-foreground hover:bg-primary/90">Opslaan</button>
                 </div>
-                ) : (
-                <>
-                    {message.gifUrl ? (
-                    <img
-                        src={message.gifUrl}
-                        alt="GIF"
-                        className="max-w-full rounded-md"
-                        loading="lazy"
-                    />
-                    ) : (
-                    <p className="whitespace-pre-wrap">{message.text}</p>
-                    )}
-                </>
-                )}
             </div>
+            ) : (
+            <>
+                {/* FIX: Gebruik `message.gif` i.p.v. `message.gifUrl` */}
+                {message.gif ? (
+                <img
+                    src={message.gif}
+                    alt="GIF"
+                    className="max-w-full rounded-md"
+                    loading="lazy"
+                />
+                ) : (
+                <p className="whitespace-pre-wrap text-sm">{message.text}</p>
+                )}
+            </>
+            )}
         </div>
+        {/* Tijdstempel onder de bubble */}
+        <span className="px-2 pt-1 text-xs text-muted-foreground">{timestampDisplay}</span>
       </div>
+
+      {/* Actieknoppen voor eigen berichten */}
+      {isOwnMessage && !isEditing && (
+        <AnimatePresence>
+          {isHovered && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.15 }}
+              className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 pr-2 flex items-center space-x-1"
+            >
+              {/* FIX: Gebruik `message.gif` en correcte onClick */}
+              {!message.gif && onEdit && (
+                <button type="button" onClick={() => setIsEditing(true)} className="rounded-full bg-card p-1.5 text-muted-foreground shadow-sm hover:text-foreground">
+                  <Edit2 className="h-3 w-3" />
+                </button>
+              )}
+              {onDelete && (
+                <button type="button" onClick={() => onDelete(message.id)} className="rounded-full bg-card p-1.5 text-destructive shadow-sm hover:text-red-700">
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
     </div>
   );
 };

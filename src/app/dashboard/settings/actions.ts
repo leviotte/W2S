@@ -1,79 +1,65 @@
-/**
- * src/app/dashboard/settings/actions.ts
- * 
- * Server Actions voor de instellingenpagina van het dashboard.
- * Deze functies worden veilig op de server uitgevoerd met de Firebase ADMIN SDK.
- */
 'use server';
 
-import { z } from 'zod';
-import { FieldValue } from 'firebase-admin/firestore'; // <-- DE JUISTE IMPORT!
 import { revalidatePath } from 'next/cache';
+import { adminDb } from '@/lib/server/firebaseAdmin';
+import { getCurrentUser } from '@/lib/server/auth'; // Onze 'gold standard' auth functie!
+import { FieldValue } from 'firebase-admin/firestore';
+import { z } from 'zod';
 
-import { adminAuth, adminDb, adminStorage } from '@/lib/server/firebaseAdmin';
-import { getAuthenticatedUser } from '@/lib/auth/utils';
-
-// Zod schema voor validatie op de server
+// Schema voor de social links van een individuele gebruiker.
 const socialLinksSchema = z.object({
-  instagram: z.string().url('Ongeldige Instagram URL').or(z.literal('')).optional(),
-  facebook: z.string().url('Ongeldige Facebook URL').or(z.literal('')).optional(),
-  twitter: z.string().url('Ongeldige Twitter URL').or(z.literal('')).optional(),
-  tiktok: z.string().url('Ongeldige TikTok URL').or(z.literal('')).optional(),
-  pinterest: z.string().url('Ongeldige Pinterest URL').or(z.literal('')).optional(),
+  instagram: z.string().url().or(z.literal('')).optional(),
+  facebook: z.string().url().or(z.literal('')).optional(),
+  twitter: z.string().url().or(z.literal('')).optional(),
+  tiktok: z.string().url().or(z.literal('')).optional(),
+  pinterest: z.string().url().or(z.literal('')).optional(),
 });
 
+// State voor de useFormState hook
 export type UpdateSocialsState = {
   success: boolean;
   message: string;
 };
 
-export async function updateSocialLinks(
-  previousState: UpdateSocialsState,
+/**
+ * Server Action om de social links van de INGELELOGDE GEBRUIKER te updaten.
+ */
+export async function updateUserSocialLinks(
+  prevState: UpdateSocialsState,
   formData: FormData
 ): Promise<UpdateSocialsState> {
-  const { db } = adminAuth, adminDb, adminStorage();
-  const user = await getAuthenticatedUser();
-
+  // 1. Veilig de ingelogde gebruiker ophalen. Dit is de cruciale stap.
+  const user = await getCurrentUser();
   if (!user) {
-    return { success: false, message: 'Authenticatie mislukt. Log opnieuw in.' };
+    return { success: false, message: 'Niet geautoriseerd. Log opnieuw in.' };
   }
 
-  const rawData = Object.fromEntries(formData.entries());
+  const rawData = Object.fromEntries(formData);
   const validation = socialLinksSchema.safeParse(rawData);
 
   if (!validation.success) {
-    console.error('Validatiefout social links:', validation.error.flatten().fieldErrors);
-    return { success: false, message: 'Validatiefout. Controleer de ingevoerde URLs.' };
+    console.error('Server-side validatie gefaald:', validation.error.format());
+    return { success: false, message: 'De ingevulde gegevens zijn niet correct.' };
   }
-  
-  const { instagram, facebook, twitter, tiktok, pinterest } = validation.data;
 
   try {
-    // CORRECTE ADMIN SDK SYNTAX: db.collection().doc()
-    const userProfileRef = db.collection('users').doc(user.uid);
-    
-    // CORRECTE ADMIN SDK SYNTAX: .set() op de referentie
-    await userProfileRef.set({
-      socials: {
-        instagram: instagram || null,
-        facebook: facebook || null,
-        twitter: twitter || null,
-        tiktok: tiktok || null,
-        pinterest: pinterest || null,
-      },
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
+    // 2. We bouwen het pad naar het document van de specifieke gebruiker.
+    const userRef = adminDb.collection('users').doc(user.uid);
 
-    // Revalidate de relevante paden
-    revalidatePath('/dashboard/settings');
-    if (user.username) {
-      revalidatePath(`/profile/${user.username}`);
+    const dataToUpdate: { [key: string]: string | FieldValue } = {};
+    for (const [key, value] of Object.entries(validation.data)) {
+      dataToUpdate[`socials.${key}`] = value ? value : FieldValue.delete();
     }
 
-    return { success: true, message: 'Sociale media links succesvol bijgewerkt!' };
+    // 3. We updaten het 'socials' veld binnen het document van de gebruiker.
+    await userRef.update(dataToUpdate);
 
+    // 4. Invalideer de cache voor deze specifieke pagina.
+    revalidatePath('/dashboard/settings');
+
+    return { success: true, message: 'Je sociale profielen zijn succesvol bijgewerkt!' };
   } catch (error) {
-    console.error('Fout bij het updaten van social links:', error);
-    return { success: false, message: 'Er is een serverfout opgetreden. Probeer het later opnieuw.' };
+    console.error(`❌ Fout bij updaten social links voor gebruiker ${user.uid}:`, error);
+    return { success: false, message: 'Er is een onverwachte fout opgetreden.' };
   }
 }

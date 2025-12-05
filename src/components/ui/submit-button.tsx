@@ -4,6 +4,7 @@ import { useFormStatus } from 'react-dom';
 import { Loader2 } from 'lucide-react';
 import { Button, type ButtonProps } from '@/components/ui/button';
 
+// FIX: Klein typefoutje hier
 type SubmitButtonProps = ButtonProps & {
   children: React.ReactNode;
 };

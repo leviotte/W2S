@@ -1,103 +1,49 @@
-// app/api/amazon/products/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { z } from 'zod';
+import { getAmazonProducts, ageGenderMapping } from "@/lib/services/amazonService";
 
-// DEFINITIEVE FIX: Gebruik de named export nu de omgeving is opgeschoond.
-import { AmazonPaApiClient, type SearchItemsRequest } from 'amazon-pa-api5-node-ts';
-import config from '@/config/env';
+// Stap 1: Definieer de lijst van toegestane keys. Dit is correct.
+const ageKeys = Object.keys(ageGenderMapping) as [string, ...string[]];
 
-interface AmazonProduct {
-  ID: string;
-  URL: string;
-  Title: string;
-  ShortName: string;
-  ImageURL: string;
-  Ean: string | null;
-  Price: number;
-  Source: 'AMZ';
-}
-
-const client = new AmazonPaApiClient({
-  accessKey: config.aws.accessKey,
-  secretKey: config.aws.secretKey,
-  partnerTag: config.aws.partnerTag,
-  host: config.aws.host,
-  region: config.aws.region,
+// Stap 2: Definieer het schema dat deze keys gebruikt voor validatie. Dit is correct.
+const searchSchema = z.object({
+  keyword: z.string().min(1, "Keyword is verplicht."),
+  category: z.string().optional().default("All"),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).max(20).optional().default(10),
+  age: z.enum(ageKeys).optional(),
+  gender: z.enum(["women", "men", "unisex"]).optional(),
 });
 
 export async function GET(req: NextRequest) {
   try {
-    const url = new URL(req.url);
-    const keyword = url.searchParams.get('keyword');
-    const page = parseInt(url.searchParams.get('page') || '1', 10);
+    const searchParams = req.nextUrl.searchParams;
+    const validation = searchSchema.safeParse(Object.fromEntries(searchParams));
 
-    if (!keyword) {
-      return NextResponse.json({ error: 'Keyword is vereist' }, { status: 400 });
+    if (!validation.success) {
+      return NextResponse.json({ products: [], error: "Invalide parameters", details: validation.error.flatten() }, { status: 400 });
     }
-
-    const request: SearchItemsRequest = {
-      Keywords: keyword,
-      SearchIndex: 'All',
-      Resources: [
-        'Images.Primary.Medium',
-        'ItemInfo.Title',
-        'Offers.Listings.Price',
-        'ItemInfo.ExternalIds',
-      ],
-      ItemPage: page,
-      ItemCount: 10,
-    };
     
-    console.log(`[Amazon PA-API] Searching for keyword: "${keyword}", page: ${page}`);
-    const resp = await client.searchItems(request);
+    // --- DIT IS DE CRUCIALE STAP ---
+    // Gebruik ALTIJD de 'data' property van het 'validation' object.
+    // De 'age' en 'gender' variabelen hier zijn nu 100% type-safe.
+    const { keyword, category, page, pageSize, age, gender } = validation.data;
 
-    const items: AmazonProduct[] =
-      resp.items?.map((item) => {
-        const title = item.itemInfo?.title?.displayValue || 'Unnamed Product';
-        const imageUrl = item.images?.primary?.medium?.url || '/assets/placeholder-image.png';
-        const itemUrl = item.detailPageUrl || '#';
-        const priceStr = item.offers?.listings?.[0]?.price?.displayAmount;
-        const ean = item.itemInfo?.externalIds?.ean?.displayValues?.[0] || null;
+    // Roep de service aan met het object dat enkel de veilige, gevalideerde data bevat.
+    // TypeScript is nu blij, omdat 'age' hier gegarandeerd het juiste type heeft.
+    const products = await getAmazonProducts({
+        keyword,
+        category,
+        page,
+        pageSize,
+        age, // Geen 'as ...' cast meer nodig, Zod en TS doen het werk!
+        gender,
+    });
 
-        return {
-          ID: item.asin,
-          URL: itemUrl,
-          Title: title,
-          ShortName: extractShortName(title),
-          ImageURL: imageUrl,
-          Ean: ean,
-          Price: extractPrice(priceStr),
-          Source: 'AMZ',
-        };
-      }) || [];
+    return NextResponse.json({ products });
 
-    return NextResponse.json(items);
-
-  } catch (error: any) {
-    console.error("❌ Amazon PA-API Error:", JSON.stringify(error, null, 2));
-    const errorMessage = error.message || 'An unknown error occurred during PA-API request.';
-    return NextResponse.json({ error: `PAAPI request failed: ${errorMessage}` }, { status: 500 });
+  } catch (error) {
+    console.error("❌ Amazon API route error:", error);
+    return NextResponse.json({ products: [], error: "Internal server error" }, { status: 500 });
   }
-}
-
-// --- Helper Functies ---
-
-function extractShortName(name: string): string {
-  if (!name) return 'Unnamed Product';
-  const words = name.toLowerCase().split(' ');
-  const filtered = words.filter(
-    (word) =>
-      ![
-        'gb', '5g', '4g', '256gb', '128gb', '64gb', 'black', 'blue',
-        'green', 'series', 'pro', 'watch', 'case', 'cover', 'accessory',
-        'phone', 'smartwatch',
-      ].includes(word)
-  );
-  return filtered.slice(0, 3).join(' ') || 'Unnamed Product';
-}
-
-function extractPrice(priceString?: string): number {
-  if (!priceString) return 0;
-  const cleaned = priceString.replace(/[^\d.,]/g, '').replace(/\s/g, '').replace(',', '.');
-  const parsed = parseFloat(cleaned);
-  return isNaN(parsed) ? 0 : parsed;
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useStore } from '@/lib/store/use-auth-store';
+import { useAuthStore } from '@/lib/store/use-auth-store';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 import LoginForm from './login-form';
@@ -9,7 +9,7 @@ import RegisterForm from './register-form';
 
 export default function AuthModal() {
   // We halen nu het state-object en de setter-functie op
-  const { authModal, setAuthModalState } = useStore();
+  const { authModal, setAuthModalState } = useAuthStore();
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {

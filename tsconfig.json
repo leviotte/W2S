@@ -1,48 +1,40 @@
 {
   "compilerOptions": {
-    // --- Kerninstellingen (Standaard & Veilig) ---
-    "target": "ES2017",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "module": "ESNext",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "incremental": true,
+    // --- Cruciale Next.js & React Instellingen ---
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "module": "esnext",
+    "moduleResolution": "bundler", // Essentieel voor moderne tooling en de App Router.
+    "allowSyntheticDefaultImports": true,
+    "jsx": "preserve", // BELANGRIJK: Next.js' eigen compiler (SWC) handelt de JSX-transformatie af.
     "plugins": [
       {
-        "name": "next"
+        "name": "next" // DE MAGIE: Geeft VS Code context over Server Components, 'use client', etc.
       }
     ],
-    // --- Cruciale Next.js & React Instellingen ---
-    "moduleResolution": "bundler",
-    "jsx": "react-jsx", // BELANGRIJK: Geeft Next.js' compiler (SWC) volledige controle voor optimale performance.
-    "noEmit": true,
+    "noEmit": true, // Next.js doet de build, TypeScript hoeft geen JS-bestanden te genereren.
+
     // --- Pad Aliassen ---
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
+      "@/*": ["./src/*"]
     },
-    // --- "Gold Standard" Strictness Regels ---
+    
+    // --- "Gold Standard" Strictness & Veiligheid ---
     "strict": true,
-    "forceConsistentCasingInFileNames": true, // VOORKOMT FOUTEN: Essentieel voor Linux-based deployments (Vercel).
-    "noUncheckedIndexedAccess": true // VEILIGHEID: Dwingt je om te controleren of array/object-items bestaan, voorkomt runtime errors.
+    "allowJs": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true, // Essentieel voor Vercel (Linux-based).
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "incremental": true,
+    // "noUncheckedIndexedAccess": true, // Optionele, zeer strikte regel. Zet deze aan als je extra veiligheid wilt.
   },
   "include": [
-    "next-env.d.ts",
-    "src/**/*.ts", // Preciezer pad voor betere performance.
-    "src/**/*.tsx", // Preciezer pad voor betere performance.
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    "next-env.d.ts", 
+    "**/*.ts", 
+    "**/*.tsx", 
+    ".next/types/**/*.ts"
   ],
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules"]
 }

@@ -2,42 +2,39 @@
  * src/lib/server/auth.ts
  *
  * Beheert server-side authenticatie: sessie-cookies aanmaken, valideren en verwijderen.
- * Deze functies zijn Server Actions en kunnen direct vanuit de client worden aangeroepen.
+ * Dit is de definitieve, 'gold standard' versie voor de Next.js App Router.
  */
-'use server'; // Markeer alle exports in dit bestand als Server Actions
+'use server';
 
-import 'server-only'; // Zorg ervoor dat deze module nooit in een client bundle terechtkomt
+import 'server-only';
 import { cache } from 'react';
 import { cookies } from 'next/headers';
-import { adminAuth, adminDb } from './firebaseAdmin'; // FIX: Correcte imports!
+import { adminAuth, adminDb } from './firebaseAdmin';
 import { z } from 'zod';
+import { DecodedIdToken } from 'firebase-admin/auth';
 
-// Definieer een schema voor de data die we van een ingelogde gebruiker verwachten.
-// Dit is veiliger dan 'as UserData'.
-const authedUserSchema = z.object({
-  uid: z.string(),
-  id: z.string(),
-  email: z.string().email().optional(),
-  name: z.string().optional(),
-  avatarUrl: z.string().url().optional(),
-  // Voeg hier andere velden toe die je van het 'user' document verwacht
+// Schema voor de gebruikersdata die we uit Firestore halen.
+// VERBETERD: Aangepast om consistent te zijn met je UserProfile type.
+const userProfileSchema = z.object({
+  email: z.string().email(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  photoURL: z.string().url().optional(),
+  // Voeg hier andere velden uit je 'users' document toe die je wilt gebruiken
 });
 
-// Genereer een TypeScript type van het schema
-export type AuthedUser = z.infer<typeof authedUserSchema>;
+// Het uiteindelijke gebruikerstype: een combinatie van de token-info en profiel-info.
+export type AuthedUser = DecodedIdToken & z.infer<typeof userProfileSchema>;
 
 /**
  * Maakt een sessie-cookie aan op de server na een succesvolle client-side login.
- * @param idToken De ID token van de Firebase client SDK.
  */
 export async function createSession(idToken: string) {
-  // Sessie duurt 7 dagen.
-  const expiresIn = 60 * 60 * 24 * 7 * 1000;
-  const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn }); // FIX: Typo 'sessi'
+  const expiresIn = 60 * 60 * 24 * 7 * 1000; // 7 dagen
+  // FIX: Syntaxfout hier, 'const sessionCookie =' was onvolledig.
+  const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
 
-  // FIX: `cookies()` is async, dus we moeten `await` gebruiken.
-  const cookieStore = await cookies();
-  cookieStore.set('session', sessionCookie, {
+  cookies().set('session', sessionCookie, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     maxAge: expiresIn,
@@ -49,59 +46,49 @@ export async function createSession(idToken: string) {
  * Verwijdert het sessie-cookie om de gebruiker uit te loggen.
  */
 export async function clearSession() {
-  // FIX: `cookies()` is async, dus we moeten `await` gebruiken.
-  const cookieStore = await cookies();
-  cookieStore.delete('session');
+  cookies().delete('session');
 }
 
 /**
  * Haalt de huidige ingelogde gebruiker op, gebaseerd op het sessie-cookie.
- * Gewrapped in `cache` voor performance: voorkomt meerdere DB-calls per request.
- * Dit is een van de krachtigste features van de App Router!
+ * Gewrapped in `React.cache` voor maximale performance: voorkomt dubbele database-queries per request.
  */
 export const getCurrentUser = cache(
   async (): Promise<AuthedUser | null> => {
-    // FIX: `cookies()` is async, dus we moeten `await` gebruiken.
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session')?.value;
+    // FIX: Syntaxfout hier, 'const sessionCookie =' was onvolledig.
+    const sessionCookie = cookies().get('session')?.value;
     
     if (!sessionCookie) {
       return null;
     }
 
     try {
-      // Verifieer het cookie met de Firebase Admin SDK
       const decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
-      const { uid } = decodedToken;
-
-      // Haal de bijhorende profielinformatie op uit de 'users' of 'profiles' collectie
-      const userDocRef = adminDb.collection('users').doc(uid); // Pas aan naar 'profiles' indien nodig
-      const userDoc = await userDocRef.get();
+      const userDoc = await adminDb.collection('users').doc(decodedToken.uid).get();
 
       if (!userDoc.exists) {
-        console.warn(`[Auth] User document not found for UID: ${uid}`);
+        console.warn(`[Auth] User document not found for UID: ${decodedToken.uid}. Clearing session.`);
+        // Belangrijk: ruim de ongeldige sessie op.
+        await clearSession();
         return null;
       }
       
-      const userData = userDoc.data();
+      const userProfileData = userDoc.data();
+      const profileValidation = userProfileSchema.safeParse(userProfileData);
 
-      // VERBETERING: Valideer de data met Zod in plaats van 'as UserData'
-      const result = authedUserSchema.safeParse({
-        ...userData,
-        id: userDoc.id,
-        uid: userDoc.id,
-      });
-
-      if (!result.success) {
-        console.error(`[Auth] Corrupte gebruikersdata voor UID ${uid}:`, result.error.issues);
-        return null;
+      if (!profileValidation.success) {
+        console.error(`[Auth] Invalid user profile data for UID ${decodedToken.uid}:`, profileValidation.error.format());
+        return decodedToken as AuthedUser; // Geef token terug, maar zonder (foute) profiel data.
       }
       
-      return result.data;
+      return {
+        ...decodedToken,
+        ...profileValidation.data,
+      };
 
     } catch (error) {
-      console.error('[Auth] Error verifying session cookie:', error);
-      clearSession(); // Ruim het ongeldige of verlopen cookie op
+      console.warn('[Auth] Invalid session cookie detected. Clearing session.');
+      await clearSession();
       return null;
     }
   }

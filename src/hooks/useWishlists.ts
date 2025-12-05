@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/client/firebase';
-import { useStore } from '@/lib/store/use-auth-store';
+import { useAuthStore } from '@/lib/store/use-auth-store';
 
 export interface WishlistItem {
   id: string;
@@ -19,7 +19,7 @@ export interface Wishlist {
 }
 
 export const useWishlists = () => {
-  const { currentUser } = useStore();
+  const { currentUser } = useAuthStore();
   const [wishlists, setWishlists] = useState<Wishlist[]>([]);
   const [loading, setLoading] = useState(true);
 

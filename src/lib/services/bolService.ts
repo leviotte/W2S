@@ -1,16 +1,22 @@
 // src/lib/services/bolService.ts
-import { Product } from "@/types/products";
+
+import { Product, ProductQueryOptions } from "@/types/product";
 
 const BOL_AUTH_URL = 'https://login.bol.com/token';
-const BOL_CATALOG_API_URL = 'https://api.bol.com/marketing/catalog/v1/products/search';
+const BOL_CATALOG_API_URL = 'https://api.bol.com/retailer/products'; // Gebruik de retailer API voor meer data
 const PARTNER_ID = '1410335'; // Jouw Bol.com partner ID
 
-/**
- * Haalt een Bol.com access token op. Deze kan gecached worden voor betere performance.
- */
+// Cache de token in het geheugen op server-niveau
+let tokenCache = {
+  accessToken: '',
+  expiresAt: 0,
+};
+
 async function getBolAccessToken(): Promise<string> {
-  // Eenvoudige in-memory cache, maar voor productie is een Redis cache beter.
-  // Voor nu is dit voldoende.
+  if (tokenCache.accessToken && Date.now() < tokenCache.expiresAt) {
+    return tokenCache.accessToken;
+  }
+
   const response = await fetch(BOL_AUTH_URL, {
     method: 'POST',
     headers: {
@@ -18,7 +24,7 @@ async function getBolAccessToken(): Promise<string> {
       Authorization: `Basic ${btoa(`${process.env.BOL_API_CLIENT_ID}:${process.env.BOL_API_CLIENT_SECRET}`)}`,
     },
     body: 'grant_type=client_credentials',
-    cache: 'no-store', // Tokens wil je niet cachen in de Data Cache van Next.js
+    cache: 'no-store',
   });
 
   if (!response.ok) {
@@ -28,75 +34,79 @@ async function getBolAccessToken(): Promise<string> {
   }
 
   const data = await response.json();
-  return data.access_token;
+  tokenCache = {
+    accessToken: data.access_token,
+    expiresAt: Date.now() + (data.expires_in - 60) * 1000, // 60s buffer
+  };
+  return tokenCache.accessToken;
 }
 
 /**
- * Haalt producten op van de Bol.com API op basis van zoekparameters.
+ * Haalt producten op van de Bol.com API met gestandaardiseerde opties.
  */
-export async function getBolProducts(
-  keyword: string,
-  category: string,
-  minPrice: string,
-  maxPrice: string,
-  sortBy: string,
-): Promise<Product[]> {
+export async function getBolProducts(options: ProductQueryOptions): Promise<Product[]> {
+  const {
+    keyword,
+    minPrice,
+    maxPrice,
+    sortBy,
+    pageNumber = 1,
+  } = options;
+
   if (!keyword) return [];
 
   try {
     const accessToken = await getBolAccessToken();
 
     const params = new URLSearchParams({
-      'search-term': keyword,
-      'country-code': 'BE',
-      page: '1',
-      'page-size': '20', // Beperk tot 20 voor snellere laadtijden
-      sort: sortBy,
-      'include-offer': 'true',
-      'include-rating': 'true',
-      'include-image': 'true',
+      query: keyword,
+      country: 'BE',
+      page: pageNumber.toString(),
     });
 
-    const priceRange = `&range-refinement=12194:${minPrice || 0}:${maxPrice || 10000}`;
+    // De retailer API gebruikt andere parameters, dit is een voorbeeld.
+    // Pas dit aan naar de correcte parameters voor de v9 retailer API.
 
-    const response = await fetch(`${BOL_CATALOG_API_URL}?${params.toString()}${priceRange}`, {
+    const response = await fetch(`${BOL_CATALOG_API_URL}?${params.toString()}`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        Accept: 'application/json',
+        'Accept': 'application/vnd.retailer.v9+json', // Belangrijk voor Bol.com API versie
       },
-      // Gebruik de Next.js fetch cache voor requests! 1 uur caching.
-      next: { revalidate: 3600 },
+      next: { revalidate: 3600 }, // 1 uur caching
     });
 
     if (!response.ok) {
-      throw new Error(`Bol.com API returned status ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`Bol.com API returned status ${response.status}: ${errorText}`);
     }
 
     const data = await response.json();
 
-    if (!data.results || data.results.length === 0) {
+    // Mapping hangt sterk af van de gebruikte API (catalog vs retailer).
+    // Dit is een *voorbeeld* voor de retailer API. Pas aan indien nodig.
+    if (!data.products) {
       return [];
     }
 
-    // Map de resultaten naar onze gestandaardiseerde Product interface
-    return data.results.map((item: any): Product => {
-      const productUrl = item.url;
+    return data.products.map((item: any): Product => {
+      const productUrl = `https://www.bol.com/be/nl/p/${item.title.replace(/\s/g, '-')}/${item.offer.id}/`;
       const affiliateUrl = `https://partner.bol.com/click/click?p=2&t=url&s=${PARTNER_ID}&f=TXL&url=${encodeURIComponent(productUrl)}&name=${encodeURIComponent(item.title)}`;
-
+      
       return {
         source: 'Bol.com',
-        id: item.bolProductId,
-        title: item.title || 'Geen titel',
+        id: item.offer.id,
+        title: item.title,
         url: affiliateUrl,
-        imageUrl: item.image?.url || '/placeholder-image.jpg',
-        price: item.offer?.price ? parseFloat(item.offer.price) : 0,
+        imageUrl: item.media.find((m: any) => m.type === 'IMAGE_MAIN')?.url || '/placeholder-image.jpg',
+        price: parseFloat(item.offer.pricing.bundlePrices[0].unitPrice),
         ean: item.ean,
-        rating: item.rating?.averageRating,
-        reviewCount: item.rating?.totalReviews,
+        // Rating data is niet altijd beschikbaar in de basis product search
+        rating: undefined, 
+        reviewCount: undefined,
       };
     });
   } catch (error) {
     console.error('Failed to fetch Bol.com products:', error);
-    return []; // Geef altijd een lege array terug bij een fout
+    return [];
   }
 }

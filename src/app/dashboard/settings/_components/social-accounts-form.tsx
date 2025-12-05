@@ -7,12 +7,13 @@ import { useFormState } from 'react-dom';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 
-import { updateSocialLinks, type UpdateSocialsState } from '@/app/dashboard/settings/actions';
+// FIX: De juiste, specifiekere Server Action importeren
+import { updateUserSocialLinks, type UpdateSocialsState } from '@/app/dashboard/settings/actions';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { SubmitButton } from '@/components/ui/submit-button'; // Gaan we nog aanmaken
+import { SubmitButton } from '@/components/ui/submit-button'; // Deze maken we in stap 2
 
 // Client-side validatie schema
 const socialLinksSchema = z.object({
@@ -25,14 +26,14 @@ const socialLinksSchema = z.object({
 
 type FormValues = z.infer<typeof socialLinksSchema>;
 
-// De 'socials' prop wordt door de server component doorgegeven
 interface SocialAccountsFormProps {
   socials: Partial<FormValues>; 
 }
 
 export function SocialAccountsForm({ socials }: SocialAccountsFormProps) {
   const initialState: UpdateSocialsState = { success: false, message: '' };
-  const [state, formAction] = useFormState(updateSocialLinks, initialState);
+  // FIX: De juiste, hernoemde Server Action gebruiken
+  const [state, formAction] = useFormState(updateUserSocialLinks, initialState);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(socialLinksSchema),
@@ -55,12 +56,12 @@ export function SocialAccountsForm({ socials }: SocialAccountsFormProps) {
     }
   }, [state]);
 
-  const socialFields: { name: keyof FormValues; label: string }[] = [
-    { name: 'instagram', label: 'Instagram' },
-    { name: 'facebook', label: 'Facebook' },
-    { name: 'twitter', label: 'Twitter/X' },
-    { name: 'tiktok', label: 'TikTok' },
-    { name: 'pinterest', label: 'Pinterest' },
+  const socialFields: { name: keyof FormValues; label: string; placeholder: string }[] = [
+    { name: 'instagram', label: 'Instagram', placeholder: 'https://www.instagram.com/...' },
+    { name: 'facebook', label: 'Facebook', placeholder: 'https://www.facebook.com/...' },
+    { name: 'twitter', label: 'Twitter/X', placeholder: 'https://www.x.com/...' },
+    { name: 'tiktok', label: 'TikTok', placeholder: 'https://www.tiktok.com/@...' },
+    { name: 'pinterest', label: 'Pinterest', placeholder: 'https://www.pinterest.com/...' },
   ];
 
   return (
@@ -77,13 +78,14 @@ export function SocialAccountsForm({ socials }: SocialAccountsFormProps) {
             {socialFields.map((fieldInfo) => (
               <FormField
                 key={fieldInfo.name}
+                // FIX: was `c{form.control}`
                 control={form.control}
                 name={fieldInfo.name}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{fieldInfo.label}</FormLabel>
                     <FormControl>
-                      <Input placeholder={`https://www.${fieldInfo.label.toLowerCase()}.com/...`} {...field} />
+                      <Input placeholder={fieldInfo.placeholder} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

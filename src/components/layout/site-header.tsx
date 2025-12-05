@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Gift, LogIn, LogOut, Menu, User, UserPlus, Settings } from 'lucide-react';
 
-import { useAuthStore, useAuthModal } from '@/lib/store/use-auth-store'; // Dit blijft cruciaal!
+import { useAuthStore, useAuthModal } from '@/lib/store/use-auth-store';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -22,12 +22,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { UserAvatar } from '../shared/user-avatar';
-import { UserProfile } from '@/types/user'; // Belangrijk voor type-safety
+import { UserAvatar } from '../shared/user-avatar'; // We gaan ervan uit dat dit component bestaat
+import { UserProfile } from '@/types/user';
 
-/**
- * WIJZIGING 1: UserButton accepteert nu de user als prop.
- */
 interface UserButtonProps {
   user: UserProfile;
 }
@@ -35,22 +32,33 @@ interface UserButtonProps {
 function UserButton({ user }: UserButtonProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  
-  // WIJZIGING 2: We halen enkel de 'logout' functie uit de store. De 'user' data komt via props!
   const logout = useAuthStore((state) => state.logout);
 
   const handleLogout = () => {
     startTransition(async () => {
       await logout();
       router.push('/');
+      router.refresh(); // Zorgt ervoor dat de server-side state (header) vernieuwt
     });
   };
+
+  const getFallback = () => {
+    return `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase() || '?';
+  }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-          <UserAvatar user={user} size="md" />
+          {/* 
+            HIER IS DE FIX:
+            We geven niet het hele `user` object door, maar enkel de props 
+            die UserAvatar daadwerkelijk nodig heeft: `src` en `fallback`.
+          */}
+          <UserAvatar
+            src={user.photoURL}
+            fallback={getFallback()}
+          />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -65,7 +73,7 @@ function UserButton({ user }: UserButtonProps) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {/* CORRECTIE: Gebruik de 'onSelect' prop voor DropdownMenuItems */}
+        {/* CORRECTIE: Navigatie-acties horen in de 'onSelect' prop */}
         <DropdownMenuItem onSelect={() => router.push('/dashboard')}>
           <User className="mr-2 h-4 w-4" />
           <span>Dashboard</span>
@@ -88,16 +96,11 @@ function UserButton({ user }: UserButtonProps) {
   );
 }
 
-
-/**
- * WIJZIGING 3: Het hoofcomponent accepteert nu de 'currentUser' als prop.
- */
 interface SiteHeaderProps {
   currentUser: UserProfile | null;
 }
 
 export default function SiteHeader({ currentUser }: SiteHeaderProps) {
-  // We gebruiken de custom hook voor de modals. Dit blijft perfect.
   const { showLogin, showRegister } = useAuthModal();
 
   return (
@@ -114,11 +117,10 @@ export default function SiteHeader({ currentUser }: SiteHeaderProps) {
 
         <div className="flex flex-1 items-center justify-end space-x-2">
           {currentUser ? (
-            // We geven de prop door aan de UserButton
             <UserButton user={currentUser} />
           ) : (
             <div className="hidden sm:flex items-center gap-2">
-              {/* CORRECTIE: De functie moet in de 'onClick' prop, niet als losse prop */}
+              {/* CORRECTIE: Functies horen in de 'onClick' prop */}
               <Button variant="ghost" onClick={showLogin}>
                 <LogIn className="mr-2 h-4 w-4" />
                 Log In
@@ -127,7 +129,7 @@ export default function SiteHeader({ currentUser }: SiteHeaderProps) {
                 <UserPlus className="mr-2 h-4 w-4" />
                 Registreer
               </Button>
-            </div>
+            </Div>
           )}
           
           <div className="sm:hidden">

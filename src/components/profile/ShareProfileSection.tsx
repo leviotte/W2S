@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/client/firebase"; // pas je path aan naar je firebase config
 import { toast } from "react-toastify";
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 
 export interface Manager {
   id: string;
@@ -40,7 +40,7 @@ export default function ShareProfileSection({
   const [searchResults, setSearchResults] = useState<Manager[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [sendingInvite, setSendingInvite] = useState(false);
-  const { currentUser } = useStore();
+  const { currentUser } = useAuthStore();
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const [users, setUsers] = useState<Manager[]>([]);
 

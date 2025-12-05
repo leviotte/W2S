@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useStore } from '@/lib/store/use-auth-store';
+import { useAuthStore } from '@/lib/store/use-auth-store';
 import { useAuth } from '@/app/dashboard/layout';
 
 export const useRequireAuth = () => {
-  const { currentUser } = useStore();
+  const { currentUser } = useAuthStore();
   const { showLoginModal } = useAuth();
   const router = useRouter();
 

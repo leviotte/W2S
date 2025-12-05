@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useStore } from '@/lib/store/use-auth-store';
 import { Event } from '@/types/event';
-import { Message } from '@/types/chat';
+import { ChatMessage } from '@/types/chat';
 import { toast } from 'sonner';
 
 export const useChat = (event: Event | undefined, currentUserId: string) => {
@@ -29,8 +29,8 @@ export const useChat = (event: Event | undefined, currentUserId: string) => {
     if (!event) return;
     setIsLoading(true);
     try {
-      const messages: Message[] = Array.isArray(event.messages) ? event.messages : [];
-      const newMessage: Message = {
+      const messages: ChatMessage[] = Array.isArray(event.messages) ? event.messages : [];
+      const newMessage: ChatMessage = {
         id: crypto.randomUUID(),
         text,
         userId: currentUserId,
@@ -54,7 +54,7 @@ export const useChat = (event: Event | undefined, currentUserId: string) => {
     if (!event) return;
     setIsLoading(true);
     try {
-      const messages: Message[] = Array.isArray(event.messages) ? event.messages : [];
+      const messages: ChatMessage[] = Array.isArray(event.messages) ? event.messages : [];
       const updatedMessages = messages.map(msg => msg.id === messageId ? { ...msg, text: newText } : msg);
       await updateEvent(event.id, { messages: updatedMessages });
       toast.success('Message edited');
@@ -70,7 +70,7 @@ export const useChat = (event: Event | undefined, currentUserId: string) => {
     if (!event) return;
     setIsLoading(true);
     try {
-      const messages: Message[] = Array.isArray(event.messages) ? event.messages : [];
+      const messages: ChatMessage[] = Array.isArray(event.messages) ? event.messages : [];
       const updatedMessages = messages.filter(msg => msg.id !== messageId);
       await updateEvent(event.id, { messages: updatedMessages });
       toast.success('Message deleted');

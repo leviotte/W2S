@@ -4,8 +4,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { cookies } from 'next/headers';
-import { auth as adminAuth } from 'firebase-admin';
-
 import { adminAuth, adminDb, adminStorage } from '@/lib/server/firebaseAdmin';
 import { UserProfile, userProfileSchema } from '@/types/user';
 import './globals.css';

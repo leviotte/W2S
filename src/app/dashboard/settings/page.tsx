@@ -1,40 +1,52 @@
-import { adminAuth, adminDb, adminStorage } from '@/lib/server/firebaseAdmin';
-import { getAuthenticatedUser } from '@/lib/auth/utils';
+import { getAuthenticatedUser } from '@/lib/server/auth';
 import { redirect } from 'next/navigation';
 import { SocialAccountsForm } from './_components/social-accounts-form';
-import { Suspense } from 'react';
+import { adminDb } from '@/lib/server/firebaseAdmin';
 
-// Functie om de profielgegevens op te halen
+export const metadata = {
+  title: 'Instellingen | Wish2Share',
+  description: 'Beheer je profiel- en accountinstellingen.',
+};
+
+/**
+ * Een robuuste, server-side functie om de social links voor een specifieke gebruiker op te halen.
+ */
 async function getUserSocials(uid: string) {
-  const { db } = adminAuth, adminDb, adminStorage();
-  const userDoc = await db.collection('users').doc(uid).get();
-  if (!userDoc.exists) {
-    return {};
+  try {
+    const userDoc = await adminDb.collection('users').doc(uid).get();
+    if (!userDoc.exists) {
+      return {}; // Geen gebruiker gevonden, geef een leeg object terug.
+    }
+    // Geef de 'socials' map terug, of een leeg object als die niet bestaat.
+    return userDoc.data()?.socials || {};
+  } catch (error) {
+    console.error(`Kon socials niet laden voor gebruiker ${uid}:`, error);
+    return {}; // Voorkom een crash bij een database fout.
   }
-  const userData = userDoc.data();
-  return userData?.socials || {};
 }
 
 export default async function SettingsPage() {
   const user = await getAuthenticatedUser();
   if (!user) {
-    redirect('/login'); // Of waar je on-geauteerde gebruikers heen stuurt
+    redirect('/login');
   }
 
-  // Haal de data op de server op
+  // Haal de data specifiek voor deze gebruiker op met onze nieuwe, cleane functie.
   const socials = await getUserSocials(user.uid);
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <h1 className="text-3xl font-bold mb-8">Instellingen</h1>
-      <div className="grid gap-8">
-        {/* We geven de server-data als prop aan het client component */}
-        <Suspense fallback={<div>Laden...</div>}>
-            <SocialAccountsForm socials={socials} />
-        </Suspense>
-        {/* Hier kunnen in de toekomst andere instellingen kaarten komen,
-            zoals wachtwoord wijzigen, notificaties, etc. */}
+    <div className="space-y-6 p-4 md:p-8 max-w-4xl mx-auto">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">Instellingen</h2>
+        <p className="text-muted-foreground">
+          Beheer hier de instellingen voor je account.
+        </p>
       </div>
+      
+      {/* Geef de data direct door aan het formulier. */}
+      <SocialAccountsForm socials={socials} />
+
+      {/* Ruimte voor toekomstige instellingen (profiel, wachtwoord, etc.) */}
     </div>
   );
 }
