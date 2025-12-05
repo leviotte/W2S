@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { useStore } from "@/lib/store/useStore";
+import { useStore } from "@/lib/store/use-auth-store";
 import { toast } from "sonner";
 
 const inputClasses =

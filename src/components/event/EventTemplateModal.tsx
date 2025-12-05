@@ -4,7 +4,7 @@
 import React, { useState } from "react";
 import { X, Check } from "lucide-react";
 import { toast } from "sonner";
-import { eventTemplates } from "@/lib/eventTemplates";
+import { eventTemplates } from "./eventTemplates";
 
 interface EventTemplateModalProps {
   isOpen: boolean;

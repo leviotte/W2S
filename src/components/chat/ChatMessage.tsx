@@ -1,30 +1,32 @@
-import React, { useState, useRef } from "react";
-import { Edit2, Trash2, Check, X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import UserAvatar from "@/components/UserAvatar";
-import { Message } from "@/types/event";
-import { getPseudonymForUser } from "@/utils/pseudonyms";
+'use client';
 
+import React, { useState, useRef } from 'react';
+import { Edit2, Trash2, Check, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { UserAvatar } from '@/components/shared/user-avatar'; // Pad gecorrigeerd naar onze doelstructuur
+import type { ChatMessage as ChatMessageType } from '@/types'; // CORRECTIE: Gebruik ons centrale ChatMessage type
+import { getPseudonymForUser } from '@/lib/utils/pseudonyms';
+import { cn } from '@/lib/utils'; // Importeren van onze shadcn utility voor classnames
 
 interface ChatMessageProps {
-  message: Message;
+  message: ChatMessageType;
   eventId: string;
   isOwnMessage: boolean;
   onEdit?: (messageId: string, newText: string) => Promise<void>;
   onDelete?: (messageId: string) => Promise<void>;
 }
 
-export default function ChatMessage({
+// OPLOSSING: Veranderd van 'export default' naar een benoemde 'export const'
+export const ChatMessage = ({
   message,
   eventId,
   isOwnMessage,
   onEdit,
   onDelete,
-}: ChatMessageProps) {
+}: ChatMessageProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(message.text);
   const [isHovered, setIsHovered] = useState(false);
-  const messageRef = useRef<HTMLDivElement>(null);
 
   const handleEdit = async () => {
     if (!onEdit || !editText.trim()) return;
@@ -36,118 +38,102 @@ export default function ChatMessage({
     }
   };
 
-  const displayName = message.isAnonymous
-    ? getPseudonymForUser(message.userId, eventId)
-    : message.userName;
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditText(message.text);
+  };
+  
+  const displayName =
+    message.isAnonymous && message.pseudonym
+      ? message.pseudonym
+      : message.userName;
 
   return (
     <div
-      ref={messageRef}
-      className={`flex ${
-        isOwnMessage ? "justify-end" : "justify-start"
-      } items-end space-x-2 mb-2 group`}
+      className={cn(
+        'group mb-2 flex items-end space-x-2',
+        isOwnMessage ? 'justify-end' : 'justify-start'
+      )}
+      // FOUTFIX: Dit zijn de correcte event handlers voor hover
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {!isOwnMessage && (
-        <UserAvatar
-          firstName={message.userName.split(" ")[0]}
-          lastName={message.userName.split(" ")[1]}
-          size="sm"
-        />
-      )}
-      <div className="flex flex-col max-w-[70%]">
-        <span className="text-sm  mb-1 px-2">{displayName}</span>
-        <motion.div
-          className="relative"
-          animate={{ x: isHovered && isOwnMessage && !isEditing ? -40 : 0 }}
-          transition={{ duration: 0.2 }}
-        >
-          <div
-            className={`${
-              isOwnMessage
-                ? "bg-white/55 rounded-tr-none"
-                : "bg-white rounded-tl-none"
-            } p-3 rounded-lg transition-all duration-200 overflow-hidden shadow-md`}
-          >
-            {isEditing ? (
-              <div className="flex flex-col space-y-2">
-                <textarea
-                  value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
-                  className="w-full rounded-md border border-gray-300 px-2 py-1 resize-none focus:border-warm-olive focus:ring-1 focus:ring-warm-olive"
-                  rows={Math.min(5, editText.split("\n").length)}
-                  autoFocus
-                />
-                <div className="flex justify-end space-x-2">
-                  <button
-                    onClick={handleEdit}
-                    className="px-3 py-1 bg-warm-olive text-white rounded-md hover:bg-cool-olive transition-colors flex items-center space-x-1"
+      {!isOwnMessage && <UserAvatar userName={message.userName} size="sm" />}
+      
+      <div className={cn('flex flex-col', isOwnMessage ? 'items-end' : 'items-start')}>
+        <span className="px-2 pb-1 text-xs text-muted-foreground">{displayName}</span>
+        
+        <div className="relative flex items-center">
+            {isOwnMessage && !isEditing && (
+              <AnimatePresence>
+                {isHovered && (
+                  <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ duration: 0.15 }}
+                    className="mr-2 flex items-center space-x-1"
                   >
-                    <Check className="h-4 w-4" />
-                    <span>Opslaan</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsEditing(false);
-                      setEditText(message.text);
-                    }}
-                    className="px-3 py-1 bg-gray-100  rounded-md hover:bg-gray-200 transition-colors flex items-center space-x-1"
-                  >
-                    <X className="h-4 w-4" />
-                    <span>Annuleer</span>
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                {message.gifUrl ? (
-                  <img
-                    src={message.gifUrl}
-                    alt="GIF"
-                    className="max-w-full rounded-md"
-                    loading="lazy"
-                  />
-                ) : (
-                  <p className="text-gray-800 break-words whitespace-pre-wrap">
-                    {message.text}
-                  </p>
+                    {!message.gifUrl && onEdit && (
+                      <button type="button" onClick={() => setIsEditing(true)} className="rounded-full bg-background p-1.5 text-muted-foreground shadow-sm hover:text-foreground">
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button type="button" onClick={() => onDelete(message.id)} className="rounded-full bg-background p-1.5 text-red-500 shadow-sm hover:text-red-700">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </motion.div>
                 )}
-              </>
+              </AnimatePresence>
             )}
-          </div>
 
-          {isOwnMessage && !isEditing && (
-            <AnimatePresence>
-              {isHovered && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center space-x-1"
-                  style={{ transform: "translateX(calc(100% + 8px))" }}
-                >
-                  {!message.gifUrl && (
-                    <button
-                      onClick={() => setIsEditing(true)}
-                      className="p-1  hover:text-gray-600 bg-white rounded-full shadow-sm"
-                    >
-                      <Edit2 className="h-4 w-4" />
+            <div
+                className={cn(
+                'max-w-xs overflow-hidden rounded-lg p-3 shadow-md break-words md:max-w-md',
+                isOwnMessage
+                    ? 'rounded-br-none bg-primary text-primary-foreground'
+                    : 'rounded-bl-none bg-muted'
+                )}
+            >
+                {isEditing ? (
+                <div className="flex flex-col space-y-2">
+                    <textarea
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    className="w-full resize-none rounded-md border bg-background p-2 text-foreground focus:border-primary focus:ring-1 focus:ring-primary"
+                    rows={Math.min(5, editText.split('\n').length)}
+                    autoFocus
+                    />
+                    <div className="flex justify-end space-x-2">
+                    <button type="button" onClick={handleEdit} className="flex items-center space-x-1 rounded-md bg-primary px-3 py-1 text-primary-foreground hover:bg-primary/90">
+                        <Check className="h-4 w-4" />
+                        <span>Opslaan</span>
                     </button>
-                  )}
-                  <button
-                    onClick={() => onDelete?.(message.id)}
-                    className="p-1  hover:text-red-600 bg-white rounded-full shadow-sm"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          )}
-        </motion.div>
+                    <button type="button" onClick={handleCancelEdit} className="flex items-center space-x-1 rounded-md bg-secondary px-3 py-1 text-secondary-foreground hover:bg-secondary/90">
+                        <X className="h-4 w-4" />
+                        <span>Annuleer</span>
+                    </button>
+                    </div>
+                </div>
+                ) : (
+                <>
+                    {message.gifUrl ? (
+                    <img
+                        src={message.gifUrl}
+                        alt="GIF"
+                        className="max-w-full rounded-md"
+                        loading="lazy"
+                    />
+                    ) : (
+                    <p className="whitespace-pre-wrap">{message.text}</p>
+                    )}
+                </>
+                )}
+            </div>
+        </div>
       </div>
     </div>
   );
-}
+};

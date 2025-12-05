@@ -4,9 +4,9 @@
 import { useState, useEffect } from "react";
 import DashEventCards from "@/components/dashboard/DashEventCards";
 import FollowersFollowingCards from "@/components/FollowersFollowingCards";
-import { useStore } from "@/lib/store/useStore";
-import { setupRealtimeListener } from "@/utils/followActions";
-import { getOrganizedEventCount } from "@/utils/eventUpdates";
+import { useStore } from "@/lib/store/use-auth-store";
+import { setupRealtimeListener } from "@/lib/utils/followActions";
+import { getOrganizedEventCount } from "@/lib/utils/eventUpdates";
 
 export default function DashboardInfo() {
   const { currentUser, wishlists, loadWishlists } = useStore();

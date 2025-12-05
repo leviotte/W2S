@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CountdownTimer from "@/components/CountdownTimer";
-import { useStore } from "@/lib/store/useStore";
+import { useStore } from "@/lib/store/use-auth-store";
 import {
   Card,
   CardHeader,

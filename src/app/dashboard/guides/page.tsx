@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-import userGuideSVG from "/user_guide.svg";
 import { PenTool, Calendar, Gift, Heart, Ticket } from "lucide-react";
 
+const userGuideSVG = "/user_guide.svg";
 const DrawingGuidePage = dynamic(() => import("../../guides/drawing/page"));
 const EventGuidePage = dynamic(() => import("../../guides/event/page"));
 const SubscriptionGuidePage = dynamic(

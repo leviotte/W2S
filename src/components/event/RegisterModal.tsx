@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useStore } from "@/lib/store/useStore";
+import { useStore } from "@/lib/store/use-auth-store";
 import { toast } from "sonner";
-import { validateBirthdate } from "@/utils/validation";
+import { validateBirthdate } from "@/lib/utils/validation";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";

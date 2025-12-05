@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useStore } from '@/lib/store/useStore';
+import { useStore } from '@/lib/store/use-auth-store';
 import { useAuth } from '@/app/dashboard/layout';
 
 export const useRequireAuth = () => {

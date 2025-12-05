@@ -1,6 +1,6 @@
 "use client";
 
-import DraggableParticipant from "./party-preps/DraggableParticipant";
+import DraggableParticipant from "../party-preps/DraggableParticipant";
 
 interface ParticipantListProps {
   participants: Array<{

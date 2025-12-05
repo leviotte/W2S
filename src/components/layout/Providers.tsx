@@ -1,13 +1,16 @@
-// components/layout/Providers.tsx
-"use client";
+'use client';
 
-import { AuthProvider } from "@/components/AuthContext";
-import AuthSpinner from "@/components/AuthSpinner";
+import { ThemeProvider } from 'next-themes';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <AuthProvider>
-      <AuthSpinner>{children}</AuthSpinner>
-    </AuthProvider>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      {children}
+    </ThemeProvider>
   );
 }

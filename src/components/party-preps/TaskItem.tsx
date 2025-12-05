@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Trash2, UserPlus, ChevronDown, ChevronUp } from "lucide-react";
 import { useDroppable } from "@dnd-kit/core";
 import { toast } from "sonner";
-import { useStore } from "@/lib/store/useStore";
+import { useStore } from "@/lib/store/use-auth-store";
 
 interface TaskItemProps {
   task: {

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SpinnerRoundFilled } from "spinners-react";
 
-import { useStore } from "@/lib/store/useStore";
+import { useStore } from "@/lib/store/use-auth-store";
 import PhotoSection from "@/components/profile/PhotoSection";
 import PersonalInfoSection from "@/components/profile/PersonalInfoSection";
 import AddressSection from "@/components/profile/AddressSection";

@@ -1,58 +1,38 @@
-export interface Message {
-  id: string;
-  text: string;
-  userId: string;
-  userName: string;
-  timestamp: string;
-  isAnonymous?: boolean;
-  gifUrl?: string;
-}
+import { z } from 'zod';
+import { chatMessageSchema } from './chat';
 
-export interface Task {
-  id: string;
-  title: string;
-  completed: boolean;
-  assignedParticipants: string[];
-}
+export const eventParticipantSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  email: z.string().email(),
+  status: z.enum(['pending', 'accepted', 'declined']),
+});
 
-export interface Participant {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email?: string;
-  confirmed: boolean;
-  wishlistId?: string;
-  wishlist: any;
-}
+export const eventSchema = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().min(1, 'Event naam is verplicht'),
+  // CORRECTIE: z.coerce.date() gebruiken. De custom 'required_error' laten we vallen
+  // ten voordele van de correcte syntax en Zod's default-gedrag.
+  date: z.coerce.date(),
+  description: z.string().optional(),
+  organizerId: z.string().uuid(),
+  participants: z.array(eventParticipantSchema).default([]),
+  isPublic: z.boolean().default(false),
+  hasNameDrawing: z.boolean().default(false),
+  drawnNames: z.record(z.string(), z.string()).optional(),
+  registrationDeadline: z.coerce.date().optional().nullable(),
+  chat: z.array(chatMessageSchema).optional(),
+  // CORRECTIE: Ook hier z.coerce.date() gebruiken.
+  createdAt: z.coerce.date().default(() => new Date()),
+  updatedAt: z.coerce.date().default(() => new Date()),
+});
 
-export interface Event {
-  id: string;
-  name: string;
-  profileId: string;
-  date: string;
-  time?: string;
-  endTime?: string;
-  budget: number;
-  location?: string;
-  theme?: string;
-  additionalInfo?: string;
-  organizerPhone?: string;
-  organizerEmail?: string;
-  organizer: string;
-  isLootjesEvent: boolean;
-  registrationDeadline?: string;
-  maxParticipants?: number;
-  currentParticipantCount?: number;
-  allowSelfRegistration: boolean;
-  participants: Record<string, Participant>;
-  messages: Message[];
-  lastReadTimestamps: Record<string, number>;
-  drawnNames: Record<string, string>;
-  tasks: Task[];
-  backgroundImage: string;
-  createdAt: string; // Firebase Timestamp -> string
-  isInvited: boolean;
-  updatedAt: string; // Firebase Timestamp -> string
-  allowDrawingNames: boolean;
-  purchases: any;
-}
+export const createEventSchema = eventSchema.omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Event = z.infer<typeof eventSchema>;
+export type EventParticipant = z.infer<typeof eventParticipantSchema>;
+export type CreateEventInput = z.infer<typeof createEventSchema>;

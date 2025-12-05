@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { User, Upload } from "lucide-react";
 import { toast } from "react-toastify";
-import { compressImage } from "@/utils/imageCompression";
+import { compressImage } from "@/lib/utils/imageCompression";
 
 interface PhotoSectionProps {
   photoURL?: string;

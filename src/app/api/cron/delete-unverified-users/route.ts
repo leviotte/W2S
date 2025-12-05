@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db, auth, admin } from '@/lib/server/firebaseAdmin';
+import { adminDb, adminAuth, admin } from '@/lib/server/firebaseAdmin';
 
 // Forceer de route om dynamisch te zijn en niet gecached te worden
 export const dynamic = 'force-dynamic';
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   let deletedCount = 0;
 
   try {
-    const snapshot = await db
+    const snapshot = await adminDb
       .collection('users')
       .where('emailVerified', '==', false)
       .where('createdAt', '<', threeDaysAgo)
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
     const deletionPromises = snapshot.docs.map(async (doc) => {
       console.log(`Preparing to delete unverified user: ${doc.id}`);
-      await auth.deleteUser(doc.id);
+      await adminAuth.deleteUser(doc.id);
       await doc.ref.delete();
       deletedCount++;
     });

@@ -1,7 +1,7 @@
 "use client";
 
 import { MessageCircle } from "lucide-react";
-import NotificationBadge from "./NotificationBadge";
+import NotificationBadge from "../NotificationBadge";
 
 interface ChatNotificationProps {
   unreadCount: number;

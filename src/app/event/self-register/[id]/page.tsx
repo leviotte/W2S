@@ -6,7 +6,7 @@ import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "fireb
 import { db } from "@/lib/client/firebase";
 import { Event } from "@/types/event";
 import { HashLoader } from "react-spinners";
-import { useStore } from "@/lib/store/useStore";
+import { useStore } from "@/lib/store/use-auth-store";
 import { useAuth } from "@/app/dashboard/layout";
 import { toast } from "sonner";
 

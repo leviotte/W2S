@@ -15,9 +15,9 @@ import {
 } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { Gift, Edit2, Save, Trash2, Plus, X, Image } from "lucide-react";
-import UserAvatar from "@/components/UserAvatar";
+import UserAvatar from "@/components/shared/user-avatar";
 import { AffiliateProducts } from "../AffiliateProducts";
-import { useStore } from "@/lib/store/useStore";
+import { useStore } from "@/lib/store/use-auth-store";
 
 interface WishlistItem {
   id: string;

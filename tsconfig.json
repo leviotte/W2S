@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    // --- Kerninstellingen (Standaard & Veilig) ---
     "target": "ES2017",
     "lib": [
       "dom",
@@ -8,31 +9,36 @@
     ],
     "allowJs": true,
     "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
     "esModuleInterop": true,
     "module": "ESNext",
-    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react-jsx",
     "incremental": true,
-    "baseUrl": "./",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    // --- Cruciale Next.js & React Instellingen ---
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx", // BELANGRIJK: Geeft Next.js' compiler (SWC) volledige controle voor optimale performance.
+    "noEmit": true,
+    // --- Pad Aliassen ---
+    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./src/*"
       ]
     },
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ]
+    // --- "Gold Standard" Strictness Regels ---
+    "strict": true,
+    "forceConsistentCasingInFileNames": true, // VOORKOMT FOUTEN: Essentieel voor Linux-based deployments (Vercel).
+    "noUncheckedIndexedAccess": true // VEILIGHEID: Dwingt je om te controleren of array/object-items bestaan, voorkomt runtime errors.
   },
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
+    "src/**/*.ts", // Preciezer pad voor betere performance.
+    "src/**/*.tsx", // Preciezer pad voor betere performance.
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],

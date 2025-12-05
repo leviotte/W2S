@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/client/firebase"; // pas je path aan naar je firebase config
 import { toast } from "react-toastify";
-import { useStore } from "@/lib/store/useStore";
+import { useStore } from "@/lib/store/use-auth-store";
 
 export interface Manager {
   id: string;

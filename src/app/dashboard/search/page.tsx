@@ -7,7 +7,7 @@ import { Search as SearchIcon, Filter as FilterIcon } from "lucide-react";
 import { collection, query, where, getDocs, orderBy, startAt, endAt } from "firebase/firestore";
 import { db } from "@/lib/client/firebase"; // pas aan naar jouw firebase config path
 import { toast } from "sonner";
-import UserAvatar from "@/components/UserAvatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import WishlistInviteHandler from "@/components/wishlist/WishlistInviteHandler";
 

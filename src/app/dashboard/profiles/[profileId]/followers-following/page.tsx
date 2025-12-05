@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { db } from "@/lib/client/firebase";
 import { getDocs, collection, getDoc, doc } from "firebase/firestore";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { useStore } from "@/lib/store/useStore";
+import { useStore } from "@/lib/store/use-auth-store";
 
 interface Props {
   params: { profileId: string };

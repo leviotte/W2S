@@ -6,7 +6,7 @@ import { Facebook, Instagram } from "lucide-react";
 import { FaPinterest, FaTiktok } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import Link from "next/link";
-import { useStore } from "@/lib/store/useStore";
+import { useStore } from "@/lib/store/use-auth-store";
 import { collection, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/client/firebase";
 

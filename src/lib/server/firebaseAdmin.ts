@@ -1,48 +1,77 @@
+/**
+ * src/lib/server/firebaseAdmin.ts
+ *
+ * "GOLD STANDARD" SINGLETON PROVIDER voor de Firebase Admin SDK.
+ *
+ * Deze implementatie gebruikt de 'globalThis' caching strategie om stabiliteit
+ * te garanderen tijdens hot-reloading in de Next.js development-omgeving.
+ *
+ * Het exporteert de geïnitialiseerde services direct voor eenvoudig gebruik.
+ */
+import 'server-only';
 import * as admin from 'firebase-admin';
+import type { App } from 'firebase-admin/app';
+import type { Auth } from 'firebase-admin/auth';
+import type { Firestore } from 'firebase-admin/firestore';
+import type { Storage } from 'firebase-admin/storage';
 
-// Definieer de vereiste environment variables
-const requiredEnvVars = [
-  'FIREBASE_PROJECT_ID',
-  'FIREBASE_CLIENT_EMAIL',
-  'FIREBASE_PRIVATE_KEY',
-];
+// Definieer een type voor onze globale cache.
+// Dit voorkomt dat we 'any' moeten gebruiken voor de global.
+declare global {
+  var _firebaseAdminServices: {
+    app: App;
+    auth: Auth;
+    db: Firestore;
+    storage: Storage;
+  } | undefined;
+}
 
-// Controleer of alle variabelen aanwezig zijn
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
+// Lees de service account credentials uit de environment variables.
+// Aangepast naar de naam die we in .env.local gebruiken voor consistentie.
+const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+if (!serviceAccountJson) {
+  throw new Error(
+    '[Firebase Admin] Fatal Error: De environment variable FIREBASE_SERVICE_ACCOUNT_JSON is niet ingesteld.'
+  );
+}
+
+// Haal de Storage Bucket naam op. Essentieel voor file uploads.
+const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+if (!storageBucket) {
     throw new Error(
-      `[Firebase Admin] Fatal Error: Environment variable ${envVar} is not defined. Please check your .env.local file.`
-    );
-  }
+    '[Firebase Admin] Fatal Error: De environment variable NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET is niet ingesteld.'
+  );
 }
 
-// Singleton pattern: zorg ervoor dat we de app maar één keer initialiseren
-let app: admin.app.App;
+let services = globalThis._firebaseAdminServices;
 
-if (!admin.apps.length) {
+if (!services) {
   try {
-    app = admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID!,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
-        // De replace-logica is perfect, die behouden we
-        privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, '\n'),
-      }),
-    });
-    console.log('Firebase Admin SDK Initialized Successfully.');
-  } catch (error: any) {
-    console.error('[Firebase Admin] Initialization failed:', error);
-    // Gooi de fout door zodat de server niet start met een foute configuratie
-    throw new Error('Could not initialize Firebase Admin SDK.');
+    const serviceAccount = JSON.parse(serviceAccountJson);
+    const app = admin.apps.length
+      ? admin.apps[0]!
+      : admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+          storageBucket: storageBucket, // Belangrijk voor file storage!
+        });
+
+    console.log('🔥 Firebase Admin SDK succesvol geïnitialiseerd.');
+
+    services = {
+      app,
+      auth: admin.auth(app),
+      db: admin.firestore(app),
+      storage: admin.storage(app),
+    };
+    
+    globalThis._firebaseAdminServices = services;
+
+  } catch (e: any) {
+    throw new Error(`[Firebase Admin] Initialisatie mislukt: ${e.message}`);
   }
-} else {
-  // Als er al een app is, gebruik die dan
-  app = admin.app();
-  console.log('Firebase Admin SDK already initialized.');
 }
 
-// Exporteer de services die je nodig hebt in de rest van je app
-const auth = admin.auth(app);
-const db = admin.firestore(app);
-
-export { auth, db, admin };
+export const adminApp = services.app;
+export const adminAuth = services.auth;
+export const adminDb = services.db;
+export const adminStorage = services.storage;

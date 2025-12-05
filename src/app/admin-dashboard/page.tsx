@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import ProfilePage from 
+import UserProfilePage from "../profile/[username]/page";
 import AddAccountPage from "../add-account/page";
 import Metrics from "@/components/Metrics";
-import WebBackGrounds from "../dashboard/WebBackGrounds/page";
+import WebBackGrounds from "../dashboard/web-backgrounds/page";
 import AffiliateStoresPage from "../dashboard/affiliate-stores/page";
 import BlogPage from "../blog/page";
 import InquiriesPage from "../dashboard/inquiries/page";
@@ -84,7 +84,7 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm p-6">
-          {tab === "profile" && <ProfilePage />}
+          {tab === "profile" && <UserProfilePage />}
           {tab === "beckgrounds" && <WebBackGrounds />}
           {tab === "settings" && subTab === "affliate-stores" && <AffiliateStoresPage />}
           {tab === "blogs" && <BlogPage />}

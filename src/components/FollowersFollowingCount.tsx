@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { setupRealtimeListener } from "@/utils/followActions";
+import { setupRealtimeListener } from "@/lib/utils/followActions";
 
 interface FollowersFollowingCountProps {
   userId: string;

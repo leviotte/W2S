@@ -1,19 +1,11 @@
 "use client";
+
 import React, { useState } from "react";
 import { Plus } from "lucide-react";
-import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useStore } from "@/lib/store/useStore";
+import { useStore } from "@/lib/store/use-auth-store";
 
-/**
- * State-of-the-art Next.js 16 upgrade for WishlistSelector
- * - ISR-safe
- * - transitions
- * - fully typed
- * - accessible
- * - supports zero-lag rendering
- */
 export default function WishlistSelector({
   selectedWishlistId,
   onSelect,
@@ -47,7 +39,7 @@ export default function WishlistSelector({
               whileHover={{ scale: 1.01 }}
               transition={{ duration: 0.15 }}
               className={cn(
-                "flex items-center justify-between p-4 rounded-xl border-2 text-left shadow-sm transition-all", 
+                "flex items-center justify-between p-4 rounded-xl border-2 text-left shadow-sm transition-all",
                 selected
                   ? "border-warm-olive/80 bg-warm-olive/10"
                   : "border-gray-200 hover:border-warm-olive/60 hover:bg-gray-50"
@@ -57,12 +49,14 @@ export default function WishlistSelector({
                 <h4 className="font-medium text-gray-900 text-base leading-tight">
                   {wishlist.name}
                 </h4>
-                <p className="text-sm text-gray-500">{wishlist.items.length} items</p>
+                <p className="text-sm text-gray-500">
+                  {wishlist.items.length} items
+                </p>
               </div>
 
               <motion.div
                 className={cn(
-                  "w-4 h-4 rounded-full border-2", 
+                  "w-4 h-4 rounded-full border-2",
                   selected ? "border-warm-olive bg-warm-olive" : "border-gray-300"
                 )}
                 layout
@@ -81,11 +75,13 @@ export default function WishlistSelector({
           </button>
         )}
 
-        <motion.button
+        <button
           onClick={onCreateNew}
-          whileHover={{ scale: 1.02 }}
-          className="flex items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-warm-olive/70 text-gray-600 hover:text-warm-olive shadow-sm"
+          className="flex items-center gap-2 text-warm-olive hover:text-cool-olive text-sm font-medium"
         >
-          <Plus className="h-5 w-5" />
-          <span className="font-medium">Maak een nieuwe Wish2Share-List</span>
-        </motion.bu
+          <Plus className="w-4 h-4" /> Nieuwe lijst maken
+        </button>
+      </div>
+    </div>
+  );
+}

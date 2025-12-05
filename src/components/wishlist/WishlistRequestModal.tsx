@@ -111,6 +111,8 @@ export default function WishlistRequestModal({ isOpen, onClose, recipientEmail }
               </button>
             </div>
           </form>
-        </div>
+                </div>
       </div>
     </div>
+  );
+}

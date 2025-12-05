@@ -1,10 +1,18 @@
-import React, { useState, useRef } from "react";
-import { Send, Smile, Image as GifIcon } from "lucide-react";
-import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
-import { IGif } from "@giphy/js-types";
-import { useClickOutside } from "@/hooks/useClickOutside";
-import AutoGrowTextarea from "@/components/chat/AutoGrowTextarea";
-import GifPicker from "@/components/chat/GifPicker";
+/**
+ * components/chat/ChatInput.tsx
+ * 
+ * FINALE VERSIE: Nu met de correcte 'onGifSelect' prop voor de GifPicker.
+ */
+"use client";
+
+import React, { useState, useRef } from 'react';
+import { Send, Smile, Image as ImageIcon } from 'lucide-react';
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
+import { IGif } from '@giphy/js-types';
+
+import { useClickOutside } from '@/hooks/useClickOutside';
+import AutoGrowTextarea from '@/components/chat/AutoGrowTextarea';
+import GifPicker from '@/components/chat/GifPicker';
 
 interface ChatInputProps {
   onSendMessage: (
@@ -15,7 +23,7 @@ interface ChatInputProps {
 }
 
 export default function ChatInput({ onSendMessage }: ChatInputProps) {
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
@@ -38,27 +46,26 @@ export default function ChatInput({ onSendMessage }: ChatInputProps) {
     if (!message.trim()) return;
 
     try {
-      const formattedMessage =
-        message.charAt(0).toUpperCase() + message.slice(1);
+      const formattedMessage = message.charAt(0).toUpperCase() + message.slice(1);
       await onSendMessage(formattedMessage, isAnonymous);
-      setMessage("");
+      setMessage('');
     } catch (error) {
-      console.error("Bericht versturen mislukt:", error);
+      console.error('Bericht versturen mislukt:', error);
     }
   };
 
-  const onEmojiClick = (emojiData: EmojiClickData) => {
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
     setMessage((prev) => prev + emojiData.emoji);
     setShowEmojiPicker(false);
   };
 
-  const onGifSelect = async (gif: IGif) => {
+  const handleGifSelect = async (gif: IGif) => {
     try {
-      const gifUrl = gif.images.original.url;
-      await onSendMessage("", isAnonymous, gifUrl);
-      setShowGifPicker(false);
+      const gifUrl = gif.images.fixed_height.url;
+      await onSendMessage('', isAnonymous, gifUrl);
+      setShowGifPicker(false); // GifPicker sluit nu zichzelf, maar dit is extra veilig.
     } catch (error) {
-      console.error("GIF verzenden mislukt:", error);
+      console.error('GIF verzenden mislukt:', error);
     }
   };
 
@@ -87,17 +94,14 @@ export default function ChatInput({ onSendMessage }: ChatInputProps) {
               }}
               className="p-1.5 hover:bg-warm-olive/50 hover:text-gray-600 border border-warm-olive/30 rounded-lg transition-colors"
             >
-              <GifIcon className="h-5 w-5" />
+              <ImageIcon className="h-5 w-5" />
             </button>
 
             {showGifPicker && (
-              <div
-                ref={gifPickerRef}
-                className="absolute bottom-full right-0 mb-2 z-50"
-                style={{ minWidth: "320px" }}
-              >
+              <div ref={gifPickerRef} className="absolute bottom-full right-0 mb-2 z-50">
+                {/* DE FIX: 'onSelect' is nu 'onGifSelect' */}
                 <GifPicker
-                  onGifSelect={onGifSelect}
+                  onGifSelect={handleGifSelect}
                   onClose={() => setShowGifPicker(false)}
                 />
               </div>
@@ -118,12 +122,9 @@ export default function ChatInput({ onSendMessage }: ChatInputProps) {
             </button>
 
             {showEmojiPicker && (
-              <div
-                ref={emojiPickerRef}
-                className="absolute bottom-full right-0 mb-2 z-50"
-              >
+              <div ref={emojiPickerRef} className="absolute bottom-full right-0 mb-2 z-50">
                 <EmojiPicker
-                  onEmojiClick={onEmojiClick}
+                  onEmojiClick={handleEmojiClick}
                   autoFocusSearch={false}
                   width={300}
                   height={400}
@@ -135,7 +136,7 @@ export default function ChatInput({ onSendMessage }: ChatInputProps) {
       </div>
 
       <form onSubmit={handleSubmit} className="flex items-center gap-2">
-        <div className="relative flex w-[90%]">
+        <div className="relative flex-grow">
           <AutoGrowTextarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -144,7 +145,8 @@ export default function ChatInput({ onSendMessage }: ChatInputProps) {
         </div>
         <button
           type="submit"
-          className="bg-warm-olive text-white p-2 rounded-lg hover:bg-cool-olive transition-colors"
+          className="bg-warm-olive text-white p-2 rounded-lg hover:bg-cool-olive transition-colors disabled:bg-gray-400"
+          disabled={!message.trim()}
         >
           <Send className="h-6 w-6" />
         </button>

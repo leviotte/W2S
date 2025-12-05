@@ -1,22 +1,27 @@
+'use client';
+
 import React, { useEffect, useRef } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
-import { Message } from "@/components/types/chat";
-import ChatMessage from "@/components/chat/ChatMessage";
-import { shouldShowDate, formatChatDate } from "@/utils/chat";
+
+// OPLOSSING 1: Gebruik de correcte typenaam 'ChatMessage'
+// OPLOSSING 2: Importeer via de barrel file '@/types' voor consistentie
+import type { ChatMessage } from '@/types';
+import { shouldShowDate, formatChatDate } from '@/lib/utils/chat';
+import { ChatMessage as ChatMessageComponent } from '@/components/chat/ChatMessage'; // Hernoemd voor duidelijkheid
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 interface VirtualizedMessageListProps {
-  messages: Message[];
+  messages: ChatMessage[];
   eventId: string;
   currentUserId: string;
   onEdit?: (messageId: string, newText: string) => Promise<void>;
-  onDelete?: (messageId: string) => Promise<void>;
+  onDelete?: (messageId:string) => Promise<void>;
   onLoadMore: () => void;
   hasMore: boolean;
   isLoading?: boolean;
 }
 
-export default function VirtualizedMessageList({
+export function VirtualizedMessageList({
   messages,
   eventId,
   currentUserId,
@@ -24,34 +29,38 @@ export default function VirtualizedMessageList({
   onDelete,
   onLoadMore,
   hasMore,
-  isLoading
+  isLoading,
 }: VirtualizedMessageListProps) {
   const virtuosoRef = useRef<VirtuosoHandle>(null);
-  const lastMessageRef = useRef<string | null>(null);
+
+  // Verbetering: Houd de scroll-positie en auto-scroll logica gescheiden
   const isAtBottomRef = useRef(true);
+  const previousMessageCount = useRef(messages.length);
 
   useEffect(() => {
-    if (messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage.id !== lastMessageRef.current && 
-          (isAtBottomRef.current || lastMessage.userId === currentUserId)) {
-        lastMessageRef.current = lastMessage.id;
-        virtuosoRef.current?.scrollToIndex({
-          index: messages.length - 1,
-          behavior: 'smooth',
-          align: 'end'
-        });
-      }
+    // Auto-scroll naar beneden voor nieuwe berichten
+    // 1. Als de gebruiker al onderaan was
+    // 2. Of als de gebruiker zelf een bericht heeft gestuurd
+    const lastMessage = messages[messages.length - 1];
+    if (
+      lastMessage &&
+      messages.length > previousMessageCount.current &&
+      (isAtBottomRef.current || lastMessage.userId === currentUserId)
+    ) {
+      virtuosoRef.current?.scrollToIndex({
+        index: messages.length - 1,
+        behavior: 'smooth',
+        align: 'end',
+      });
     }
+    previousMessageCount.current = messages.length;
   }, [messages, currentUserId]);
-
-  const handleScroll = (atBottom: boolean) => {
-    isAtBottomRef.current = atBottom;
-  };
-
-  if (isLoading) {
+  
+  // Verbetering: toon de laad-spinner BOVEN de lijst, niet ipv de lijst.
+  // Dit voorkomt dat de lijst verdwijnt bij het laden van oudere berichten.
+  if (isLoading && messages.length === 0) {
     return (
-      <div className="flex justify-center items-center h-full">
+      <div className="flex h-full items-center justify-center">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -61,41 +70,44 @@ export default function VirtualizedMessageList({
     <Virtuoso
       ref={virtuosoRef}
       style={{ height: '100%', width: '100%' }}
-      totalCount={messages.length}
-      followOutput="smooth"
-      alignToBottom
-      atBottomStateChange={handleScroll}
-      itemContent={(index) => {
-        const message = messages[index];
+      data={messages} // Virtuoso's 'data' prop is efficiënter dan 'totalCount' + 'itemContent'
+      atBottomStateChange={(atBottom) => (isAtBottomRef.current = atBottom)}
+      startReached={hasMore ? onLoadMore : undefined}
+      followOutput="auto"
+      initialTopMostItemIndex={messages.length > 0 ? messages.length - 1 : 0}
+      components={{
+        Header: () =>
+          hasMore ? (
+            <div className="flex justify-center p-4">
+              <LoadingSpinner size="sm" />
+            </div>
+          ) : null,
+      }}
+      itemContent={(index, message) => {
+        // De 'message' is nu direct beschikbaar via de itemContent callback
+        if (!message) return null; // Guard clause
+
         const showDate = shouldShowDate(messages, index);
+        const isOwnMessage = message.userId === currentUserId;
 
         return (
           <div className="px-4">
             {showDate && (
-              <div className="flex justify-center my-4">
-                <span className="bg-warm-olive/10 text-warm-olive px-3 py-1 rounded-lg text-sm">
+              <div className="my-4 flex justify-center">
+                <span className="rounded-lg bg-warm-olive/10 px-3 py-1 text-sm text-warm-olive">
                   {formatChatDate(message.timestamp)}
                 </span>
               </div>
             )}
-            <ChatMessage
+            <ChatMessageComponent
               message={message}
               eventId={eventId}
-              isOwnMessage={message.userId === currentUserId}
+              isOwnMessage={isOwnMessage}
               onEdit={onEdit}
               onDelete={onDelete}
             />
           </div>
         );
-      }}
-      startReached={hasMore ? onLoadMore : undefined}
-      initialTopMostItemIndex={messages.length - 1}
-      components={{
-        Header: hasMore ? () => (
-          <div className="flex justify-center p-4">
-            <LoadingSpinner size="sm" />
-          </div>
-        ) : undefined
       }}
     />
   );

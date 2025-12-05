@@ -15,7 +15,7 @@ import PartyPrepsSection from "@/components/party-preps/PartyPrepsSection";
 import AdvancedEventProgressChecklist from "@/components/event/AdvancedEventProgressChecklist";
 import ParticipantProgress from "@/components/event/ParticipantProgress";
 
-import { useStore } from "@/lib/store/useStore";
+import { useStore } from "@/lib/store/use-auth-store";
 import { useEventMessages } from "@/hooks/useEventMessages";
 import { useEventParticipants } from "@/hooks/useEventParticipants";
 
