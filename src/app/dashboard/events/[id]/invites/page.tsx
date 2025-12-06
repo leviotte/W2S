@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Copy } from "lucide-react";
 import { toast } from "sonner";
@@ -14,7 +14,7 @@ export default function EventInvitesPage({ params }: { params: { id: string } })
   const searchParams = useSearchParams();
   const type = searchParams.get("type") || "invitation";
 
-  const { events, currentUser, updateEvent } = useStore();
+  const { events, currentUser, updateEvent } = useAuthStore();
   const [isInvited, setIsInvited] = useState(false);
 
   const event = events.find(e => e.id === id);

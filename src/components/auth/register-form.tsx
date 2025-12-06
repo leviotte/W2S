@@ -36,14 +36,10 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
   const onSubmit = (data: RegisterInput) => {
     startTransition(async () => {
       try {
-        // Stap 1: Registreer de gebruiker met de Firebase Client SDK
         const auth = getAuth(app);
         const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-        
-        // Stap 2: Verkrijg het ID Token van de nieuw aangemaakte gebruiker
         const idToken = await userCredential.user.getIdToken();
 
-        // Stap 3: Roep de Server Action aan om het profiel aan te maken en de sessie-cookie te zetten
         const result = await registerAction({
           idToken,
           firstName: data.firstName,
@@ -52,19 +48,17 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
 
         if (result.success) {
           toast.success('Account succesvol aangemaakt!');
-          onSuccess(); // Sluit de modal
+          onSuccess();
         } else {
-          // Vang server-side fouten op, bv. bij het aanmaken van het profiel
           toast.error(result.error || 'Serverfout bij het finaliseren van de registratie.');
         }
 
       } catch (error: any) {
-        // Vang Firebase client-side fouten op (bv. e-mailadres al in gebruik)
         let friendlyMessage = 'Er is een onbekende fout opgetreden.';
         if (error.code === 'auth/email-already-in-use') {
           friendlyMessage = 'Dit e-mailadres is al in gebruik.';
         } else {
-            console.error('Firebase client-side registratie error:', error);
+          console.error('Firebase client-side registratie error:', error);
         }
         toast.error('Registratie mislukt', { description: friendlyMessage });
       }
@@ -82,7 +76,7 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-4">
             <FormField
-              control={form.control}
+              control={form.control} // CORRECTIE
               name="firstName"
               render={({ field }) => (
                 <FormItem>
@@ -93,7 +87,7 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
               )}
             />
             <FormField
-              control={form.control}
+              control={form.control} // CORRECTIE
               name="lastName"
               render={({ field }) => (
                 <FormItem>
@@ -106,7 +100,7 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
           </div>
 
           <FormField
-            control={form.control}
+            control={form.control} // CORRECTIE
             name="email"
             render={({ field }) => (
               <FormItem>
@@ -118,7 +112,7 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
           />
 
           <FormField
-            control={form.control}
+            control={form.control} // CORRECTIE
             name="password"
             render={({ field }) => (
               <FormItem>
@@ -130,7 +124,7 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
           />
 
           <FormField
-            control={form.control}
+            control={form.control} // CORRECTIE
             name="confirmPassword"
             render={({ field }) => (
               <FormItem>

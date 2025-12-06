@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 
 import {
   Card,
@@ -30,7 +30,7 @@ import { AiOutlineArrowRight } from "react-icons/ai";
 
 export default function PastEventsPage() {
   const router = useRouter();
-  const { events, loadEvents, deleteEvent, currentUser } = useStore();
+  const { events, loadEvents, deleteEvent, currentUser } = useAuthStore();
 
   useEffect(() => {
     loadEvents().catch((err) => console.error("Error loading events:", err));

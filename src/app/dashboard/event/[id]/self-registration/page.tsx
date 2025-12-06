@@ -6,8 +6,8 @@ import { db } from "@/lib/client/firebase";
 import { getDoc, doc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { toast } from "sonner";
 import { HashLoader } from "react-spinners";
-import { useStore } from "zustand";
-import { useAuth } from "@/app/dashboard/layout";
+import { useAuthStore } from "zustand";
+import { useAuthStore } from '@/lib/store/use-auth-store';
 import { Event } from "@/types/event";
 
 interface Props {
@@ -17,8 +17,8 @@ interface Props {
 export default function EventSelfRegistrationPage({ params }: Props) {
   const { id } = params;
   const router = useRouter();
-  const { currentUser } = useStore();
-  const { showLoginModal } = useAuth();
+  const { currentUser } = useAuthStore();
+  const { setAuthModalState } = useAuthStore();
 
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +33,7 @@ export default function EventSelfRegistrationPage({ params }: Props) {
 
         if (!currentUser) {
           toast.error("Log in om uw deelname te bevestigen.");
-          showLoginModal();
+          setAuthModalState({ open: true, view: 'login' });
           setLoading(false);
           return;
         }
@@ -66,12 +66,12 @@ export default function EventSelfRegistrationPage({ params }: Props) {
     };
 
     fetchEvent();
-  }, [id, currentUser, router, showLoginModal]);
+  }, [id, currentUser, router, setAuthModalState]);
 
   const handleRegister = async (selectedId: string) => {
     if (!currentUser) {
       toast.error("Log in om deel te nemen aan het evenement");
-      showLoginModal();
+      setAuthModalState({ open: true, view: 'login' });
       return;
     }
 

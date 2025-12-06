@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Trash2, UserPlus, ChevronDown, ChevronUp } from "lucide-react";
 import { useDroppable } from "@dnd-kit/core";
 import { toast } from "sonner";
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 
 interface TaskItemProps {
   task: {
@@ -34,7 +34,7 @@ export default function TaskItem({
 }: TaskItemProps) {
   const { isOver } = useDroppable({ id: task.id });
   const [showParticipants, setShowParticipants] = useState(false);
-  const { updateEvent } = useStore();
+  const { updateEvent } = useAuthStore();
 
   const assignedParticipants = task.assignedParticipants
     .map((id) => participants.find((p) => p.id === id))
@@ -49,7 +49,7 @@ export default function TaskItem({
     }
 
     try {
-      const event = useStore.getState().events.find((e) => e.id === eventId);
+      const event = useAuthStore.getState().events.find((e) => e.id === eventId);
       if (!event) throw new Error("Event niet gevonden");
 
       const updatedTasks = event.tasks.map((t) =>

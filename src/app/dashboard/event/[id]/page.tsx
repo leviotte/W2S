@@ -6,16 +6,16 @@ import { toast } from "sonner";
 import { ErrorBoundary } from "react-error-boundary";
 
 import EventDetails from "@/components/event/EventDetails";
-import DrawnNameSection from "@/components/event/DrawnNameSection";
+import DrawnNameSection from "@/app/dashboard/events/[id]/_components/drawn-name-section";
 import WishlistsSection from "@/components/wishlist/WishlistsSection";
 import GroupChat from "@/components/event/GroupChat";
-import LoadingSpinner from "@/components/LoadingSpinner";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ErrorFallback from "@/components/ErrorFallback";
 import PartyPrepsSection from "@/components/party-preps/PartyPrepsSection";
 import AdvancedEventProgressChecklist from "@/components/event/AdvancedEventProgressChecklist";
 import ParticipantProgress from "@/components/event/ParticipantProgress";
 
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 import { useEventMessages } from "@/hooks/useEventMessages";
 import { useEventParticipants } from "@/hooks/useEventParticipants";
 
@@ -29,7 +29,7 @@ export default function EventPage() {
   const searchParams = useSearchParams();
   const { id } = searchParams || {};
 
-  const { currentUser, updateEvent } = useStore();
+  const { currentUser, updateEvent } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState<any>();
   const [error, setError] = useState<Error | null>(null);

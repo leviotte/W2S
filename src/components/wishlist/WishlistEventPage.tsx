@@ -17,7 +17,7 @@ import { toast } from "react-toastify";
 import { Gift, Edit2, Save, Trash2, Plus, X, Image } from "lucide-react";
 import UserAvatar from "@/components/shared/user-avatar";
 import { AffiliateProducts } from "../AffiliateProducts";
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 
 interface WishlistItem {
   id: string;
@@ -84,7 +84,7 @@ export default function WishlistEventPage({
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [isLoadingBackgrounds, setIsLoadingBackgrounds] = useState(false);
 
-  const { currentUser } = useStore();
+  const { currentUser } = useAuthStore();
   const activeProfileId = localStorage.getItem("activeProfile");
   const account =
     activeProfileId === "main-account" ? currentUser?.id : activeProfileId;

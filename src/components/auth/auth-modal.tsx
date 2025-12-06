@@ -1,39 +1,61 @@
+/**
+ * src/components/auth/auth-modal.tsx
+ */
 'use client';
 
-import { useAuthStore } from '@/lib/store/use-auth-store';
+import { useState } from 'react';
+import { useModalStore } from '@/lib/store/use-modal-store';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
-import LoginForm from './login-form';
-import RegisterForm from './register-form';
-// import ForgotPasswordForm from './forgot-password-form';
+// Jouw formulieren worden hier geïmporteerd
+import { LoginForm } from './login-form';
+import RegisterForm from './register-form'; // Zorg dat dit bestand bestaat
+// import ForgotPasswordForm from './forgot-password-form'; // Voorbereid voor de toekomst
+
+// Een type voor de verschillende views in de modal
+type AuthView = 'login' | 'register' | 'forgot_password';
 
 export default function AuthModal() {
-  // We halen nu het state-object en de setter-functie op
-  const { authModal, setAuthModalState } = useAuthStore();
+  // We gebruiken de specifieke Modal-store
+  const { isLoginModalOpen, hideLoginModal, onSuccessCallback } = useModalStore();
+
+  // De 'view' is nu LOKALE state van dit component.
+  const [view, setView] = useState<AuthView>('login');
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
-      setAuthModalState({ open: false });
+      hideLoginModal();
+      // Reset de view naar 'login' wanneer de modal sluit
+      setTimeout(() => setView('login'), 300);
     }
   };
 
-  // De 'switch' functies worden veel eenvoudiger
-  const switchToLogin = () => setAuthModalState({ view: 'login' });
-  const switchToRegister = () => setAuthModalState({ view: 'register' });
-  const switchToForgotPassword = () => setAuthModalState({ view: 'forgot_password' });
-  const handleSuccess = () => setAuthModalState({ open: false });
+  const handleSuccess = () => {
+    hideLoginModal();
+    if (onSuccessCallback) {
+      onSuccessCallback();
+    }
+    setTimeout(() => setView('login'), 300);
+  };
+
+  // Functies om de lokale view state aan te passen
+  const switchToLogin = () => setView('login');
+  const switchToRegister = () => setView('register');
+  const switchToForgotPassword = () => setView('forgot_password');
 
   const renderContent = () => {
-    switch (authModal.view) {
+    switch (view) {
       case 'register':
+        // Zorg ervoor dat RegisterForm de juiste props verwacht
         return <RegisterForm onSuccess={handleSuccess} onSwitchToLogin={switchToLogin} />;
       
       case 'forgot_password':
         return (
           <div className="p-8 text-center">
             <h2 className="text-xl font-semibold">Wachtwoord Resetten</h2>
-            <p className="text-muted-foreground mt-2">Dit formulier komt binnenkort.</p>
-            <button onClick={switchToLogin} className="text-sm text-primary underline mt-4">
+            <p className="mt-2 text-muted-foreground">Dit formulier komt binnenkort.</p>
+            {/* CORRECTIE: onClick prop toegevoegd */}
+            <button onClick={switchToLogin} className="mt-4 text-sm text-primary underline">
               Terug naar login
             </button>
           </div>
@@ -41,7 +63,7 @@ export default function AuthModal() {
 
       case 'login':
       default:
-        // Alle props worden nu correct doorgegeven
+        // Alle props worden nu correct doorgegeven aan jouw LoginForm
         return (
           <LoginForm
             onSuccess={handleSuccess}
@@ -53,8 +75,9 @@ export default function AuthModal() {
   };
 
   return (
-    <Dialog open={authModal.open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+    // CORRECTIE: onOpenChange prop toegevoegd
+    <Dialog open={isLoginModalOpen} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md overflow-hidden p-0">
         {renderContent()}
       </DialogContent>
     </Dialog>

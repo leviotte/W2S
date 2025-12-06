@@ -6,11 +6,11 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SpinnerRoundFilled } from "spinners-react";
 
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 import PhotoSection from "@/components/profile/PhotoSection";
 import PersonalInfoSection from "@/components/profile/PersonalInfoSection";
 import AddressSection from "@/components/profile/AddressSection";
-import PasswordChangeSection from "@/components/PasswordChangeSection";
+import PasswordChangeSection from "@/app/dashboard/settings/_components/password-change-section";
 import ShareProfileSection from "@/components/profile/ShareProfileSection";
 import { Switch } from "@/components/ui/switch";
 
@@ -51,7 +51,7 @@ export default function Page() {
     updateProfile,
     togglePublicStatus,
     // deleteAccount, deleteProfile, switchToProfile etc. live in store if present
-  } = useStore();
+  } = useAuthStore();
 
   // UI state
   const [isDeleting, setIsDeleting] = useState(false);

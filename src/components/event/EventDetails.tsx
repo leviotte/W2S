@@ -9,13 +9,13 @@ import {
   Edit2,
   Share2,
 } from "lucide-react";
-import CountdownTimer from "../CountdownTimer";
+import CountdownTimer from "../ui/countdown-timer";
 import EventDetailsForm from "./EventDetailsForm";
 import { EventDetailsData } from "./EventDetailsForm";
 import { toast } from "sonner";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/client/firebase";
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 
 interface EventDetailsProps {
   name: string;
@@ -116,7 +116,7 @@ export default function EventDetails({
   participants,
   isDrawingNames,
 }: EventDetailsProps) {
-  const { updateEvent } = useStore();
+  const { updateEvent } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleCopyToClipboard = useCallback(async () => {

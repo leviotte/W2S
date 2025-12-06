@@ -4,12 +4,12 @@
 import { useState, useEffect } from "react";
 import DashEventCards from "@/components/dashboard/DashEventCards";
 import FollowersFollowingCards from "@/components/FollowersFollowingCards";
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 import { setupRealtimeListener } from "@/lib/utils/followActions";
 import { getOrganizedEventCount } from "@/lib/utils/eventUpdates";
 
 export default function DashboardInfo() {
-  const { currentUser, wishlists, loadWishlists } = useStore();
+  const { currentUser, wishlists, loadWishlists } = useAuthStore();
 
   const activeProfileId = typeof window !== "undefined" ? localStorage.getItem("activeProfile") : null;
   const isProfile = activeProfileId !== "main-account";

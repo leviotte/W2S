@@ -6,13 +6,13 @@ import { Facebook, Instagram } from "lucide-react";
 import { FaPinterest, FaTiktok } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import Link from "next/link";
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 import { collection, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/client/firebase";
 
 export default function Footer() {
   const [account, setAccount] = useState<{ id: string; [key: string]: any } | null>(null);
-  const { currentUser } = useStore();
+  const { currentUser } = useAuthStore();
 
   useEffect(() => {
     const fetchAccount = async () => {

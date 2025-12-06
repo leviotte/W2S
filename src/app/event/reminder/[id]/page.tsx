@@ -4,13 +4,13 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Mail, Copy } from "lucide-react";
 import { toast } from "sonner";
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 import InviteMethodCard from "@/components/invites/InviteMethodCard";
 
 const EventReminderPage = () => {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { events, currentUser, updateEvent } = useStore();
+  const { events, currentUser, updateEvent } = useAuthStore();
   const [isInvited, setIsInvited] = useState(false);
 
   const event = events.find((e) => e.id === id);

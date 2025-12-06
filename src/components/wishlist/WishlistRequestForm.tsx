@@ -3,7 +3,7 @@ import { Search, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/client/firebase';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import WishlistInviteHandler from '@/components/wishlist/WishlistInviteHandler';
 
 interface FormData {

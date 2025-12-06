@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { db } from "@/lib/client/firebase";
 import { getDocs, collection, getDoc, doc } from "firebase/firestore";
-import LoadingSpinner from "@/components/LoadingSpinner";
-import { useStore } from "@/lib/store/use-auth-store";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 
 interface Props {
   params: { profileId: string };
@@ -18,7 +18,7 @@ export default function FollowersFollowingList({ params }: Props) {
   const isFollowers = subTab === "followers";
   const router = useRouter();
 
-  const { currentUser } = useStore();
+  const { currentUser } = useAuthStore();
   const activeProfileId = localStorage.getItem("activeProfile");
   const currentUserId =
     activeProfileId !== "main-account" ? activeProfileId : currentUser?.id;

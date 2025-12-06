@@ -1,11 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useStore } from '@/lib/store/use-auth-store';
+import { useAuthStore } from '@/lib/store/use-auth-store';
 import { Event } from '@/types/event';
 import { ChatMessage } from '@/types/chat';
 import { toast } from 'sonner';
 
 export const useChat = (event: Event | undefined, currentUserId: string) => {
-  const { updateEvent } = useStore();
+  const { updateEvent } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
 
   const updateLastRead = useCallback(async () => {

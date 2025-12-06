@@ -22,7 +22,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { UserAvatar } from '../shared/user-avatar'; // We gaan ervan uit dat dit component bestaat
+// AANPASSING: Importeer de UserAvatar uit de 'shared' map
+import { UserAvatar } from '../shared/user-avatar';
 import { UserProfile } from '@/types/user';
 
 interface UserButtonProps {
@@ -42,23 +43,17 @@ function UserButton({ user }: UserButtonProps) {
     });
   };
 
-  const getFallback = () => {
-    return `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase() || '?';
-  }
+  // Helper om de volledige naam te krijgen. Jouw UserAvatar component maakt hier zelf de initialen van.
+  const getFullName = (): string => {
+    return `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
+  };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-          {/* 
-            HIER IS DE FIX:
-            We geven niet het hele `user` object door, maar enkel de props 
-            die UserAvatar daadwerkelijk nodig heeft: `src` en `fallback`.
-          */}
-          <UserAvatar
-            src={user.photoURL}
-            fallback={getFallback()}
-          />
+          {/* HIER IS DE UPDATE: We gebruiken nu de 'name' prop van jouw UserAvatar */}
+          <UserAvatar src={user.photoURL} name={getFullName()} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -67,13 +62,10 @@ function UserButton({ user }: UserButtonProps) {
             <p className="text-sm font-medium leading-none">
               {user.firstName} {user.lastName}
             </p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
-            </p>
+            <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {/* CORRECTIE: Navigatie-acties horen in de 'onSelect' prop */}
         <DropdownMenuItem onSelect={() => router.push('/dashboard')}>
           <User className="mr-2 h-4 w-4" />
           <span>Dashboard</span>
@@ -110,9 +102,9 @@ export default function SiteHeader({ currentUser }: SiteHeaderProps) {
           <Gift className="h-6 w-6 text-primary" />
           <span className="font-bold inline-block">Wish2Share</span>
         </Link>
-        
+
         <nav className="hidden md:flex flex-1 items-center space-x-4">
-           {/* Hier komen later je navigatie-items */}
+          {/* Hier komen later je navigatie-items */}
         </nav>
 
         <div className="flex flex-1 items-center justify-end space-x-2">
@@ -120,7 +112,6 @@ export default function SiteHeader({ currentUser }: SiteHeaderProps) {
             <UserButton user={currentUser} />
           ) : (
             <div className="hidden sm:flex items-center gap-2">
-              {/* CORRECTIE: Functies horen in de 'onClick' prop */}
               <Button variant="ghost" onClick={showLogin}>
                 <LogIn className="mr-2 h-4 w-4" />
                 Log In
@@ -129,13 +120,14 @@ export default function SiteHeader({ currentUser }: SiteHeaderProps) {
                 <UserPlus className="mr-2 h-4 w-4" />
                 Registreer
               </Button>
-            </Div>
+            </div>
           )}
-          
+
           <div className="sm:hidden">
-              <Button size="icon" variant="ghost">
-                <Menu className="h-5 w-5"/>
-              </Button>
+            {/* Hier komt later je mobiele menu logica */}
+            <Button size="icon" variant="ghost">
+              <Menu className="h-5 w-5" />
+            </Button>
           </div>
         </div>
       </div>

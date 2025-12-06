@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -49,7 +49,7 @@ const WishlistsPage: React.FC = () => {
     loadWishlists,
     updateWishlist,
     deleteWishlist,
-  } = useStore();
+  } = useAuthStore();
   const [loadingWishlistId, setLoadingWishlistId] = useState<string | null>(
     null
   );

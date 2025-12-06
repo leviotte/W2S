@@ -7,7 +7,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useFormState, useFormStatus } from "react-dom";
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 import { toast } from "sonner";
 import { Plus, X, Loader2 } from "lucide-react";
 
@@ -98,7 +98,7 @@ function SubmitButton({ text, pendingText }: { text: string, pendingText: string
 
 export function CreateEventForm({ categories, backImages }: CreateEventFormProps) {
   const router = useRouter();
-  const { currentUser, profiles } = useStore();
+  const { currentUser, profiles } = useAuthStore();
 
   const [step, setStep] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState<string>("");

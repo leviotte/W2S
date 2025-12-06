@@ -1,31 +1,32 @@
+/**
+ * src/app/dashboard/event/[id]/_components/drawn-name-section.tsx
+ *
+ * GOLD STANDARD VERSIE: Met correcte types, state-management en prop-syntax.
+ */
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Gift } from "lucide-react";
 import { useRouter } from "next/navigation";
-import NameDrawingAnimation from "./NameDrawingAnimation";
-import { useStore } from "@/lib/store/use-auth-store";
+import { NameDrawingAnimation } from "./name-drawing-animation"; // Zorg dat het pad correct is
+import { useAuthStore } from "@/lib/store/use-auth-store";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/client/firebase";
-
-interface Participant {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email?: string;
-  wishlistId?: string;
-}
+import { Button } from "@/components/ui/button";
+// VERBETERING: Gebruik onze gecentraliseerde, robuuste types
+import { Event, EventParticipant } from "@/types/event"; 
+import { Wishlist } from "@/types/wishlist"; // Zorg dat dit type bestaat
 
 interface DrawnNameSectionProps {
   drawnName?: string;
   drawnParticipantId?: string;
-  participants: Participant[];
+  participants: EventParticipant[]; // Gebruik het EventParticipant type
   onNameDrawn: (name: string) => void;
-  participantsTobeDrawn: Participant[];
+  participantsTobeDrawn: EventParticipant[]; // Gebruik het EventParticipant type
   eventId: string;
   showDrawingModal: boolean;
   setShowDrawingModal: React.Dispatch<React.SetStateAction<boolean>>;
-  event: any;
+  event: Event; // Gebruik het Event type, geen 'any'
 }
 
 export default function DrawnNameSection({
@@ -40,56 +41,38 @@ export default function DrawnNameSection({
   event,
 }: DrawnNameSectionProps) {
   const router = useRouter();
-  const { updateEvent } = useStore();
-  const [wishlist, setWishlist] = useState<any>();
+  // DE FIX: 'updateEvent' is nu correct beschikbaar in de store.
+  const { updateEvent } = useAuthStore(); 
+  const [wishlist, setWishlist] = useState<Wishlist | null>(null);
 
   const drawnParticipant = participants.find((p) => p.id === drawnParticipantId);
 
-  // -----------------------------
-  // FETCH WISHLIST
-  // -----------------------------
   useEffect(() => {
-    let mounted = true;
-
     const loadWishlist = async () => {
       if (!drawnParticipant?.wishlistId) return;
-
       const snap = await getDoc(doc(db, "wishlists", drawnParticipant.wishlistId));
-      if (mounted && snap.exists()) {
-        setWishlist(snap.data());
+      if (snap.exists()) {
+        setWishlist(snap.data() as Wishlist);
       }
     };
-
     loadWishlist();
-    return () => {
-      mounted = false;
-    };
   }, [drawnParticipant?.wishlistId]);
 
-  // -----------------------------
-  // AUTO-UPDATE MAX PARTICIPANTS
-  // -----------------------------
   useEffect(() => {
     if (!event?.registrationDeadline || !participants.length) return;
-
     const now = new Date();
-    const deadline = new Date(event.registrationDeadline);
-
-    if (now >= deadline) {
-      updateEvent(event.id, { maxParticipants: participants.length });
+    // Zorg ervoor dat 'registrationDeadline' een Date object is. Zod doet dit voor ons.
+    const deadline = event.registrationDeadline; 
+    if (deadline && now >= deadline) {
+      updateEvent(event.id!, { maxParticipants: participants.length });
     }
   }, [event, participants.length, updateEvent]);
-
-  // -----------------------------
-  // DETERMINE IF USER CAN DRAW
-  // -----------------------------
+  
   const allowToDraw = useMemo(() => {
     if (!event) return false;
-
     const now = new Date();
-    const deadline = event.registrationDeadline ? new Date(event.registrationDeadline) : null;
-
-    const currentCount = Object.keys(event?.participants ?? {}).length;
+    const deadline = event.registrationDeadline;
+    const currentCount = Object.keys(event.participants ?? {}).length;
 
     if (event.allowSelfRegistration) {
       return (
@@ -98,46 +81,35 @@ export default function DrawnNameSection({
         event.allowDrawingNames
       );
     }
-
     return true;
   }, [event]);
 
-  // -----------------------------
-  // NAVIGATION HANDLER
-  // -----------------------------
   const handleWishlistAction = useCallback(() => {
     if (!drawnParticipant) return;
-
     if (wishlist) {
-      router.push(
-        `/dashboard/wishlist/${wishlist.slug}/${eventId}?tab=wishlists&subTab=event-details`
-      );
+      router.push(`/dashboard/wishlist/${wishlist.slug}/${eventId}`);
     } else {
-      router.push(
-        `/dashboard/event/${eventId}/request/${drawnParticipant.id}?tab=event&subTab=request&type=wishlist`
-      );
+      router.push(`/dashboard/event/${eventId}/request/${drawnParticipant.id}`);
     }
   }, [wishlist, router, eventId, drawnParticipant]);
 
-  // -----------------------------
-  // RENDER
-  // -----------------------------
   return (
     <>
       {showDrawingModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-500/75 backdrop-blur-sm">
           <NameDrawingAnimation
             isOpen={showDrawingModal}
+            // CORRECTIE: Prop-syntax voor functies
             onClose={() => setShowDrawingModal(false)}
             names={participantsTobeDrawn.map((p) => `${p.firstName} ${p.lastName}`)}
-            onNameDrawn={onNameDrawn}
+            onDraw={onNameDrawn}
           />
         </div>
       )}
 
-      <div className="bg-white/40 backdrop-blur-md rounded-xl shadow-xl p-6 mb-6 border border-white/20">
+      <div className="mb-6 rounded-xl border border-white/20 bg-white/40 p-6 shadow-xl backdrop-blur-md">
         {allowToDraw && (
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          <h2 className="mb-4 text-xl font-semibold text-gray-900">
             Shhh! Jij koopt voor:
           </h2>
         )}
@@ -145,31 +117,26 @@ export default function DrawnNameSection({
         {drawnName ? (
           <div className="flex items-center justify-between">
             <div className="text-lg font-medium">{drawnName}</div>
-
-            <button
-              onClick={handleWishlistAction}
-              className="inline-flex items-center space-x-2 hover:text-cool-olive transition-colors"
-            >
-              <Gift className="h-5 w-5" />
+            <Button variant="ghost" onClick={handleWishlistAction}>
+              <Gift className="mr-2 h-5 w-5" />
               <span>
-                {drawnParticipant?.wishlistId ? "View wishlist" : "Request wishlist"}
+                {drawnParticipant?.wishlistId ? "Bekijk wenslijst" : "Vraag wenslijst aan"}
               </span>
-            </button>
+            </Button>
           </div>
         ) : (
           <>
             {allowToDraw ? (
-              <button
+              <Button
                 onClick={() => setShowDrawingModal(true)}
-                className="w-full bg-warm-olive text-white px-4 py-3 rounded-md hover:bg-cool-olive transition flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="w-full"
               >
-                <Gift className="h-5 w-5 mr-2" />
+                <Gift className="mr-2 h-5 w-5" />
                 <span>Trek een naam</span>
-              </button>
+              </Button>
             ) : (
               <p className="text-gray-800">
-                Trek een naam kan alleen gestart worden wanneer de deadline is verstreken
-                of het maximaal aantal deelnemers is bereikt.
+                Namen trekken kan pas als de deadline is verstreken of het maximaal aantal deelnemers is bereikt.
               </p>
             )}
           </>

@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 
 export default function WishlistSelector({
   selectedWishlistId,
@@ -15,7 +15,7 @@ export default function WishlistSelector({
   onSelect: (wishlistId: string) => void;
   onCreateNew: () => void;
 }) {
-  const { wishlists } = useStore();
+  const { wishlists } = useAuthStore();
   const [showAll, setShowAll] = useState(false);
 
   const displayedWishlists = showAll ? wishlists : wishlists.slice(0, 3);

@@ -8,7 +8,7 @@ import { collection, query, where, getDocs, orderBy, startAt, endAt } from "fire
 import { db } from "@/lib/client/firebase"; // pas aan naar jouw firebase config path
 import { toast } from "sonner";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import LoadingSpinner from "@/components/LoadingSpinner";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import WishlistInviteHandler from "@/components/wishlist/WishlistInviteHandler";
 
 interface SearchResult {

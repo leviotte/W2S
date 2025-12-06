@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 import { toast } from "sonner";
 import { validateBirthdate } from "@/lib/utils/validation";
 import { cn } from "@/lib/utils";
@@ -50,7 +50,7 @@ export default function RegisterModal({
 
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [birthdateError, setBirthdateError] = useState<string>();
-  const { register, loading, error } = useStore();
+  const { register, loading, error } = useAuthStore();
   const router = useRouter();
 
   if (!isOpen) return null;

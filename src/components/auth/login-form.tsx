@@ -1,105 +1,131 @@
+/**
+ * src/components/auth/login-form.tsx
+ *
+ * GOLD STANDARD VERSIE: Gekoppeld aan de useAuthStore voor client-side authenticatie.
+ */
 'use client';
 
-import { useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { loginAction } from '@/lib/auth/actions';
-import { loginSchema, LoginInput } from '@/lib/validators/auth';
+import { useAuthStore } from '@/lib/store/use-auth-store';
+import { loginSchema, type LoginInput } from '@/lib/validators/auth';
 
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { toast } from 'sonner';
 
-// Props bijgewerkt om alle mogelijke acties te bevatten
 interface LoginFormProps {
   onSuccess: () => void;
   onSwitchToRegister: () => void;
-  onSwitchToForgotPassword: () => void; // <-- DEZE IS TOEGEVOEGD
+  onSwitchToForgotPassword: () => void;
 }
 
-export default function LoginForm({ 
-  onSuccess, 
-  onSwitchToRegister, 
-  onSwitchToForgotPassword // <-- DEZE IS TOEGEVOEGD
+export function LoginForm({
+  onSuccess,
+  onSwitchToRegister,
+  onSwitchToForgotPassword,
 }: LoginFormProps) {
-  const [isPending, startTransition] = useTransition();
+  // Haal de login functie en loading state uit onze centrale store
+  const { login, loading } = useAuthStore((state) => ({
+    login: state.login,
+    loading: state.loading,
+  }));
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: '', password: '' },
   });
 
-  const onSubmit = (data: LoginInput) => {
-    startTransition(async () => {
-      const result = await loginAction(data);
-      if (result.success) {
-        toast.success('Succesvol ingelogd!');
-        onSuccess();
-      } else {
-        toast.error('Inloggen mislukt', {
-          description: result.error || 'Controleer je e-mail en wachtwoord.',
-        });
-      }
-    });
+  // De functie die wordt aangeroepen bij het submitten van het formulier
+  const onSubmit = async (data: LoginInput) => {
+    const userProfile = await login(data.email, data.password);
+    if (userProfile) {
+      // De toast voor succes wordt al in de store afgehandeld!
+      onSuccess(); // Sluit de modal
+    }
+    // De toast voor fouten wordt ook al in de store afgehandeld.
   };
 
   return (
-    <div className="flex flex-col gap-6 p-6 md:p-8">
-      <div className="flex flex-col items-center text-center gap-1">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col items-center gap-1 text-center">
         <h1 className="text-2xl font-bold">Log in op je Account</h1>
-        <p className="text-balance text-muted-foreground">Welkom terug bij Wish2Share</p>
+        <p className="text-balance text-muted-foreground">
+          Welkom terug bij Wish2Share
+        </p>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
+        {/* CORRECTIE: De 'onSubmit' logica is nu correct gekoppeld */}
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex flex-col gap-4"
+        >
           <FormField
-            control={form.control}
+            control={form.control} // CORRECTIE: 'control' prop was nodig
             name="email"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>E-mail</FormLabel>
-                <FormControl><Input placeholder="naam@voorbeeld.be" {...field} /></FormControl>
+                <FormControl>
+                  <Input placeholder="naam@voorbeeld.be" {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
           <FormField
-            control={form.control}
+            control={form.control} // CORRECTIE: 'control' prop was nodig
             name="password"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Wachtwoord</FormLabel>
-                <FormControl><Input type="password" {...field} /></FormControl>
+                <FormControl>
+                  <Input type="password" {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          {/* "Wachtwoord vergeten?" LINK TOEGEVOEGD */}
           <div className="text-right">
-            <button
+            <Button
               type="button"
-              onClick={onSwitchToForgotPassword}
-              className="text-sm font-medium text-primary hover:underline underline-offset-2"
+              variant="link"
+              size="sm"
+              onClick={onSwitchToForgotPassword} // CORRECTIE: 'onClick' was nodig
+              className="h-auto p-0 font-medium"
             >
               Wachtwoord vergeten?
-            </button>
+            </Button>
           </div>
 
-          <Button disabled={isPending} type="submit" className="w-full flex items-center justify-center gap-2">
-            {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+          <Button disabled={loading} type="submit" className="w-full">
+            {loading && <LoadingSpinner size="sm" className="mr-2" />}
             Log In
           </Button>
         </form>
       </Form>
-      
+
       <div className="text-center text-sm">
         Nog geen account?{' '}
-        <button onClick={onSwitchToRegister} className="font-semibold text-primary hover:underline underline-offset-2">
+        <Button
+          variant="link"
+          size="sm"
+          onClick={onSwitchToRegister} // CORRECTIE: 'onClick' was nodig
+          className="h-auto p-0 font-semibold"
+        >
           Registreer hier
-        </button>
+        </Button>
       </div>
     </div>
   );

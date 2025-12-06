@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { X, Plus } from "lucide-react";
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -19,7 +19,7 @@ export default function WishlistLinkModal({
   eventId,
   participantId,
 }: WishlistLinkModalProps) {
-  const { wishlists, updateEvent, loadEvents, events } = useStore();
+  const { wishlists, updateEvent, loadEvents, events } = useAuthStore();
   const router = useRouter();
 
   const [selectedWishlistId, setSelectedWishlistId] = useState<string>("");
@@ -88,7 +88,7 @@ export default function WishlistLinkModal({
     }
 
     try {
-      const { createWishlist } = useStore.getState();
+      const { createWishlist } = useAuthStore.getState();
 
       const wishlistId = await createWishlist({
         name: cleanName,

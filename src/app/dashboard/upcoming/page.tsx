@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import CountdownTimer from "@/components/CountdownTimer";
-import { useStore } from "@/lib/store/use-auth-store";
+import CountdownTimer from "@/components/ui/countdown-timer";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 import {
   Card,
   CardHeader,
@@ -62,7 +62,7 @@ const TodoItem = ({ label, status, statusText, progressText }: { label: string; 
 
 const EventCard = ({ event, onDelete }: any) => {
   const router = useRouter();
-  const { currentUser } = useStore();
+  const { currentUser } = useAuthStore();
   const profile = localStorage.getItem("activeProfile");
   const currentUserId = profile === "main-account" ? currentUser?.id : profile;
   const isOrganizer = currentUser && event?.organizer === currentUserId;
@@ -169,7 +169,7 @@ const EventCard = ({ event, onDelete }: any) => {
 };
 
 export default function UpcomingEventsPage() {
-  const { events, loadEvents, deleteEvent } = useStore();
+  const { events, loadEvents, deleteEvent } = useAuthStore();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 

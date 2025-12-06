@@ -6,15 +6,14 @@ import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "fireb
 import { db } from "@/lib/client/firebase";
 import { Event } from "@/types/event";
 import { HashLoader } from "react-spinners";
-import { useStore } from "@/lib/store/use-auth-store";
-import { useAuth } from "@/app/dashboard/layout";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 import { toast } from "sonner";
 
 const EventParticipationPage = () => {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { currentUser } = useStore();
-  const { showLoginModal } = useAuth();
+  const { currentUser } = useAuthStore();
+  const { setAuthModalState } = useAuthStore();
 
   const [event, setEvent] = useState<Event | null>(null);
   const [selectedName, setSelectedName] = useState("");
@@ -63,7 +62,7 @@ const EventParticipationPage = () => {
     }
 
     if (!currentUser) {
-      showLoginModal(() => window.location.reload());
+      setAuthModalState({ open: true, view: 'login' });
       return;
     }
 
@@ -177,7 +176,7 @@ const EventParticipationPage = () => {
           <button
             onClick={() => {
               setShowProfileSelect(true);
-              if (!currentUser) showLoginModal();
+              if (!currentUser) setAuthModalState({ open: true, view: 'login' });
             }}
             className="mt-4 px-6 py-2 rounded-lg shadow w-full bg-accent hover:bg-chart-5 text-white"
           >

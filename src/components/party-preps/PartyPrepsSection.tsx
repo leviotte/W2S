@@ -1,3 +1,8 @@
+/**
+ * src/features/events/components/party-preps-section.tsx
+ *
+ * FINALE VERSIE: Gecorrigeerde dataflow, types, en JSX-syntax.
+ */
 "use client";
 
 import { useState } from "react";
@@ -6,24 +11,25 @@ import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor } from "
 import { restrictToWindowEdges } from "@dnd-kit/modifiers";
 import { toast } from "sonner";
 
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 import TaskList from "./TaskList";
-import ParticipantList from "../ParticipantList";
+import ParticipantList from "../event/ParticipantList";
 import DraggableParticipant from "./DraggableParticipant";
 
+import type { Event, Task } from "@/types/event";
+import type { UserProfile } from "@/types/user";
+
 interface PartyPrepsProps {
-  eventId: string;
+  // We verwachten het volledige event object voor maximale performance en duidelijkheid
+  event: Event; 
   isOrganizer: boolean;
-  participants: Array<{
-    id: string;
-    firstName: string;
-    lastName: string;
-  }>;
+  // We gebruiken hier een simpeler type, maar je kan dit verfijnen
+  participants: Array<{ id: string; firstName: string; lastName: string; }>;
   currentUserId: string;
 }
 
-export default function PartyPrepsSection({
-  eventId,
+export function PartyPrepsSection({
+  event,
   isOrganizer,
   participants,
   currentUserId,
@@ -32,56 +38,56 @@ export default function PartyPrepsSection({
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  const { updateEvent, events } = useStore();
-  const event = events.find((e) => e.id === eventId);
-  const tasks = event?.tasks || [];
+  // De updateEvent functie uit onze store.
+  const updateEvent = useAuthStore((state) => state.updateEvent);
+  const tasks = event.tasks || [];
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
-  const handleAddTask = async () => {
+  const handleAddTask = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!newTaskTitle.trim()) {
       toast.error("Geef de taak een titel");
       return;
     }
 
     try {
-      const newTask = {
+      const newTask: Task = {
         id: crypto.randomUUID(),
         title: newTaskTitle,
         completed: false,
         assignedParticipants: [],
       };
 
-      await updateEvent(eventId, { tasks: [...tasks, newTask] });
+      await updateEvent(event.id, { tasks: [...tasks, newTask] });
       setNewTaskTitle("");
       setShowAddTask(false);
+      toast.success("Taak succesvol toegevoegd!");
     } catch (error) {
+      console.error("Failed to add task:", error);
       toast.error("Taak toevoegen mislukt");
     }
   };
 
-  const handleDragStart = (event: DragEndEvent) => {
-    setActiveId(event.active.id as string);
-  };
-
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEnd = async (dragEvent: DragEndEvent) => {
     setActiveId(null);
-    const { active, over } = event;
+    const { active, over } = dragEvent;
     if (!over) return;
 
     const participantId = active.id as string;
     const taskId = over.id as string;
 
+    const taskToUpdate = tasks.find(t => t.id === taskId);
+    if (taskToUpdate?.assignedParticipants.includes(participantId)) {
+        toast.info("Je bent al toegewezen aan deze taak.");
+        return;
+    }
+
     try {
       const updatedTasks = tasks.map((task) => {
         if (task.id === taskId) {
-          const isAlreadyAssigned = task.assignedParticipants.includes(participantId);
-          if (isAlreadyAssigned) {
-            toast.info("Je doet deze taak al");
-            return task;
-          }
           return {
             ...task,
             assignedParticipants: [...task.assignedParticipants, participantId],
@@ -90,109 +96,98 @@ export default function PartyPrepsSection({
         return task;
       });
 
-      await updateEvent(eventId, { tasks: updatedTasks });
-      toast.success("Jij hebt deze taak gekregen");
+      await updateEvent(event.id, { tasks: updatedTasks });
+      toast.success("Taak aan jezelf toegewezen!");
     } catch (error) {
+      console.error("Failed to assign task:", error);
       toast.error("Taak toewijzen mislukt");
     }
   };
 
   const handleToggleTask = async (taskId: string) => {
-    try {
-      const updatedTasks = tasks.map((task) =>
-        task.id === taskId ? { ...task, completed: !task.completed } : task
-      );
-      await updateEvent(eventId, { tasks: updatedTasks });
-    } catch {
-      toast.error("Taak updaten mislukt");
-    }
+    const updatedTasks = tasks.map((task) =>
+      task.id === taskId ? { ...task, completed: !task.completed } : task
+    );
+    await updateEvent(event.id, { tasks: updatedTasks }).catch(() => toast.error("Taak status wijzigen mislukt."));
   };
 
   const handleDeleteTask = async (taskId: string) => {
-    try {
-      const updatedTasks = tasks.filter((task) => task.id !== taskId);
-      await updateEvent(eventId, { tasks: updatedTasks });
-      toast.success("Taak verwijderd");
-    } catch {
-      toast.error("Taak verwijderen mislukt");
-    }
+    const updatedTasks = tasks.filter((task) => task.id !== taskId);
+    await updateEvent(event.id, { tasks: updatedTasks });
+    toast.success("Taak verwijderd");
   };
 
   const handleRemoveParticipant = async (taskId: string, participantId: string) => {
-    try {
-      const updatedTasks = tasks.map((task) => {
-        if (task.id === taskId) {
-          return {
-            ...task,
-            assignedParticipants: task.assignedParticipants.filter((id) => id !== participantId),
-          };
-        }
-        return task;
-      });
-
-      await updateEvent(eventId, { tasks: updatedTasks });
-    } catch {
-      toast.error("Verwijderen mislukt");
-    }
+    const updatedTasks = tasks.map((task) => {
+      if (task.id === taskId) {
+        return {
+          ...task,
+          assignedParticipants: task.assignedParticipants.filter((id) => id !== participantId),
+        };
+      }
+      return task;
+    });
+    await updateEvent(event.id, { tasks: updatedTasks });
   };
-
+  
   const activeParticipant = participants.find((p) => p.id === activeId);
 
   return (
-    <div className="backdrop-blur-sm bg-white/40 rounded-lg p-5" style={{ boxShadow: "0 0 20px rgba(0,0,0,0.1)" }}>
-      <div className="flex items-start justify-between mb-6">
-        <div className="flex-grow">
-          <div className="flex items-center space-x-2">
-            <h2 className="text-xl font-semibold text-gray-900">PartyPreps</h2>
-            <button className="hover:text-gray-600" title="Versleep je naam om jezelf toe te voegen of te verwijderen bij een taak.">
-              <HelpCircle className="h-5 w-5" />
-            </button>
-          </div>
-          <p className="text-sm mt-1">Wijs jezelf toe aan een taak</p>
-        </div>
-      </div>
-
-      <div className="space-y-6">
-        {isOrganizer && !showAddTask && (
-          <button
-            onClick={() => setShowAddTask(true)}
-            className="w-full flex items-center justify-center space-x-2 p-3 border-[1.5px] border-black rounded-lg transition-colors"
-          >
-            <Plus className="h-5 w-5" />
-            <span>Voeg Taak Toe</span>
-          </button>
-        )}
-
-        {showAddTask && (
-          <div className="space-y-3 p-4 rounded-lg">
-            <input
-              type="text"
-              value={newTaskTitle}
-              onChange={(e) => setNewTaskTitle(e.target.value)}
-              placeholder="Beschrijf de taak..."
-              className="w-full rounded-md border-[1.5px] border-black shadow-sm focus:border-black focus:ring-0 bg-transparent placeholder:text-[#000] p-2"
-              autoFocus
-            />
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => setShowAddTask(false)}
-                className="px-3 py-1.5 rounded hover:bg-white/50 border-black border-[1.5px]"
-              >
-                Annuleer
-              </button>
-              <button
-                onClick={handleAddTask}
-                className="px-4 py-1.5 bg-warm-olive text-white rounded-md hover:bg-cool-olive"
-              >
-                Voeg Toe
+    <DndContext 
+        sensors={sensors} 
+        onDragStart={(e) => setActiveId(e.active.id as string)}
+        onDragEnd={handleDragEnd}
+        modifiers={[restrictToWindowEdges]}
+    >
+      <div className="backdrop-blur-sm bg-white/40 rounded-lg p-5 shadow-lg">
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <div className="flex items-center space-x-2">
+              <h2 className="text-xl font-semibold text-gray-900">PartyPreps</h2>
+              <button className="text-gray-500 hover:text-gray-700" title="Sleep je naam naar een taak om jezelf toe te wijzen.">
+                <HelpCircle className="h-5 w-5" />
               </button>
             </div>
+            <p className="text-sm text-gray-600 mt-1">Organiseer de voorbereidingen met je gasten.</p>
           </div>
-        )}
+        </div>
 
+        {isOrganizer && (
+            <div className="mb-4">
+              {!showAddTask ? (
+                <button
+                  onClick={() => setShowAddTask(true)}
+                  className="w-full flex items-center justify-center space-x-2 p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-colors"
+                >
+                  <Plus className="h-5 w-5 text-gray-500" />
+                  <span className="font-medium text-gray-700">Voeg Taak Toe</span>
+                </button>
+              ) : (
+                <form onSubmit={handleAddTask} className="space-y-3 p-4 bg-white/60 rounded-lg">
+                  <input
+                    type="text"
+                    value={newTaskTitle}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTaskTitle(e.target.value)}
+                    placeholder="Beschrijf de taak..."
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-transparent p-2"
+                    autoFocus
+                  />
+                  <div className="flex justify-end space-x-2">
+                    <Button type="button" variant="ghost" onClick={() => setShowAddTask(false)}>
+                      Annuleren
+                    </Button>
+                    <Button type="submit">
+                      Voeg Toe
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </div>
+        )}
+        
+        {/* We geven de functies nu door met duidelijke prop namen */}
         <TaskList
           tasks={tasks}
-          eventId={eventId}
           participants={participants}
           currentUserId={currentUserId}
           isOrganizer={isOrganizer}
@@ -200,7 +195,19 @@ export default function PartyPrepsSection({
           onDeleteTask={isOrganizer ? handleDeleteTask : undefined}
           onRemoveParticipant={handleRemoveParticipant}
         />
+
+        <h3 className="font-bold mt-6 mb-2">Deelnemers</h3>
+        <ParticipantList participants={participants} activeId={activeId} />
       </div>
-    </div>
+
+      {/* Visuele feedback voor de gebruiker tijdens het slepen */}
+      {activeId && activeParticipant && (
+          <DraggableParticipant 
+              id={activeId}
+              firstName={activeParticipant.firstName}
+              lastName={activeParticipant.lastName}
+          />
+      )}
+    </DndContext>
   );
 }

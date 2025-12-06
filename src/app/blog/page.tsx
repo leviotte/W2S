@@ -5,7 +5,7 @@ import { collection, deleteDoc, doc, getDocs } from "firebase/firestore";
 import { db } from "@/lib/client/firebase";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useStore } from "zustand";
+import { useAuthStore } from "zustand";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
@@ -13,7 +13,7 @@ export default function BlogPage() {
   const [postList, setPostList] = useState<{ id: string; [key: string]: any }[]>([]);
   const postsCollectionRef = collection(db, "posts");
   const router = useRouter();
-  const { currentUser } = useStore();
+  const { currentUser } = useAuthStore();
 
   const deletePost = async (id: string) => {
     const postDoc = doc(db, "posts", id);

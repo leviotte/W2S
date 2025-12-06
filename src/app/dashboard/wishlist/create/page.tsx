@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { AffiliateProducts } from "@/components/AffiliateProducts";
 import { collection, doc, getDoc, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/client/firebase";
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 interface AmazonProduct {
@@ -48,7 +48,7 @@ interface Category {
 export default function CreateWishlistPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { createWishlist, updateEvent } = useStore();
+  const { createWishlist, updateEvent } = useAuthStore();
   const user = useRequireAuth();
 
   const [wishlistName, setWishlistName] = useState("");

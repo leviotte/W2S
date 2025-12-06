@@ -14,7 +14,7 @@ import DateInput from "@/components/DateInput";
 import { collection, getDocs } from "firebase/firestore";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { useStore } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 
 const RequiredFieldMarker = () => (
   <Tooltip.Provider>
@@ -43,7 +43,7 @@ export default function AddProfilePage() {
   const [gender, setGender] = useState("");
   const [address, setAddress] = useState({ city: "", country: "" });
   const [isCreating, setIsCreating] = useState(false);
-  const { createProfile } = useStore();
+  const { createProfile } = useAuthStore();
   const router = useRouter();
 
   const handlePhotoChange = (base64: string, file: File) => {

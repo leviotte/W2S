@@ -3,13 +3,13 @@
 
 import MessageList from "../chat/MessageList";
 import ChatInput from "../chat/ChatInput";
-import { Message } from "../../types/event";
+import { ChatMessage } from "@/types";
 import { useScrollToBottom } from "../../hooks/useScrollToBottom";
 import { X } from "lucide-react";
 
 interface GroupChatProps {
   eventId: string;
-  messages: Message[];
+  messages: ChatMessage[];
   onSendMessage: (
     text: string,
     isAnonymous: boolean,
