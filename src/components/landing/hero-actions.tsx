@@ -1,33 +1,24 @@
-/**
- * components/landing/hero-actions.tsx
- *
- * Client Component met de twee belangrijkste Call-to-Action knoppen.
- * Gebruikt de useAuthStore om de user-state te lezen en de useAuthModal hook
- * om de login modal te openen.
- */
+// src/components/landing/hero-actions.tsx
 'use client';
 
 import { useRouter } from 'next/navigation';
 import { Gift, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-// CORRECTE IMPORTS: We halen de store en de custom hook apart op.
+// FIX: Correcte import van beide hooks
 import { useAuthStore, useAuthModal } from '@/lib/store/use-auth-store';
 
 export default function HeroActions() {
   const router = useRouter();
   
-  // 1. We halen de ingelogde gebruiker op om te bepalen of we moeten navigeren.
   const currentUser = useAuthStore((state) => state.currentUser);
-  
-  // 2. We gebruiken jouw briljante custom hook om de modal te kunnen tonen.
-  const { showLogin } = useAuthModal();
+  // FIX: We halen de 'open' functie op uit de modal-specifieke hook
+  const { open: openModal } = useAuthModal();
 
   const handleNavigation = (path: string) => {
-    // Als er GEEN gebruiker is, roep dan de 'showLogin' functie uit de store aan.
     if (!currentUser) {
-      showLogin();
+      // FIX: Roep de 'open' functie aan met 'login' als argument
+      openModal('login');
     } else {
-      // Als er WEL een gebruiker is, navigeer dan.
       router.push(path);
     }
   };
@@ -37,7 +28,8 @@ export default function HeroActions() {
       <Button
         size="lg"
         className="h-28 flex-1 flex-col gap-2 !text-lg"
-        onClick={() => handleNavigation('/dashboard/events/create')} // Tip: cleanere URL's
+        // FIX: Correcte onClick syntax
+        onClick={() => handleNavigation('/dashboard/event/create')} 
       >
         <Users className="h-7 w-7" />
         <div>
@@ -49,7 +41,8 @@ export default function HeroActions() {
         size="lg"
         variant="outline"
         className="h-28 flex-1 flex-col gap-2 !text-lg"
-        onClick={() => handleNavigation('/dashboard/wishlists/create')} // Tip: cleanere URL's
+        // FIX: Correcte onClick syntax
+        onClick={() => handleNavigation('/dashboard/wishlist/create')}
       >
         <Gift className="h-7 w-7" />
         <div>

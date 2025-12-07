@@ -1,65 +1,45 @@
-import { NextResponse } from 'next/server';
-import { db } from '@/lib/server/firebaseAdmin';
-import { PaapiClient, type PaapiRequest } from 'amazon-pa-api5-node-ts';
+// src/app/api/cron/sync-amazon-products/route.ts
+import { type NextRequest, NextResponse } from 'next/server'; // <-- DE FIX!
+import { getAmazonProducts } from '@/lib/services/amazonService';
+import { adminDb } from '@/lib/server/firebase-admin';
+import { Product } from '@/types/product';
 
-export const dynamic = 'force-dynamic';
+const SYNC_KEYWORDS = ["populaire gadgets", "nieuwe boeken", "keukenapparatuur"];
 
-const amazonClient = new PaapiClient({
-  accessKey: process.env.AMAZON_ACCESS_KEY!,
-  secretKey: process.env.AMAZON_SECRET_KEY!,
-  partnerTag: process.env.AMAZON_ASSOCIATE_TAG!,
-  region: 'us-east-1', // Pas aan indien nodig
-});
-
-export async function GET(request: Request) {
-  // --- Gold Standard Security ---
-  const authHeader = request.headers.get('authorization');
+export async function GET(req: NextRequest) { // Nu weet TypeScript wat dit is
+  const authHeader = req.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    return new NextResponse('Unauthorized', { status: 401 });
   }
 
-  const requestParams: PaapiRequest = {
-    Keywords: 'laptop', // Misschien wil je dit dynamischer maken?
-    SearchIndex: 'All',
-    Resources: [
-      'ItemInfo.Title',
-      'Offers.Listings.Price',
-      'ItemInfo.ByLineInfo',
-      'Images.Primary.Large',
-      'DetailPageURL',
-    ],
-  };
+  console.log('🚀 Starting scheduled Amazon product sync...');
 
   try {
-    const response = await amazonClient.searchItems(requestParams);
-    const items = response.ItemsResult?.Items || [];
-    let savedCount = 0;
+    const allProducts: Product[] = [];
 
-    if (items.length > 0) {
-      const batch = db.batch();
-
-      items.forEach((item) => {
-        if (!item.ASIN) return; // Sla items zonder ASIN over
-        const productRef = db.collection('amazon_products').doc(item.ASIN);
-        
-        batch.set(productRef, {
-          title: item.ItemInfo?.Title?.DisplayValue || '',
-          price: item.Offers?.Listings?.[0]?.Price?.DisplayAmount || '',
-          url: item.DetailPageURL || '',
-          image: item.Images?.Primary?.Large?.URL || '',
-          syncedAt: new Date(),
-        });
-      });
-
-      await batch.commit();
-      savedCount = items.length;
+    for (const keyword of SYNC_KEYWORDS) {
+      const products = await getAmazonProducts({ query: keyword, limit: 5 });
+      allProducts.push(...products);
     }
+    
+    const uniqueProducts = new Map<string, Product>();
+    allProducts.forEach(product => uniqueProducts.set(product.id.toString(), product));
 
-    console.log(`Synced ${savedCount} Amazon products.`);
-    return NextResponse.json({ success: true, message: `Synced ${savedCount} products.` });
+    const batch = adminDb.batch();
+    const productsCollection = adminDb.collection('syncedProducts');
+
+    uniqueProducts.forEach(product => {
+      const docRef = productsCollection.doc(product.id.toString());
+      batch.set(docRef, product, { merge: true });
+    });
+
+    await batch.commit();
+
+    console.log(`✅ Successfully synced ${uniqueProducts.size} unique products to Firestore.`);
+    return NextResponse.json({ success: true, syncedCount: uniqueProducts.size });
 
   } catch (error) {
-    console.error('Error in sync-amazon-products cron job:', error);
-    return NextResponse.json({ success: false, message: 'Internal Server Error' }, { status: 500 });
+    console.error('❌ Error during scheduled Amazon sync:', error);
+    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -14,7 +14,7 @@ import {
 import { db } from "@/lib/client/firebase";
 import { Gift, Edit2, Save, Trash2, Plus, X, Image } from "lucide-react";
 import { toast } from "react-toastify";
-import UserAvatar from "@/components/shared/user-avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { AffiliateProducts } from "../AffiliateProducts";
 
 interface WishlistItem {

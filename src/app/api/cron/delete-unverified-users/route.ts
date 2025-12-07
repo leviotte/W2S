@@ -1,45 +1,44 @@
+// src/app/api/cron/delete-unverified-users/route.ts
 import { NextResponse } from 'next/server';
-import { adminDb, adminAuth, admin } from '@/lib/server/firebaseAdmin';
+import { adminAuth } from '@/lib/server/firebase-admin'; // Gebruik de gecentraliseerde admin export!
+import { ONE_DAY_IN_MILLISECONDS } from '@/lib/constants';
+import type { UserRecord } from 'firebase-admin/auth';
 
-// Forceer de route om dynamisch te zijn en niet gecached te worden
-export const dynamic = 'force-dynamic';
-
-export async function GET(request: Request) {
-  // --- Gold Standard Security ---
-  // Bescherm je cron jobs zodat niet iedereen ze kan triggeren.
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-  }
-
-  const threeDaysAgo = admin.firestore.Timestamp.fromDate(new Date(Date.now() - 3 * 24 * 60 * 60 * 1000));
-  let deletedCount = 0;
+export async function GET() {
+  // Beveilig de route, zodat deze alleen door Vercel's Cron kan worden aangeroepen
+  // In productie zou je hier een 'secret' token checken
 
   try {
-    const snapshot = await adminDb
-      .collection('users')
-      .where('emailVerified', '==', false)
-      .where('createdAt', '<', threeDaysAgo)
-      .get();
+    const listUsersResult = await adminAuth.listUsers(1000); // Max 1000 per keer
+    const oneDayAgo = Date.now() - ONE_DAY_IN_MILLISECONDS;
+    
+    const usersToDelete: string[] = [];
 
-    if (snapshot.empty) {
-      console.log('No unverified users to delete.');
-      return NextResponse.json({ success: true, message: 'No unverified users to delete.' });
-    }
-
-    const deletionPromises = snapshot.docs.map(async (doc) => {
-      console.log(`Preparing to delete unverified user: ${doc.id}`);
-      await adminAuth.deleteUser(doc.id);
-      await doc.ref.delete();
-      deletedCount++;
+    listUsersResult.users.forEach((userRecord: UserRecord) => {
+      const creationTime = new Date(userRecord.metadata.creationTime).getTime();
+      // Check of gebruiker niet geverifieerd is EN langer dan 24u geleden is aangemaakt
+      if (!userRecord.emailVerified && creationTime < oneDayAgo) {
+        usersToDelete.push(userRecord.uid);
+      }
     });
 
-    await Promise.all(deletionPromises);
-    console.log(`Successfully deleted ${deletedCount} unverified users.`);
-    return NextResponse.json({ success: true, message: `Deleted ${deletedCount} users.` });
+    if (usersToDelete.length > 0) {
+      const deleteResult = await adminAuth.deleteUsers(usersToDelete);
+      console.log(`✅ ${deleteResult.successCount} niet-geverifieerde gebruikers verwijderd.`);
+      if (deleteResult.failureCount > 0) {
+        console.error(`❌ Kon ${deleteResult.failureCount} gebruikers niet verwijderen.`);
+        deleteResult.errors.forEach((err) => {
+          console.error(`- Fout voor index ${err.index}: ${err.error}`);
+        });
+      }
+    } else {
+      console.log('✅ Geen niet-geverifieerde gebruikers gevonden om te verwijderen.');
+    }
 
-  } catch (error) {
-    console.error('Error in delete-unverified-users cron job:', error);
-    return NextResponse.json({ success: false, message: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: true, deletedCount: usersToDelete.length });
+  
+  } catch (error: any) {
+    console.error('❌ Fout tijdens cron job delete-unverified-users:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

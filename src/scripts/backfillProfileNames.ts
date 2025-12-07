@@ -17,7 +17,7 @@ import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' }); 
 
 // Stap 2: Importeer de DIRECTE adminDb instance uit onze centrale firebaseAdmin module
-import { adminDb } from '../lib/server/firebaseAdmin'; // Pad aangepast voor scriptlocatie
+import { adminDb } from '../lib/server/firebase-admin'; // Pad aangepast voor scriptlocatie
 import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 async function runBackfill() {

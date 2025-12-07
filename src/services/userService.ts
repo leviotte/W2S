@@ -5,7 +5,7 @@
  * Gebruikt Zod voor robuuste data-validatie bij het ophalen uit Firestore.
  */
 import 'server-only';
-import { adminDb } from '@/lib/server/firebaseAdmin';
+import { adminDb } from '@/lib/server/firebase-admin';
 import { userProfileSchema, type UserProfile } from '@/types/user';
 import { wishlistSchema, type Wishlist } from '@/types/wishlist';
 import { notFound } from 'next/navigation';

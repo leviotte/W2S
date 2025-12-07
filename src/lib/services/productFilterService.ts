@@ -1,79 +1,61 @@
-export type AgeGroup = "child" | "teen" | "adult" | "senior" | undefined;
-export type Gender = "male" | "female" | "unisex" | undefined;
+// src/lib/services/productFilterService.ts
+import { Product, ProductQueryOptions } from '@/types/product';
+import { getAmazonProducts } from './amazonService';
+import { getBolProducts } from './bolService';
+import { Redis } from '@upstash/redis';
 
-export interface Product {
-  ID?: string | number;
-  Title: string;
-  Category?: string;
-  Price: number;
-  AgeGroup?: AgeGroup;
-  Gender?: Gender;
-  Tags?: string[];
-  Rating?: number;
-  Reviews?: number;
-  Description?: string;
-  URL?: string;
-  ImageURL?: string;
-  platforms?: Record<string, { URL: string; Price: number; Source: string }>;
+const redis = Redis.fromEnv();
+
+// De functie die onze API routes nodig hebben!
+export async function searchProductsOnPlatforms(options: ProductQueryOptions): Promise<Product[]> {
+  // Bouw een dynamische cache key gebaseerd op de query opties
+  const cacheKey = `products:${JSON.stringify(options)}`;
+
+  try {
+    const cachedData = await redis.get<Product[]>(cacheKey);
+    if (cachedData) {
+      console.log(`[CACHE HIT] voor product search: ${cacheKey}`);
+      return cachedData;
+    }
+    console.log(`[CACHE MISS] voor product search: ${cacheKey}`);
+
+    // Voer de zoekopdrachten parallel uit
+    const [amazonResult, bolResult] = await Promise.allSettled([
+      getAmazonProducts(options),
+      getBolProducts(options),
+    ]);
+
+    let allProducts: Product[] = [];
+    if (amazonResult.status === 'fulfilled' && amazonResult.value) {
+      allProducts.push(...amazonResult.value);
+    }
+    if (bolResult.status === 'fulfilled' && bolResult.value) {
+      allProducts.push(...bolResult.value);
+    }
+    
+    // Voorkom dubbele producten op basis van EAN als die bestaat
+    const uniqueProducts = new Map<string, Product>();
+    allProducts.forEach(product => {
+      const key = product.ean || product.id.toString(); // Gebruik EAN als primaire sleutel, anders product-ID
+      if (!uniqueProducts.has(key)) {
+        uniqueProducts.set(key, product);
+      }
+    });
+
+    const finalProducts = Array.from(uniqueProducts.values());
+
+    // Sla het resultaat op in de cache voor 1 uur
+    await redis.set(cacheKey, JSON.stringify(finalProducts), { ex: 3600 });
+
+    return finalProducts;
+
+  } catch (error) {
+    console.error('Fout in searchProductsOnPlatforms:', error);
+    // Return een lege array bij een fout om de applicatie niet te laten crashen
+    return []; 
+  }
 }
 
-// Helper: bepaal age group van een leeftijd
-export const getAgeGroup = (age?: number): AgeGroup => {
-  if (age === undefined) return undefined;
-  if (age <= 12) return "child";
-  if (age <= 18) return "teen";
-  if (age <= 60) return "adult";
-  return "senior";
-};
-
-// Helper: valideer gender
-export const getGender = (gender?: string): Gender => {
-  if (!gender) return undefined;
-  const g = gender.toLowerCase();
-  if (g === "male" || g === "m") return "male";
-  if (g === "female" || g === "f") return "female";
-  return "unisex";
-};
-
-// Filter producten op prijs, leeftijd, gender, categorie
-export const filterProducts = (
-  products: Product[],
-  {
-    minPrice = 0,
-    maxPrice = Infinity,
-    age,
-    gender,
-    category,
-  }: { minPrice?: number; maxPrice?: number; age?: AgeGroup; gender?: Gender; category?: string }
-): Product[] => {
-  return products.filter((p) => {
-    if (p.Price < minPrice || p.Price > maxPrice) return false;
-    if (age && p.AgeGroup && p.AgeGroup !== age) return false;
-    if (gender && p.Gender && p.Gender !== gender && p.Gender !== "unisex") return false;
-    if (category && p.Category && p.Category.toLowerCase() !== category.toLowerCase()) return false;
-    return true;
-  });
-};
-
-// Zoek producten via keywords en vergelijk met tags/title
-export const searchProducts = (products: Product[], keyword?: string): Product[] => {
-  if (!keyword) return products;
-  const lowerKeyword = keyword.toLowerCase();
-
-  return products.filter((p) => {
-    if (p.Title.toLowerCase().includes(lowerKeyword)) return true;
-    if (p.Tags && p.Tags.some((tag) => tag.toLowerCase().includes(lowerKeyword))) return true;
-    if (p.Description && p.Description.toLowerCase().includes(lowerKeyword)) return true;
-    return false;
-  });
-};
-
-// Combineer filters + zoekfunctie
-export const filterAndSearchProducts = (
-  products: Product[],
-  options: { minPrice?: number; maxPrice?: number; age?: AgeGroup; gender?: Gender; category?: string; keyword?: string }
-): Product[] => {
-  let filtered = filterProducts(products, options);
-  filtered = searchProducts(filtered, options.keyword);
-  return filtered;
-};
+// Oude functies kunnen we hier eventueel later verwijderen of refactoren.
+// Voor nu laten we ze staan als ze elders nog gebruikt worden,
+// maar de focus ligt op searchProductsOnPlatforms.

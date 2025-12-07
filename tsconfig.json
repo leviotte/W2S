@@ -1,24 +1,28 @@
 {
   "compilerOptions": {
     // --- Cruciale Next.js & React Instellingen ---
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "module": "esnext",
     "moduleResolution": "bundler", // Essentieel voor moderne tooling en de App Router.
     "allowSyntheticDefaultImports": true,
-    "jsx": "preserve", // BELANGRIJK: Next.js' eigen compiler (SWC) handelt de JSX-transformatie af.
+    "jsx": "react-jsx", // BELANGRIJK: Next.js' eigen compiler (SWC) handelt de JSX-transformatie af.
     "plugins": [
       {
         "name": "next" // DE MAGIE: Geeft VS Code context over Server Components, 'use client', etc.
       }
     ],
     "noEmit": true, // Next.js doet de build, TypeScript hoeft geen JS-bestanden te genereren.
-
     // --- Pad Aliassen ---
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     },
-    
     // --- "Gold Standard" Strictness & Veiligheid ---
     "strict": true,
     "allowJs": true,
@@ -28,13 +32,17 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "incremental": true,
+    "target": "ES2017"
     // "noUncheckedIndexedAccess": true, // Optionele, zeer strikte regel. Zet deze aan als je extra veiligheid wilt.
   },
   "include": [
-    "next-env.d.ts", 
-    "**/*.ts", 
-    "**/*.tsx", 
-    ".next/types/**/*.ts"
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

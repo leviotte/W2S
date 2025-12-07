@@ -1,39 +1,32 @@
+// src/app/api/auth/login/route.ts
 import { NextResponse } from 'next/server';
-import { createSession } from '@/lib/server/auth';
+import { getSession, createSessionUser } from '@/lib/server/auth';
+import { adminAuth } from '@/lib/server/firebase-admin';
 
-/**
- * API Route Handler voor het aanmaken van een server-side sessie.
- * Ontvangt de Firebase ID token van de client en maakt een
- * veilige, HttpOnly session cookie aan.
- */
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { idToken } = body;
-
+    const { idToken } = await request.json();
     if (!idToken) {
-      // Consistent fout-antwoord
-      return NextResponse.json(
-        { success: false, message: 'ID token is vereist.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'ID token is vereist' }, { status: 400 });
     }
 
-    // Dit is de 'write context' waar createSession perfect werkt.
-    await createSession(idToken);
+    // Verifieer het ID token met Firebase Admin
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const { uid } = decodedToken;
 
-    // Consistent succes-antwoord
-    return NextResponse.json(
-      { success: true, message: 'Sessie succesvol aangemaakt.' },
-      { status: 200 }
-    );
-      
-  } catch (error) {
-    console.error('[API Login] Fout bij aanmaken sessie:', error);
-    // Consistent fout-antwoord
-    return NextResponse.json(
-      { success: false, message: 'Interne serverfout opgetreden.' },
-      { status: 500 }
-    );
+    // Haal de volledige user profile data op
+    const userProfile = await createSessionUser(uid);
+
+    // Sla het volledige, gevalideerde UserProfile op in de sessie
+    const session = await getSession();
+    session.user = userProfile;
+    await session.save();
+
+    console.log(`[Auth API] Sessie succesvol aangemaakt voor gebruiker: ${userProfile.firstName}`);
+    return NextResponse.json(userProfile);
+
+  } catch (error: any) {
+    console.error('[Auth API] Login Fout:', error.message);
+    return NextResponse.json({ error: 'Authenticatie mislukt', details: error.message }, { status: 401 });
   }
 }

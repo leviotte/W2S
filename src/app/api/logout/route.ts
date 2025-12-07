@@ -1,15 +1,16 @@
+// src/app/api/logout/route.ts
 import { NextResponse } from 'next/server';
-import { clearSession } from '@/lib/server/auth';
+import { getSession } from '@/lib/server/auth';
 
 export async function POST() {
   try {
-    await clearSession();
-    return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error) {
-    console.error('[API Logout] Failed to clear session:', error);
-    return NextResponse.json(
-      { error: 'Internal Server Error' },
-      { status: 500 }
-    );
+    const session = await getSession();
+    session.destroy(); // Vernietigt de sessie en verwijdert de cookie
+
+    return NextResponse.json({ message: 'Succesvol uitgelogd' });
+    
+  } catch (error: any) {
+    console.error('[Auth API] Logout Fout:', error.message);
+    return NextResponse.json({ error: 'Er is een fout opgetreden bij het uitloggen' }, { status: 500 });
   }
 }

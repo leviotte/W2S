@@ -1,15 +1,6 @@
-/**
- * types/user.ts
- * 
- * Single Source of Truth voor alle gebruikersgerelateerde datastructuren en validatieschema's.
- * We gebruiken Zod om zowel de datavorm te valideren als de TypeScript types automatisch af te leiden.
- */
-
+// src/types/user.ts
 import { z } from 'zod';
 
-// ============================================================================
-// Deel-schema voor een adres. Herbruikbaar in andere schema's.
-// ============================================================================
 export const addressSchema = z.object({
   street: z.string().optional(),
   number: z.string().optional(),
@@ -18,50 +9,47 @@ export const addressSchema = z.object({
   city: z.string().optional(),
   country: z.string().optional(),
 });
-export type Address = z.infer<typeof addressSchema>;
 
-
-// ============================================================================
-// Het KERN UserProfile Schema & Type
-// Dit definieert de data die we in componenten zoals UserAvatar, SiteHeader, etc. gebruiken.
-// ============================================================================
+// CORE FIX: Changed 'uid' back to 'id' to solve dozens of errors.
 export const userProfileSchema = z.object({
-  id: z.string(), // De Firebase UID
+  id: z.string(), // WAS 'uid'
   email: z.string().email(),
-  
-  // DE WIJZIGING: 'slug' is hernoemd naar 'username' voor duidelijkheid en consistentie.
-  username: z.string().min(3, 'Gebruikersnaam moet minstens 3 tekens lang zijn').optional(),
-
-  firstName: z.string().min(1, 'Voornaam is verplicht').optional(),
-  lastName: z.string().min(1, 'Achternaam is verplicht').optional(),
-  photoURL: z.string().url("Ongeldige URL voor profielfoto").nullable().optional(),
-  
-  // Optionele, meer gedetailleerde profielvelden
+  firstName: z.string(),
+  lastName: z.string(),
+  username: z.string().optional(),
+  // CORE FIX: Add 'name' to handle sub-profile logic gracefully
+  name: z.string().optional(),
+  photoURL: z.string().url().nullable().optional(),
+  // CORE FIX: Add 'avatarURL' for compatibility with old logic
+  avatarURL: z.string().url().nullable().optional(),
   birthdate: z.string().optional(),
   gender: z.string().optional(),
   phone: z.string().optional(),
   address: addressSchema.optional(),
-  isPublic: z.boolean().default(true),
-});
-
-// **DIT IS DE CRUCIALE EXPORT** voor onze componenten.
-// Dit wordt het standaard 'user' object dat we door de client-side app doorgeven.
-export type UserProfile = z.infer<typeof userProfileSchema>;
-
-
-// ============================================================================
-// Het Volledige UserData Schema (voor Firestore)
-// Dit breidt het profiel uit met server-side/private data.
-// ============================================================================
-export const userSchema = userProfileSchema.extend({
-  // Om compatibel te zijn met oudere code, houden we uid & id als synoniemen
-  uid: z.string(),
-  emailVerified: z.boolean(),
+  isPublic: z.boolean().default(true), 
   isAdmin: z.boolean().default(false),
-  // Tip: gebruik z.date() of z.any() afhankelijk van hoe je Timestamps behandelt
-  createdAt: z.any().optional(), 
-  updatedAt: z.any().optional(),
 });
 
-// Dit type vertegenwoordigt het volledige document zoals het in de 'users' collectie in Firestore staat.
-export type UserData = z.infer<typeof userSchema>;
+export const subProfileSchema = userProfileSchema.extend({
+  name: z.string(), // 'name' is required for sub-profiles
+  managers: z.array(z.string()).default([]), 
+});
+
+export type Address = z.infer<typeof addressSchema>;
+export type UserProfile = z.infer<typeof userProfileSchema>;
+export type SubProfile = z.infer<typeof subProfileSchema>;
+export type Manager = UserProfile;
+
+// This type represents the user currently logged into the session
+export type AuthedUser = {
+  id: string; // The user's main ID
+  email?: string | null;
+  isLoggedIn: true;
+  // The profile they are currently acting as (can be main or sub-profile)
+  profile: UserProfile | SubProfile; 
+};
+
+export type SessionData = {
+  user?: AuthedUser;
+  isLoggedIn: boolean;
+};

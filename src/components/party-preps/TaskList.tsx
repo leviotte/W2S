@@ -1,20 +1,18 @@
+// src/components/party-preps/TaskList.tsx
+// GOUDSTANDAARD VERSIE: Gebruikt nu centrale, geïmporteerde types.
+
 "use client";
 
 import TaskItem from "./TaskItem";
+// STAP 1: Importeer de types van onze "Single Source of Truth"
+import type { Task } from "@/types/task";
+import type { EventParticipant } from "@/types/event";
 
 interface TaskListProps {
-  tasks: Array<{
-    id: string;
-    title: string;
-    completed: boolean;
-    assignedParticipants: string[];
-  }>;
+  // STAP 2: Vervang de inline types door de geïmporteerde types
+  tasks: Task[];
   eventId: string;
-  participants: Array<{
-    id: string;
-    firstName: string;
-    lastName: string;
-  }>;
+  participants: EventParticipant[]; // Aanname: dit is de structuur die je doorgeeft
   currentUserId: string;
   isOrganizer: boolean;
   onToggleTask: (taskId: string) => void;
@@ -42,6 +40,7 @@ export default function TaskList({
           participants={participants}
           currentUserId={currentUserId}
           isOrganizer={isOrganizer}
+          // CORRECTIE: De props moeten correct doorgegeven worden
           onToggle={() => onToggleTask(task.id)}
           onDelete={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
           onRemoveParticipant={(participantId) => onRemoveParticipant(task.id, participantId)}

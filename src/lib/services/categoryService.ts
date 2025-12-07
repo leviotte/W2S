@@ -1,26 +1,18 @@
-import { Product, filterAndSearchProducts, AgeGroup, Gender } from "./productFilterService";
-import dummyProducts from "../../data/dummyProducts";
-
-interface CategoryFilterOptions {
-  minPrice?: number;
-  maxPrice?: number;
-  age?: AgeGroup;
-  gender?: Gender;
-  keyword?: string;
-  pageNumber?: number;
-}
+// src/lib/services/categoryService.ts
+import { Product, ProductQueryOptions } from '@/types/product';
+import { filterAndSearchProducts } from './productFilterService';
+import dummyProducts from '@/data/dummyProducts';
 
 export const getCategoryProducts = async (
   category: string,
-  options: CategoryFilterOptions
+  options: ProductQueryOptions // Gebruikt nu de gestandaardiseerde options
 ): Promise<Product[]> => {
-  try {
-    // Simuleer API/database call
-    let products = dummyProducts.filter((p) => p.Category?.toLowerCase() === category.toLowerCase());
-    products = filterAndSearchProducts(products, options);
-    return products;
-  } catch (err) {
-    console.error("CategoryService Error:", err);
-    return dummyProducts;
-  }
+  let products = dummyProducts.filter((p) => p.category?.toLowerCase() === category.toLowerCase());
+  
+  // Update de options met de categorie voor de filterfunctie
+  const filterOptions = { ...options, category };
+
+  products = filterAndSearchProducts(products, filterOptions);
+  
+  return products;
 };

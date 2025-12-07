@@ -10,8 +10,8 @@ export const useEventParticipants = (event?: Event) => {
     const participantArray = Object.entries(event.participants || {})
       .map(([id, data]) => ({ id, ...data }))
       .sort((a, b) => {
-        if (a.id === event.organizer) return -1;
-        if (b.id === event.organizer) return 1;
+        if (a.id === event.organizerId) return -1;
+        if (b.id === event.organizerId) return 1;
         return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
       });
 

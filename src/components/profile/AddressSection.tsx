@@ -1,51 +1,37 @@
+// src/components/profile/AddressSection.tsx
 "use client";
 
-import React from "react";
-import RequiredFieldMarker from "@/components/RequiredFieldMarker";
-
-const inputClasses =
-  "mt-1 block w-full rounded-md border-2 border-gray-300 shadow-sm focus:border-warm-olive focus:ring-warm-olive";
-
-export interface Address {
-  street: string;
-  number: string;
-  box: string;
-  postalCode: string;
-  city: string;
-  country: string;
-}
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import type { Address } from "@/types/user";
 
 interface AddressSectionProps {
-  address: Address;
-  onChange: (field: keyof Address, value: string) => void;
+  address?: Partial<Address>;
+  onFieldChange: (field: keyof Address, value: string) => void;
 }
 
-export default function AddressSection({
-  address,
-  onChange,
-}: AddressSectionProps) {
+const addressFields: { key: keyof Address; label: string }[] = [
+    { key: 'street', label: 'Straat' },
+    { key: 'number', label: 'Huisnummer' },
+    { key: 'box', label: 'Bus' },
+    { key: 'postalCode', label: 'Postcode' },
+    { key: 'city', label: 'Stad' },
+    { key: 'country', label: 'Land' },
+];
+
+export default function AddressSection({ address, onFieldChange }: AddressSectionProps) {
   return (
     <div className="bg-gray-100 shadow-xl rounded-lg p-8">
-      <h2 className="text-lg font-semibold text-accent mb-3">Adres</h2>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {[
-          { label: "Land", key: "country", required: false },
-          { label: "Locatie", key: "city", required: true },
-          { label: "Straat", key: "street", required: false },
-          { label: "Nummer", key: "number", required: false },
-          { label: "Bus", key: "box", required: false },
-          { label: "Postcode", key: "postalCode", required: false },
-        ].map(({ label, key, required }) => (
-          <div key={key}>
-            <label className="block text-sm font-medium text-accent">
-              {label} {required && <RequiredFieldMarker />}
-            </label>
-            <input
+      <h2 className="text-lg font-semibold text-accent mb-4">Adres</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {addressFields.map(({ key, label }) => (
+          <div key={key} className={key === 'street' ? 'sm:col-span-2' : ''}>
+            <Label htmlFor={key}>{label}</Label>
+            <Input
+              id={key}
               type="text"
-              required={required}
-              value={address[key]}
-              onChange={(e) => onChange(key as keyof Address, e.target.value)}
-              className={inputClasses}
+              value={address?.[key] || ''}
+              onChange={(e) => onFieldChange(key, e.target.value)}
             />
           </div>
         ))}

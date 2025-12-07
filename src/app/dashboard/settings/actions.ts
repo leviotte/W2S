@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { adminDb } from '@/lib/server/firebaseAdmin';
+import { adminDb } from '@/lib/server/firebase-admin';
 import { getCurrentUser } from '@/lib/server/auth'; // Onze 'gold standard' auth functie!
 import { FieldValue } from 'firebase-admin/firestore';
 import { z } from 'zod';

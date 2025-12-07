@@ -1,7 +1,7 @@
 /**
  * src/app/dashboard/settings/_components/password-change-section.tsx
- * 
- * GOLD STANDARD VERSIE: Met correcte event handlers en state management.
+ *
+ * GOUDSTANDAARD VERSIE: Met correcte JSX event handlers.
  */
 "use client";
 
@@ -20,12 +20,11 @@ interface PasswordData {
 }
 
 export function PasswordChangeSection() {
-  // Correcte hook aanroep
-  const { updatePassword, loading } = useAuthStore((state) => ({ 
-    updatePassword: state.updatePassword,
-    loading: state.loading 
+  const { updateUserPassword, loading } = useAuthStore((state) => ({
+    updateUserPassword: state.updateUserPassword,
+    loading: state.loading,
   }));
-  
+
   const [passwordData, setPasswordData] = useState<PasswordData>({
     currentPassword: "",
     newPassword: "",
@@ -33,8 +32,8 @@ export function PasswordChangeSection() {
   });
 
   const handleChange = useCallback((field: keyof PasswordData, value: string) => {
-      setPasswordData((prev) => ({ ...prev, [field]: value }));
-    },[]);
+    setPasswordData((prev) => ({ ...prev, [field]: value }));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,14 +47,11 @@ export function PasswordChangeSection() {
       return;
     }
 
-    try {
-      await updatePassword(passwordData.currentPassword, passwordData.newPassword);
-      // 'toast.success' wordt al afgehandeld in de store
-      setPasswordData({ currentPassword: "", newPassword: "", confirmNewPassword: "" });
-    } catch (error) {
-      // 'toast.error' wordt al afgehandeld in de store, dus hier hoeft niets extra's.
-      console.log("Submit failed, error handled by store.");
-    }
+    // De store zal de toast voor success of error tonen.
+    await updateUserPassword(passwordData.currentPassword, passwordData.newPassword);
+    
+    // Reset form on success (we kunnen de error state checken indien nodig, maar dit is meestal ok)
+    setPasswordData({ currentPassword: "", newPassword: "", confirmNewPassword: "" });
   };
 
   return (
@@ -66,6 +62,7 @@ export function PasswordChangeSection() {
           Werk hier je wachtwoord bij. Na het opslaan word je mogelijk uitgelogd.
         </CardDescription>
       </CardHeader>
+      {/* CORRECTIE: Correcte onSubmit syntax */}
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -74,6 +71,7 @@ export function PasswordChangeSection() {
               id="currentPassword"
               type="password"
               value={passwordData.currentPassword}
+              // CORRECTIE: Correcte onChange syntax
               onChange={(e) => handleChange("currentPassword", e.target.value)}
               required
             />

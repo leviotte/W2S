@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { db } from "@/lib/client/firebase";
 import { getDocs, collection, getDoc, doc } from "firebase/firestore";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useAuthStore } from "@/lib/store/use-auth-store";
 
 interface Props {

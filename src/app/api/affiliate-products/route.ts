@@ -1,108 +1,34 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getAmazonProducts } from "@/lib/services/amazonService";
-import { getBolProducts } from "@/lib/services/bolService";
-import stringSimilarity from "string-similarity";
-import { getAgeGroup, getGender, filterProducts } from "@/lib/services/productFilterService";
-import { getCategoryProducts } from "@/lib/services/categoryService";
+// src/app/api/affiliate-products/route.ts
+import { NextResponse } from 'next/server';
+import { searchProductsOnPlatforms } from '@/lib/services/productFilterService';
+import { Product, productQueryOptionsSchema } from '@/types/product';
+import { z } from 'zod';
 
-const dummyProducts = [
-  {
-    id: 1,
-    title: "Smart Home Starter Kit",
-    category: "Electronics",
-    price: 129.99,
-    ageGroup: "adult",
-    gender: "unisex",
-    tags: ["smart home", "technology", "gadgets"],
-    Rating: 4.5,
-    Reviews: 256,
-    description: "Complete smart home automation system with voice control",
-    URL: "https://example.com/smart-home-kit",
-    ImageURL: "/api/placeholder/300/300",
-  },
-  // ... voeg alle dummyProducts toe zoals in je oude code
-];
-
-const mergeProductsByEan = (products: any[]) => {
-  const productMap = new Map<string, any>();
-  products.forEach((product) => {
-    const ean = product.Ean || product.ean || null;
-    if (!ean) return;
-    if (productMap.has(ean)) {
-      const existingProduct = productMap.get(ean);
-      productMap.set(ean, {
-        ...existingProduct,
-        platforms: {
-          ...existingProduct.platforms,
-          [product.Source.toLowerCase()]: {
-            URL: product.URL,
-            Price: parseFloat(product.Price) || 0,
-            Source: product.Source,
-          },
-        },
-        Rating: Math.max(parseFloat(existingProduct.Rating || 0), parseFloat(product.Rating || 0)),
-        Reviews: (parseInt(existingProduct.Reviews) || 0) + (parseInt(product.Reviews || product.Review || 0) || 0),
-        hasMultiplePlatforms: true,
-      });
-    } else {
-      productMap.set(ean, {
-        ...product,
-        platforms: {
-          [product.Source.toLowerCase()]: {
-            URL: product.URL,
-            Price: parseFloat(product.Price) || 0,
-            Source: product.Source,
-          },
-        },
-        hasMultiplePlatforms: false,
-      });
-    }
-  });
-  return Array.from(productMap.values());
-};
-
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const keyword = searchParams.get("keyword") || undefined;
-  const category = searchParams.get("category") || undefined;
-  const minPrice = Number(searchParams.get("minPrice")) || 0;
-  const maxPrice = Number(searchParams.get("maxPrice")) || Infinity;
-  const age = searchParams.get("age") || undefined;
-  const gender = searchParams.get("gender") || undefined;
-  const pageNumber = Number(searchParams.get("pageNumber")) || 1;
-
+export async function GET(request: Request) {
   try {
-    let allProducts: any[] = [];
+    const { searchParams } = new URL(request.url);
 
-    if (!keyword) {
-      allProducts = await getCategoryProducts(category, { minPrice, maxPrice, age, gender, pageNumber });
-    } else {
-      const [amazonProducts, bolProducts] = await Promise.allSettled([
-        getAmazonProducts(keyword, category, minPrice, maxPrice, pageNumber, undefined, age, gender),
-        getBolProducts(keyword, category, minPrice, maxPrice, pageNumber, age, gender, undefined),
-      ]);
+    // Valideer de inkomende search params
+    const validationResult = productQueryOptionsSchema.safeParse(
+      Object.fromEntries(searchParams.entries())
+    );
 
-      allProducts = [
-        ...(amazonProducts.status === "fulfilled" ? amazonProducts.value : []),
-        ...(bolProducts.status === "fulfilled" ? bolProducts.value : []),
-      ];
+    if (!validationResult.success) {
+      return NextResponse.json({ error: 'Invalid query parameters', details: validationResult.error.flatten() }, { status: 400 });
     }
+    
+    const options = validationResult.data;
 
-    if (allProducts.length === 0) {
-      allProducts = [];
+    // We gebruiken nu 'query'
+    if (!options.query || options.query.length < 2) {
+      return NextResponse.json({ error: "A search 'query' of at least 2 characters is required." }, { status: 400 });
     }
+    
+    const results: Product[] = await searchProductsOnPlatforms(options);
 
-    const mergedProducts = mergeProductsByEan(allProducts.filter((i) => i.Price > minPrice && i.Price < maxPrice));
-
-    mergedProducts.sort((a, b) => {
-      if (a.hasMultiplePlatforms && !b.hasMultiplePlatforms) return -1;
-      if (!a.hasMultiplePlatforms && b.hasMultiplePlatforms) return 1;
-      return parseFloat(b.Rating || 0) - parseFloat(a.Rating || 0);
-    });
-
-    return NextResponse.json(mergedProducts);
-  } catch (error) {
-    console.error("Error fetching products:", error);
-    return NextResponse.json({ error: "Failed to fetch products", products: dummyProducts }, { status: 500 });
+    return NextResponse.json(results);
+  } catch (error: any) {
+    console.error('Error in affiliate-products API:', error);
+    return NextResponse.json({ error: `Internal Server Error: ${error.message}` }, { status: 500 });
   }
 }

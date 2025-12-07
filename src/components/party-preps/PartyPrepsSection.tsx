@@ -16,7 +16,8 @@ import TaskList from "./TaskList";
 import ParticipantList from "../event/ParticipantList";
 import DraggableParticipant from "./DraggableParticipant";
 
-import type { Event, Task } from "@/types/event";
+import type { Event, EventParticipant } from "@/types/event";
+import type { Task } from "@/types/task";
 import type { UserProfile } from "@/types/user";
 
 interface PartyPrepsProps {

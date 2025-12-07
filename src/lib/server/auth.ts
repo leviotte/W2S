@@ -1,94 +1,64 @@
-/**
- * src/lib/server/auth.ts
- *
- * Beheert de core server-side authenticatie logica.
- * - Sessie-cookies aanmaken en verwijderen.
- * - Huidige gebruiker ophalen en valideren.
- * Dit is de centrale 'single source of truth' voor sessies.
- */
+// src/lib/server/auth.ts
 import 'server-only';
-import { cache } from 'react';
 import { cookies } from 'next/headers';
-import { adminAuth, adminDb } from './firebaseAdmin';
-import { z } from 'zod';
-import { DecodedIdToken } from 'firebase-admin/auth';
+import { getIronSession, type IronSession } from 'iron-session';
+import { sessionOptions, type SessionData } from '@/lib/config/iron-session';
+import { adminDb } from './firebase-admin';
+import { userProfileSchema, type UserProfile } from '@/types';
 
-const userProfileSchema = z.object({
-  email: z.string().email(),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  photoURL: z.string().url().optional(),
-});
-
-export type AuthedUser = DecodedIdToken & z.infer<typeof userProfileSchema>;
-
-/**
- * Maakt een sessie-cookie aan. Dit is de centrale functie hiervoor.
- */
-export async function createSessionCookie(idToken: string) {
-  const expiresIn = 60 * 60 * 24 * 7 * 1000; // 7 dagen
-  const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
-  
-  // HET CORRECTE PATROON (met await)
-  const cookieStore = await cookies();
-  cookieStore.set('session', sessionCookie, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: expiresIn,
-    path: '/',
-  });
+// Haalt de huidige sessie op
+export async function getSession(): Promise<IronSession<SessionData>> {
+  // FIX: Wacht op de cookies() promise
+  const session = await getIronSession<SessionData>(await cookies(), sessionOptions);
+  return session;
 }
 
-/**
- * Verwijdert het sessie-cookie. Dit is de centrale functie hiervoor.
- */
-export async function clearSessionCookie() {
-  // HET CORRECTE PATROON (met await)
-  const cookieStore = await cookies();
-  cookieStore.delete('session');
-}
-
-/**
- * Haalt de huidige ingelogde gebruiker op, gebaseerd op het sessie-cookie.
- * Gebruikt React `cache` om database-aanroepen binnen één request te optimaliseren.
- */
-export const getCurrentUser = cache(
-  async (): Promise<AuthedUser | null> => {
-    // HET CORRECTE PATROON (met await)
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session')?.value;
-    
-    if (!sessionCookie) {
-      return null;
-    }
-
-    try {
-      const decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
-      const userDoc = await adminDb.collection('users').doc(decodedToken.uid).get();
-
-      if (!userDoc.exists) {
-        console.warn(`[Auth] User document niet gevonden voor UID: ${decodedToken.uid}. Sessie wordt gewist.`);
-        await clearSessionCookie();
-        return null;
-      }
-      
-      const userProfileData = userDoc.data();
-      const profileValidation = userProfileSchema.safeParse(userProfileData);
-
-      if (!profileValidation.success) {
-        console.error(`[Auth] Invalide gebruikersprofiel voor UID ${decodedToken.uid}:`, profileValidation.error.format());
-        return decodedToken as AuthedUser; // Fallback naar token data
-      }
-      
-      return {
-        ...decodedToken,
-        ...profileValidation.data,
-      };
-
-    } catch (error) {
-      console.warn('[Auth] Invalide sessie-cookie gedetecteerd. Sessie wordt gewist.');
-      await clearSessionCookie();
-      return null;
-    }
+// Haalt de huidige gebruiker uit de sessie en valideert deze eventueel
+export async function getCurrentUser(): Promise<UserProfile | null> {
+  const session = await getSession();
+  if (!session.user?.id) {
+    return null;
   }
-);
+  
+  // Optioneel: valideer de gebruiker tegen Firebase Admin SDK bij elke request
+  try {
+    const userRecord = await adminDb.auth().getUser(session.user.id);
+    if (!userRecord || userRecord.disabled) {
+      await session.destroy();
+      return null;
+    }
+  } catch (error) {
+    await session.destroy();
+    return null;
+  }
+  
+  // De gebruiker in de sessie is al een volledig UserProfile object, dus we kunnen het direct teruggeven.
+  return session.user as UserProfile;
+}
+
+/**
+ * Functie om de volledige user profile data op te halen en in de sessie te plaatsen.
+ * Dit is de sleutel tot het unificeren van onze types.
+ * @param userId - De ID van de gebruiker.
+ * @returns Het volledige UserProfile object.
+ */
+export async function createSessionUser(userId: string): Promise<UserProfile> {
+  const userDocRef = adminDb.collection('users').doc(userId);
+  const userDoc = await userDocRef.get();
+
+  if (!userDoc.exists) {
+    throw new Error('User document not found in Firestore.');
+  }
+
+  const userData = userDoc.data();
+  
+  // We valideren de data uit Firestore tegen ons Zod schema voor 100% type-veiligheid
+  const validation = userProfileSchema.safeParse({ id: userDoc.id, ...userData });
+
+  if (!validation.success) {
+    console.error("Zod validation error creating session user:", validation.error.flatten());
+    throw new Error("User data from Firestore is corrupt or invalid.");
+  }
+  
+  return validation.data;
+}

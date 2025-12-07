@@ -1,7 +1,9 @@
 // src/types/index.ts
+// Dit bestand bundelt alle type-definities voor eenvoudige import.
 
-export * from './chat';
+export * from './user';
 export * from './event';
-export * from './product';
-export * from './user'; // Voeg hier al je type-bestanden toe
 export * from './wishlist';
+export * from './product';
+export * from './chat';
+export * from './amazon';

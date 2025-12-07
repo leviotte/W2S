@@ -1,66 +1,85 @@
+// src/lib/auth/actions.ts
 'use server';
 
-import { redirect } from 'next/navigation';
-import { adminAuth, adminDb } from '@/lib/server/firebaseAdmin';
-import { userProfileSchema } from '@/types/user';
-import { RegisterActionInput } from '@/lib/validators/auth';
-// We importeren onze nieuwe, centrale functies!
-import { createSessionCookie, clearSessionCookie } from '@/lib/server/auth';
+import { getSession, createSessionUser } from '@/lib/server/auth';
+import { adminAuth, adminDb } from '@/lib/server/firebase-admin';
+import { revalidatePath } from 'next/cache';
+import { userProfileSchema } from '@/types'; // Importeren vanuit de hoofd-index
 
 /**
  * ---- REGISTER ACTION ----
  */
-export async function registerAction(
-  data: RegisterActionInput
-): Promise<{ success: boolean; error?: string }> {
+export async function registerAction(idToken: string, firstName: string, lastName: string) {
   try {
-    const { idToken, firstName, lastName } = data;
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     const { uid, email } = decodedToken;
 
-    if (!email) throw new Error('E-mail niet aanwezig in token.');
+    if (!email) throw new Error('E-mail niet aanwezig in Firebase token.');
 
+    // Creëer en valideer het nieuwe profiel
     const newUserProfile = userProfileSchema.parse({
       id: uid,
       email: email,
       firstName: firstName,
       lastName: lastName,
       createdAt: new Date().toISOString(),
+      // Zorg voor default waarden
+      isPublic: true,
+      isAdmin: false,
+      followers: [],
+      following: [],
+      managers: [],
     });
 
     await adminDb.collection('users').doc(uid).set(newUserProfile);
-    
-    // GEBRUIK DE CENTRALE FUNCTIE
-    await createSessionCookie(idToken);
 
-    return { success: true };
+    // Creëer de sessie met het zojuist aangemaakte profiel
+    const session = await getSession();
+    session.user = newUserProfile;
+    await session.save();
     
+    revalidatePath('/', 'layout');
+    return { success: true, user: newUserProfile };
+
   } catch (error: any) {
-    console.error('Server Action (registerAction) Fout:', error.message);
-    return { success: false, error: 'Er is een serverfout opgetreden bij het aanmaken van uw account.' };
+    console.error('[Register Action] Fout:', error.message);
+    return { success: false, error: 'Account aanmaken is mislukt.' };
   }
 }
+
 
 /**
  * ---- LOGIN ACTION ----
  */
-export async function loginAction(idToken: string): Promise<{ success: boolean; error?: string }> {
+export async function loginAction(idToken: string) {
   try {
-    // GEBRUIK DE CENTRALE FUNCTIE
-    await createSessionCookie(idToken);
-    return { success: true };
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const userProfile = await createSessionUser(decodedToken.uid);
 
+    const session = await getSession();
+    session.user = userProfile;
+    await session.save();
+
+    revalidatePath('/', 'layout');
+    return { success: true, user: userProfile };
   } catch (error: any) {
-    console.error('Server Action (loginAction) Fout:', error.message);
-    return { success: false, error: 'Er is een serverfout opgetreden bij het inloggen.' };
+    console.error('[Login Action] Fout:', error.message);
+    return { success: false, error: 'Authenticatie mislukt.' };
   }
 }
 
 /**
  * ---- LOGOUT ACTION ----
  */
-export async function logoutAction(): Promise<void> {
-  // GEBRUIK DE CENTRALE FUNCTIE
-  await clearSessionCookie();
-  redirect('/'); 
+export async function logoutAction() {
+  try {
+    const session = await getSession();
+    session.destroy();
+
+    revalidatePath('/', 'layout');
+    return { success: true };
+  } catch (error: any) {
+    console.error('[Logout Action] Fout:', error.message);
+    return { success: false, error: 'Uitloggen mislukt.' };
+  }
 }

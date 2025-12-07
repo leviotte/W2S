@@ -1,402 +1,164 @@
 // src/app/dashboard/profile/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { SpinnerRoundFilled } from "spinners-react";
-
 import { useAuthStore } from "@/lib/store/use-auth-store";
+
+// Importeer de componenten die we gebruiken
 import PhotoSection from "@/components/profile/PhotoSection";
 import PersonalInfoSection from "@/components/profile/PersonalInfoSection";
 import AddressSection from "@/components/profile/AddressSection";
-import PasswordChangeSection from "@/app/dashboard/settings/_components/password-change-section";
-import ShareProfileSection from "@/components/profile/ShareProfileSection";
+import { PasswordChangeSection } from "@/app/dashboard/settings/_components/password-change-section";
+import ShareProfileSection from "@/components/profile/ShareProfileSection"; // We voegen deze terug toe!
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { SpinnerRoundFilled } from "spinners-react";
 
-import {
-  arrayRemove,
-  arrayUnion,
-  doc,
-  getDoc,
-  onSnapshot,
-  updateDoc,
-} from "firebase/firestore";
-import { db } from "@/lib/client/firebase"; // pas aan als jouw firebase client init op een andere plek staat
+// Importeer de types
+import type { UserProfile, Address, SubProfile } from '@/types/user';
 
-interface FormData {
-  firstName: string;
-  lastName: string;
-  name: string;
-  email: string;
-  phone: string;
-  birthdate: string;
-  photoURL?: string | null;
-  avatarURL?: string | null;
-  managers?: any[];
-  address: {
-    street: string;
-    number: string;
-    box: string;
-    postalCode: string;
-    city: string;
-  };
-}
+// Dit wordt onze lokale state voor het formulier, afgeleid van de store
+type FormState = Partial<UserProfile & SubProfile & { avatarURL?: string }>;
 
-export default function Page() {
+export default function ProfilePage() {
   const router = useRouter();
+
+  // Haal alles wat we nodig hebben uit de GOUDSTANDAARD store
   const {
     currentUser,
+    profiles,
+    loading,
     updateUserProfile,
-    updateProfile,
+    updateSubProfile,
     togglePublicStatus,
-    // deleteAccount, deleteProfile, switchToProfile etc. live in store if present
-  } = useAuthStore();
+    activeProfileId,
+  } = useAuthStore((state) => ({
+    currentUser: state.currentUser,
+    profiles: state.profiles, // We hebben de lijst met subprofielen nodig
+    loading: state.loading,
+    updateUserProfile: state.updateUserProfile,
+    updateSubProfile: state.updateSubProfile,
+    togglePublicStatus: state.togglePublicStatus,
+    activeProfileId: state.activeProfileId,
+  }));
 
-  // UI state
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isToggling, setIsToggling] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState({
-    photo: false,
-    personal: false,
-    address: false,
-    managers: false,
-  });
-
-  // activeProfile from localStorage (same logic as your old app)
-  const activeProfileId =
-    typeof window !== "undefined" ? localStorage.getItem("activeProfile") : null;
-  const isProfile = activeProfileId !== "main-account";
-
-  // initial form state (pull from currentUser where available)
-  const [formData, setFormData] = useState<FormData>({
-    firstName: currentUser?.firstName || "",
-    lastName: currentUser?.lastName || "",
-    name: currentUser?.name || "",
-    email: currentUser?.email || "",
-    phone: currentUser?.phone || "",
-    birthdate: currentUser?.birthdate || "",
-    photoURL: currentUser?.photoURL,
-    avatarURL: currentUser?.avatarURL,
-    managers: [],
-    address:
-      currentUser?.address || {
-        street: "",
-        number: "",
-        box: "",
-        postalCode: "",
-        city: "",
-      },
-  });
-
-  // Realtime listener for active profile (when switching to a child profile)
+  const [isProfile, setIsProfile] = useState(false);
+  const [formData, setFormData] = useState<FormState>({});
+  
+  // Dit effect bepaalt welk profiel we tonen en vult het formulier
   useEffect(() => {
-    if (!isProfile || !activeProfileId) return;
+    const isSubProfile = activeProfileId !== null && activeProfileId !== currentUser?.id;
+    setIsProfile(isSubProfile);
 
-    const profileRef = doc(db, "profiles", activeProfileId);
+    if (isSubProfile) {
+      const activeSubProfile = profiles.find(p => p.id === activeProfileId);
+      setFormData(activeSubProfile || {});
+    } else if (currentUser) {
+      setFormData(currentUser);
+    }
+  }, [currentUser, profiles, activeProfileId]);
 
-    const unsub = onSnapshot(
-      profileRef,
-      (snap) => {
-        if (!snap.exists()) {
-          toast.error("Geen profiel gevonden");
-          return;
-        }
-        const data = snap.data();
-        setFormData((prev) => ({
-          ...prev,
-          managers: data.managers || [],
-          birthdate: data.birthdate || "",
-          avatarURL: data.avatarURL || prev.avatarURL,
-          address: data.address || prev.address,
-          phone: data.phone || prev.phone,
-          name: data.name || prev.name,
-        }));
-      },
-      (err) => {
-        console.error("Profile snapshot error:", err);
-        toast.error("Kon profielupdates niet laden");
-      }
+  // Generieke handler om elk veld in onze lokale state aan te passen
+  const handleFieldChange = useCallback((field: keyof FormState, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  // Generieke handler voor adres-velden
+  const handleAddressFieldChange = useCallback((field: keyof Address, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      address: { ...(prev.address || {}), [field]: value } as Address,
+    }));
+  }, []);
+  
+  // Generieke submit handler die de logica delegeert aan de store
+  const handleSectionSubmit = async (data: Partial<FormState>) => {
+    if (isProfile && activeProfileId) {
+      await updateSubProfile(activeProfileId, data);
+    } else {
+      await updateUserProfile(data);
+    }
+  };
+
+  // Render een laad-status als de store bezig is of de gebruiker nog niet geladen is
+  if (loading && !currentUser) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <SpinnerRoundFilled size={80} color="rgba(96,108,56,1)" />
+      </div>
     );
+  }
 
-    return () => unsub();
-  }, [activeProfileId, isProfile]);
-
-  // Handlers
-  const handlePhotoSubmit = async () => {
-    try {
-      setIsSubmitting((s) => ({ ...s, photo: true }));
-      if (isProfile) {
-        if (!activeProfileId) throw new Error("Active profile ID ontbreekt");
-        await updateProfile(activeProfileId, { avatarURL: formData.avatarURL });
-      } else {
-        await updateUserProfile({ photoURL: formData.photoURL });
-      }
-      toast.success("Foto opgeslagen");
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err?.message || "Fout bij opslaan foto");
-    } finally {
-      setIsSubmitting((s) => ({ ...s, photo: false }));
-    }
-  };
-
-  const handlePersonalInfoSubmit = async () => {
-    if (
-      !formData.firstName?.trim() ||
-      !formData.lastName?.trim() ||
-      !formData.email?.trim() ||
-      !formData.birthdate
-    ) {
-      toast.error("Vul alle verplichte velden in.");
-      return;
-    }
-    try {
-      setIsSubmitting((s) => ({ ...s, personal: true }));
-      if (isProfile) {
-        if (!activeProfileId) throw new Error("Active profile ID ontbreekt");
-        await updateProfile(activeProfileId, {
-          name: formData.name,
-          phone: formData.phone,
-          birthdate: formData.birthdate,
-        });
-      } else {
-        await updateUserProfile({
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          birthdate: formData.birthdate,
-        });
-      }
-      toast.success("Persoonlijke gegevens opgeslagen");
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err?.message || "Fout bij opslaan persoonlijke gegevens");
-    } finally {
-      setIsSubmitting((s) => ({ ...s, personal: false }));
-    }
-  };
-
-  const handleAddressSubmit = async () => {
-    try {
-      setIsSubmitting((s) => ({ ...s, address: true }));
-      if (isProfile) {
-        if (!activeProfileId) throw new Error("Active profile ID ontbreekt");
-        await updateProfile(activeProfileId, { address: formData.address });
-      } else {
-        await updateUserProfile({ address: formData.address });
-      }
-      toast.success("Adres opgeslagen");
-    } catch (err) {
-      console.error(err);
-      toast.error("Fout bij opslaan adres");
-    } finally {
-      setIsSubmitting((s) => ({ ...s, address: false }));
-    }
-  };
-
-  const handleAddManager = async (newManager: any) => {
-    try {
-      setIsSubmitting((s) => ({ ...s, managers: true }));
-      if (!activeProfileId) throw new Error("Active profile ID ontbreekt");
-
-      const managerRef = doc(db, "users", newManager.id);
-      const snap = await getDoc(managerRef);
-      if (!snap.exists()) throw new Error("Manager niet gevonden");
-
-      const managerData = snap.data();
-      const existing = managerData?.profiles || [];
-      if (!existing.includes(activeProfileId)) {
-        await updateDoc(managerRef, { profiles: arrayUnion(activeProfileId) });
-      }
-
-      const updatedManagers = [...(formData.managers || []), newManager];
-      await updateProfile(activeProfileId, { managers: updatedManagers });
-
-      setFormData((f) => ({ ...f, managers: updatedManagers }));
-      toast.success("Manager toegevoegd");
-    } catch (err) {
-      console.error(err);
-      toast.error("Kon manager niet toevoegen");
-    } finally {
-      setIsSubmitting((s) => ({ ...s, managers: false }));
-    }
-  };
-
-  const handleRemoveManager = async (managerId: string) => {
-    try {
-      setIsSubmitting((s) => ({ ...s, managers: true }));
-      if (!activeProfileId) throw new Error("Active profile ID ontbreekt");
-
-      const managerRef = doc(db, "users", managerId);
-      const snap = await getDoc(managerRef);
-      if (snap.exists()) {
-        await updateDoc(managerRef, { profiles: arrayRemove(activeProfileId) });
-      }
-
-      const updatedManagers = (formData.managers || []).filter(
-        (m) => m.id !== managerId
-      );
-      await updateProfile(activeProfileId, { managers: updatedManagers });
-      setFormData((f) => ({ ...f, managers: updatedManagers }));
-      toast.success("Manager verwijderd");
-    } catch (err) {
-      console.error(err);
-      toast.error("Kon manager niet verwijderen");
-    } finally {
-      setIsSubmitting((s) => ({ ...s, managers: false }));
-    }
-  };
-
-  const handleToggleVisibility = async () => {
-    try {
-      setIsToggling(true);
-      if (isProfile) {
-        if (!activeProfileId) throw new Error("Active profile ID ontbreekt");
-        await togglePublicStatus(true, activeProfileId);
-      } else {
-        await togglePublicStatus(false);
-      }
-      toast.success("Zichtbaarheid aangepast");
-    } catch (err) {
-      console.error(err);
-      toast.error("Kon zichtbaarheid niet aanpassen");
-    } finally {
-      setIsToggling(false);
-    }
-  };
-
-  // small helpers to bind fields
-  const handlePersonalFieldChange = (
-    field:
-      | "firstName"
-      | "lastName"
-      | "name"
-      | "email"
-      | "phone"
-      | "birthdate",
-    value: string
-  ) => setFormData((f) => ({ ...f, [field]: value }));
-
-  const handleAddressFieldChange = (
-    field: keyof FormData["address"],
-    value: string
-  ) =>
-    setFormData((f) => ({ ...f, address: { ...f.address, [field]: value } }));
-
-  // render
   return (
-    <>
-      {isDeleting && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <SpinnerRoundFilled size={80} color="rgba(96,108,56,1)" />
+    <div className="max-w-3xl mx-auto px-4 py-6">
+      <h1 className="text-2xl font-bold text-accent mb-6">Profiel Bewerken</h1>
+
+      {/* --- FOTO SECTIE --- */}
+      <div className="mb-6">
+        <PhotoSection
+          photoURL={isProfile ? formData.avatarURL : formData.photoURL ?? undefined}
+          onChange={(url) => handleFieldChange(isProfile ? 'avatarURL' : 'photoURL', url)}
+        />
+        <div className="flex justify-end mt-3">
+          <Button onClick={() => handleSectionSubmit({ photoURL: formData.photoURL, avatarURL: formData.avatarURL })} disabled={loading}>
+            {loading ? "Opslaan..." : "Foto Opslaan"}
+          </Button>
+        </div>
+      </div>
+
+      {/* --- PERSOONLIJKE INFO SECTIE --- */}
+      <div className="mb-6">
+        <PersonalInfoSection
+          data={{ ...formData, isProfile }}
+          onFieldChange={(field, val) => handleFieldChange(field as keyof FormState, val)}
+        />
+        <div className="flex justify-end mt-3">
+          <Button onClick={() => handleSectionSubmit({ firstName: formData.firstName, lastName: formData.lastName, name: formData.name, email: formData.email, phone: formData.phone, birthdate: formData.birthdate })} disabled={loading}>
+            {loading ? "Opslaan..." : "Gegevens Opslaan"}
+          </Button>
+        </div>
+      </div>
+
+      {/* --- ADRES SECTIE --- */}
+      <div className="mb-6">
+        <AddressSection
+          address={formData.address as Address}
+          onFieldChange={handleAddressFieldChange}
+        />
+        <div className="flex justify-end mt-3">
+          <Button onClick={() => handleSectionSubmit({ address: formData.address })} disabled={loading}>
+            {loading ? "Opslaan..." : "Adres Opslaan"}
+          </Button>
+        </div>
+      </div>
+
+      {/* --- MANAGERS SECTIE (enkel voor subprofielen) --- */}
+      {isProfile && activeProfileId && (
+        <div className="mb-6">
+          {/* DELEGATIE: Dit component beheert ZIJN EIGEN logica. We geven enkel het ID mee. */}
+          <ShareProfileSection profileId={activeProfileId} />
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold text-accent mb-6">My Profile</h1>
+      {/* --- WACHTWOORD SECTIE (enkel voor hoofdaccount) --- */}
+      {!isProfile && <PasswordChangeSection />}
 
-        {/* Photo section */}
-        <div className="mb-6">
-          <PhotoSection
-            photoURL={isProfile ? formData.avatarURL : formData.photoURL}
-            onPhotoChange={(url) => {
-              if (isProfile) setFormData((f) => ({ ...f, avatarURL: url }));
-              else setFormData((f) => ({ ...f, photoURL: url }));
-            }}
+      {/* --- ZICHTBAARHEID SECTIE --- */}
+      <div className="flex items-center justify-between my-6 bg-gray-100 p-6 rounded-xl shadow">
+        <h2 className="font-medium text-accent">
+          Profiel Zichtbaarheid
+        </h2>
+        <div className="flex items-center gap-3">
+          <Switch
+            checked={!!formData.isPublic}
+            onCheckedChange={(isChecked) => togglePublicStatus(isProfile, isProfile ? activeProfileId : undefined)}
+            disabled={loading}
           />
-          <div className="flex justify-end mt-3">
-            <button
-              onClick={handlePhotoSubmit}
-              disabled={isSubmitting.photo}
-              className="bg-warm-olive text-white px-4 py-2 rounded-md disabled:opacity-50"
-            >
-              {isSubmitting.photo ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
-        </div>
-
-        {/* Personal info */}
-        <div className="mb-6">
-          <PersonalInfoSection
-            data={{
-              firstName: formData.firstName,
-              lastName: formData.lastName,
-              name: formData.name,
-              email: formData.email,
-              phone: formData.phone,
-              birthdate: formData.birthdate,
-              isProfile,
-            }}
-            onChange={(field, val) => handlePersonalFieldChange(field as any, val)}
-          />
-          <div className="flex justify-end mt-3">
-            <button
-              onClick={handlePersonalInfoSubmit}
-              disabled={isSubmitting.personal}
-              className="bg-warm-olive text-white px-4 py-2 rounded-md disabled:opacity-50"
-            >
-              {isSubmitting.personal ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
-        </div>
-
-        {/* Address */}
-        <div className="mb-6">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleAddressSubmit();
-            }}
-          >
-            <AddressSection
-              address={formData.address}
-              onChange={(field, val) => handleAddressFieldChange(field, val)}
-            />
-            <div className="flex justify-end mt-3">
-              <button
-                type="submit"
-                disabled={isSubmitting.address}
-                className="bg-warm-olive text-white px-4 py-2 rounded-md disabled:opacity-50"
-              >
-                {isSubmitting.address ? "Saving..." : "Save Changes"}
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Managers */}
-        {isProfile && (
-          <div className="mb-6">
-            <ShareProfileSection
-              profileId={activeProfileId || ""}
-              managers={formData.managers || []}
-              onAddManager={handleAddManager}
-              onRemoveManager={handleRemoveManager}
-            />
-          </div>
-        )}
-
-        {/* Password for main account */}
-        {!isProfile && <PasswordChangeSection />}
-
-        {/* Visibility toggle */}
-        <div className="flex items-center justify-between my-6 bg-gray-100 p-6 rounded-xl shadow">
-          <h2 className="font-medium text-accent">
-            {isProfile ? "Profile Visibility" : "Account Visibility"}
-          </h2>
-
-          <div className="flex items-center gap-3">
-            <Switch
-              checked={Boolean(currentUser?.isPublic)}
-              onClick={handleToggleVisibility}
-              disabled={isToggling}
-            />
-            <span className="text-sm">{currentUser?.isPublic ? "Public" : "Private"}</span>
-          </div>
+          <span className="text-sm">{formData.isPublic ? "Publiek" : "Privé"}</span>
         </div>
       </div>
-    </>
+    </div>
   );
 }

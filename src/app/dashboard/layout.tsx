@@ -1,12 +1,13 @@
 /**
  * src/app/dashboard/layout.tsx
  *
- * Dit is het 'gold standard' patroon voor het beveiligen van een hele route-sectie.
- * Als Server Component controleert het de authenticatie VOORDAT de pagina wordt gerenderd.
+ * GOUDSTANDAARD PATROON: Hybride authenticatie.
+ * 1. Server Component: Controleert de sessie VOOR het renderen. Onmiddellijke redirect als niet ingelogd.
+ * 2. AuthProvider (Client Component): Hydrateert de client-side state (Zustand) met de user-data.
  */
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/server/auth';
-import AuthProvider from '@/components/providers/auth-provider';
+import AuthProvider from '@/components/providers/auth-provider'; // Onze nieuwe client-side brug
 import { Toaster } from 'sonner';
 
 export default async function DashboardLayout({
@@ -16,15 +17,15 @@ export default async function DashboardLayout({
 }) {
   const user = await getCurrentUser();
 
-  // Als er geen gebruiker is, stuur ONMIDDELLIijk door. Geen client-side flicker.
+  // SERVER-SIDE GATEKEEPER:
+  // Als een niet-ingelogde gebruiker hier direct landt, wordt hij onmiddellijk
+  // en zonder client-side flikkering weggestuurd.
   if (!user) {
-    // We gebruiken hier een 'callbackUrl' zodat we na het inloggen
-    // de gebruiker terug kunnen sturen naar het dashboard.
     redirect('/?modal=login&callbackUrl=/dashboard');
   }
 
-  // Als de gebruiker WEL is ingelogd, render de layout en geef de user-data door
-  // via onze Client-Side Context Provider.
+  // Als de gebruiker WEL is ingelogd, renderen we de client-side provider
+  // en geven we de user-data door om de Zustand store te "hydrateren".
   return (
     <AuthProvider user={user}>
       {/* Hier kan een specifieke dashboard-sidebar of sub-navigatie komen */}

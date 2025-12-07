@@ -1,7 +1,7 @@
-import { getAuthenticatedUser } from '@/lib/server/auth';
+import { getCurrentUser } from '@/lib/server/auth';
 import { redirect } from 'next/navigation';
 import { SocialAccountsForm } from './_components/social-accounts-form';
-import { adminDb } from '@/lib/server/firebaseAdmin';
+import { adminDb } from '@/lib/server/firebase-admin';
 
 export const metadata = {
   title: 'Instellingen | Wish2Share',
@@ -26,13 +26,13 @@ async function getUserSocials(uid: string) {
 }
 
 export default async function SettingsPage() {
-  const user = await getAuthenticatedUser();
+  const user = await getCurrentUser();
   if (!user) {
     redirect('/login');
   }
 
   // Haal de data specifiek voor deze gebruiker op met onze nieuwe, cleane functie.
-  const socials = await getUserSocials(user.uid);
+  const socials = await getUserSocials(user.id);
 
   return (
     <div className="space-y-6 p-4 md:p-8 max-w-4xl mx-auto">
