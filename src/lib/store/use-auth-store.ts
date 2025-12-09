@@ -1,43 +1,40 @@
 // src/lib/store/use-auth-store.ts
 import { create } from 'zustand';
+import type { User } from 'firebase/auth';
 import type { UserProfile } from '@/types/user';
 
-// --- State & Actions voor de AUTH MODAL ---
-
-interface AuthModalState {
-  isLoginOpen: boolean;
-  isRegisterOpen: boolean;
-  openLogin: () => void;
-  openRegister: () => void;
-  closeModals: () => void;
-  switchToRegister: () => void;
-  switchToLogin: () => void;
+interface AuthState {
+  currentUser: User | null;
+  userProfile: UserProfile | null;
+  isInitialized: boolean; // Is de eerste check (onAuthStateChanged) gebeurd?
+  loading: boolean;
+  
+  // Methoden om de state te updaten
+  setCurrentUser: (user: User | null) => void;
+  setUserProfile: (profile: UserProfile | null) => void;
+  setInitialized: (isInitialized: boolean) => void;
+  setLoading: (loading: boolean) => void;
 }
 
-export const useAuthModalStore = create<AuthModalState>((set) => ({
-  isLoginOpen: false,
-  isRegisterOpen: false,
-  openLogin: () => set({ isLoginOpen: true, isRegisterOpen: false }),
-  openRegister: () => set({ isRegisterOpen: true, isLoginOpen: false }),
-  closeModals: () => set({ isLoginOpen: false, isRegisterOpen: false }),
-  switchToRegister: () => set({ isLoginOpen: false, isRegisterOpen: true }),
-  switchToLogin: () => set({ isLoginOpen: true, isRegisterOpen: false }),
-}));
+export const useAuthStore = create<AuthState>((set) => ({
+  // --- STATE ---
+  currentUser: null,
+  userProfile: null,
+  isInitialized: false,
+  loading: true, // Start in loading state tot de eerste auth check is gedaan
 
-// --- State & Actions voor de AUTH SESSIE ZELF ---
-
-export type SessionStatus = 'loading' | 'authenticated' | 'unauthenticated';
-
-interface AuthSessionState {
-  sessionUser: UserProfile | null;
-  status: SessionStatus;
-  setUser: (user: UserProfile | null) => void;
-  setStatus: (status: SessionStatus) => void;
-}
-
-export const useAuthSessionStore = create<AuthSessionState>((set) => ({
-  sessionUser: null,
-  status: 'loading', // Start altijd als 'loading'
-  setUser: (user) => set({ sessionUser: user, status: user ? 'authenticated' : 'unauthenticated' }),
-  setStatus: (status) => set({ status }),
+  // --- ACTIONS ---
+  setCurrentUser: (user) => {
+    set({ currentUser: user });
+  },
+  setUserProfile: (profile) => {
+    // Wanneer het profiel wordt gezet, is de initialisatie per definitie compleet
+    set({ userProfile: profile, loading: false, isInitialized: true });
+  },
+  setInitialized: (isInitialized) => {
+    set({ isInitialized });
+  },
+  setLoading: (loading) => {
+    set({ loading });
+  },
 }));

@@ -1,42 +1,92 @@
 // src/lib/auth/actions.ts
 'use server';
 
-import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
-import { revalidatePath } from 'next/cache';
+import { getIronSession } from 'iron-session';
 import { redirect } from 'next/navigation';
 import { sessionOptions, type SessionData } from '@/lib/server/session';
-import { getUserProfileById } from '../server/data/users';
+import { adminDb } from '@/lib/server/firebase-admin';
+import type { UserProfile } from '@/types/user';
+import { unstable_cache as cache } from 'next/cache';
 
-// Deze functie haalt de sessie op. Het is de CENTRALE manier om te checken of iemand ingelogd is.
+/**
+ * Haalt de huidige server-side sessie op.
+ */
 export async function getSession() {
   const session = await getIronSession<SessionData>(cookies(), sessionOptions);
-
-  if (!session.isLoggedIn) {
-    return null;
-  }
   return session;
 }
 
+/**
+ * Haalt het VOLLEDIGE UserProfile object op van de ingelogde gebruiker.
+ * Gebruikt caching voor betere prestaties. Dit is de GO-TO functie voor Server Components.
+ */
+export const getAuthenticatedUserProfile = cache(
+  async (): Promise<UserProfile | null> => {
+    const session = await getSession();
+    if (!session.isLoggedIn || !session.uid) {
+      return null;
+    }
+    try {
+      const userDoc = await adminDb.collection('users').doc(session.uid).get();
+      if (!userDoc.exists) return null;
+
+      const userData = userDoc.data() as Omit<UserProfile, 'id'>;
+      return {
+        ...userData,
+        id: userDoc.id,
+      };
+    } catch (error) {
+      console.error("Error fetching authenticated user profile:", error);
+      return null;
+    }
+  },
+  ['authenticated-user-profile'],
+  { tags: ['auth', 'user-profile'], revalidate: 60 }
+);
+
+
+/**
+ * Haalt de beheerde sub-profielen op voor een gegeven ownerId.
+ * Gebruikt caching voor betere prestaties.
+ */
+export const getManagedProfiles = cache(
+  async (ownerId: string): Promise<UserProfile[]> => {
+    if (!ownerId) return [];
+    try {
+      const profilesSnapshot = await adminDb.collection('users').where('ownerId', '==', ownerId).get();
+      if (profilesSnapshot.empty) return [];
+      
+      return profilesSnapshot.docs.map(doc => {
+        const data = doc.data() as Omit<UserProfile, 'id'>;
+        return { ...data, id: doc.id };
+      });
+    } catch (error) {
+      console.error("Error fetching managed profiles:", error);
+      return [];
+    }
+  },
+  ['managed-profiles-for-user'],
+  { tags: ['profiles'], revalidate: 300 }
+);
+
+
+/**
+ * Creëert de server-side sessie na een succesvolle login op de client.
+ */
 export async function createSession(uid: string) {
-  const userProfile = await getUserProfileById(uid);
-  if (!userProfile) {
-    // Dit zou niet mogen gebeuren als een gebruiker kan inloggen
-    throw new Error('Kon geen profiel vinden voor de ingelogde gebruiker.');
-  }
-
-  const session = await getIronSession<SessionData>(cookies(), sessionOptions);
+  const session = await getSession();
+  session.uid = uid;
   session.isLoggedIn = true;
-  session.user = userProfile; // Sla het volledige, gestroomlijnde profiel op
   await session.save();
-
-  // Revalideer paden die afhankelijk zijn van de auth-status
-  revalidatePath('/', 'layout');
 }
 
-export async function logoutAction() {
-  const session = await getIronSession<SessionData>(cookies(), sessionOptions);
+/**
+ * Vernietigt de huidige sessie (logout).
+ * Moet worden aangeroepen vanuit een form action.
+ */
+export async function destroySession() {
+  const session = await getSession();
   session.destroy();
-  revalidatePath('/', 'layout');
-  redirect('/'); // Stuur gebruiker terug naar de homepage na uitloggen
+  redirect('/'); 
 }

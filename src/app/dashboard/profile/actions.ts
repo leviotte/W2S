@@ -3,217 +3,148 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { getAuthenticatedUserProfile } from '@/lib/auth/actions';
 import { adminDb } from '@/lib/server/firebase-admin';
-import { getCurrentUser } from '@/lib/auth/actions';
-import { uploadFileToStorage } from '@/lib/server/storage';
-import { 
-  profileInfoSchema, 
-  profileAddressSchema, 
-  profilePublicStatusSchema 
-} from '@/lib/validators/profile';
-import { FieldValue } from 'firebase-admin/firestore'; // <-- Belangrijke import
-import type { UserProfile } from '@/types/user'; // <-- Import voor type
+import { findUserByEmail } from '@/lib/server/data/users';
+import { AddressSchema, UserProfileSchema } from '@/types/user';
 
-// Een generiek type voor de form state
-type FormState = { success: boolean; message: string; };
+type FormState = {
+  message: string;
+  issues?: string[];
+  success?: boolean;
+};
 
-async function getAuthenticatedUser() {
-  const user = await getCurrentUser();
-  if (!user?.profile.id) {
-    throw new Error('Niet geautoriseerd.');
-  }
-  return user;
-}
-
-const photoUploadSchema = z.object({
-  photo: z.instanceof(File)
-    .refine(file => file.size > 0, 'Selecteer een bestand.')
-    .refine(file => file.size < 4 * 1024 * 1024, 'Bestand is te groot (max 4MB).')
-    .refine(file => file.type.startsWith('image/'), 'Enkel afbeeldingsbestanden (JPG, PNG, WEBP) zijn toegestaan.'),
+// --- Update Personal Info ---
+const PersonalInfoUpdateSchema = UserProfileSchema.pick({
+  firstName: true,
+  lastName: true,
+  isPublic: true,
 });
 
-// --- BESTAANDE ACTIES ---
+export async function updatePersonalInfo(prevState: FormState, formData: FormData): Promise<FormState> {
+  const user = await getAuthenticatedUserProfile();
+  if (!user) return { message: 'Authenticatie mislukt.' };
 
-export async function updatePersonalInfoAction(prevState: FormState, formData: FormData): Promise<FormState> {
-  // ... (geen wijzigingen hier)
-  try {
-    const user = await getAuthenticatedUser();
-    const validated = profileInfoSchema.safeParse(Object.fromEntries(formData));
-    
-    if (!validated.success) {
-      console.error(validated.error.flatten().fieldErrors);
-      return { success: false, message: 'Ongeldige gegevens. Controleer alle velden.' };
-    }
+  const rawData = {
+    firstName: formData.get('firstName'),
+    lastName: formData.get('lastName'),
+    isPublic: formData.get('isPublic') === 'on',
+  };
 
-    await adminDb.collection('users').doc(user.profile.id).update(validated.data);
-
-    revalidatePath('/dashboard/profile');
-    if (user.profile.username) revalidatePath(`/profile/${user.profile.username}`);
-    
-    return { success: true, message: 'Persoonlijke gegevens opgeslagen!' };
-  } catch (error) {
-    console.error("Update Personal Info Error:", error);
-    return { success: false, message: 'Kon gegevens niet opslaan. Probeer het opnieuw.' };
+  const parsed = PersonalInfoUpdateSchema.safeParse(rawData);
+  if (!parsed.success) {
+    // CORRECTIE: We verzamelen alle foutmeldingen uit het error-object.
+    const { formErrors, fieldErrors } = parsed.error.flatten();
+    const allIssues = [...formErrors, ...Object.values(fieldErrors).flat()];
+    return {
+      message: 'Validatiefout.',
+      issues: allIssues,
+    };
   }
-}
-
-export async function updateAddressAction(prevState: FormState, formData: FormData): Promise<FormState> {
-  // ... (geen wijzigingen hier)
+  
   try {
-    const user = await getAuthenticatedUser();
-    const validated = profileAddressSchema.safeParse({ 
-      address: {
-          street: formData.get('address.street'),
-          city: formData.get('address.city'),
-          postalCode: formData.get('address.postalCode'),
-          country: formData.get('address.country'),
-      } 
+    const { firstName, lastName } = parsed.data;
+    const displayName = `${firstName} ${lastName}`.trim();
+
+    await adminDb.collection('users').doc(user.id).update({
+      ...parsed.data,
+      displayName,
     });
-
-    if (!validated.success) {
-      console.error(validated.error.flatten().fieldErrors);
-      return { success: false, message: 'Ongeldig adres. Controleer alle velden.' };
-    }
-
-    await adminDb.collection('users').doc(user.profile.id).set(validated.data, { merge: true });
-
-    revalidatePath('/dashboard/profile');
     
-    return { success: true, message: 'Adres opgeslagen!' };
+    revalidatePath('/dashboard/profile');
+    return { message: 'Gegevens succesvol bijgewerkt.', success: true };
   } catch (error) {
-    console.error("Update Address Error:", error);
-    return { success: false, message: 'Kon adres niet opslaan. Probeer het opnieuw.' };
+    return { message: 'Databasefout. Kon gegevens niet opslaan.' };
   }
 }
 
-export async function togglePublicStatusAction(prevState: FormState, formData: FormData): Promise<FormState> {
-    // ... (geen wijzigingen hier)
-    try {
-        const user = await getAuthenticatedUser();
-        const validated = profilePublicStatusSchema.safeParse({
-            isPublic: formData.get('isPublic') === 'true'
-        });
-
-        if (!validated.success) {
-            return { success: false, message: 'Ongeldige waarde.' };
-        }
-
-        await adminDb.collection('users').doc(user.profile.id).update({
-            isPublic: validated.data.isPublic
-        });
-
-        revalidatePath('/dashboard/profile');
-        if (user.profile.username) revalidatePath(`/profile/${user.profile.username}`);
-
-        const message = validated.data.isPublic ? 'Profiel is nu publiek.' : 'Profiel is nu privé.';
-        return { success: true, message };
-    } catch (error) {
-        console.error("Toggle Public Status Error:", error);
-        return { success: false, message: 'Kon zichtbaarheid niet aanpassen.' };
-    }
-}
-
-export async function updatePhotoAction(prevState: FormState, formData: FormData): Promise<FormState> {
-  // ... (kleine correctie hier)
-  try {
-    const user = await getAuthenticatedUser();
+// --- Update Address ---
+export async function updateAddress(prevState: FormState, formData: FormData): Promise<FormState> {
+    const user = await getAuthenticatedUserProfile();
+    if (!user) return { message: 'Authenticatie mislukt.' };
     
-    const validated = photoUploadSchema.safeParse({ photo: formData.get('photo') });
-    if (!validated.success) {
-      const errorMessage = validated.error.flatten().fieldErrors.photo?.[0] ?? 'Ongeldig bestand.';
-      return { success: false, message: errorMessage };
+    const parsed = AddressSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!parsed.success) {
+        // CORRECTIE: Ook hier verzamelen we alle foutmeldingen.
+        const { formErrors, fieldErrors } = parsed.error.flatten();
+        const allIssues = [...formErrors, ...Object.values(fieldErrors).flat()];
+        return { message: 'Validatiefout.', issues: allIssues };
     }
-
-    const { photo } = validated.data;
-
-    // Correctie: `destinationPath` was `destinati`
-    const destinationPath = `profile-pictures/${user.profile.id}.${photo.name.split('.').pop()}`;
-    
-    const photoURL = await uploadFileToStorage(photo, destinationPath);
-
-    await adminDb.collection('users').doc(user.profile.id).update({ photoURL });
-
-    revalidatePath('/dashboard/profile');
-    if (user.profile.username) revalidatePath(`/profile/${user.profile.username}`);
-
-    return { success: true, message: 'Profielfoto succesvol opgeslagen!' };
-  } catch (error) {
-    console.error('Photo upload failed:', error);
-    return { success: false, message: 'Kon de foto niet uploaden. Serverfout.' };
-  }
-}
-
-// --- NIEUWE ACTIES VOOR PROFIELBEHEER ---
-
-export async function searchUsersAction(emailQuery: string, currentManagerIds: string[]): Promise<UserProfile[]> {
-  if (!emailQuery || emailQuery.length < 3) return [];
-  
-  const user = await getAuthenticatedUser();
-  
-  const usersRef = adminDb.collection('users');
-  const snapshot = await usersRef
-    .where('email', '>=', emailQuery.toLowerCase())
-    .where('email', '<=', emailQuery.toLowerCase() + '\uf8ff')
-    .limit(5)
-    .get();
-
-  if (snapshot.empty) return [];
-
-  const results = snapshot.docs.map(doc => doc.data() as UserProfile);
-
-  return results.filter(foundUser => 
-    foundUser.id !== user.profile.id && !currentManagerIds.includes(foundUser.id)
-  );
-}
-
-export async function addManagerAction(formData: FormData): Promise<FormState> {
-  const managerId = formData.get('managerId') as string;
-  if (!managerId) return { success: false, message: 'Geen gebruiker geselecteerd.' };
-
-  try {
-    const user = await getAuthenticatedUser();
-    const mainProfileId = user.profile.id;
-
-    const batch = adminDb.batch();
-
-    const mainProfileRef = adminDb.collection('users').doc(mainProfileId);
-    batch.update(mainProfileRef, { manages: FieldValue.arrayUnion(managerId) });
-
-    const managerProfileRef = adminDb.collection('users').doc(managerId);
-    batch.update(managerProfileRef, { managedBy: FieldValue.arrayUnion(mainProfileId) });
-
-    await batch.commit();
-
-    revalidatePath('/dashboard/profile');
-    return { success: true, message: 'Beheerder succesvol toegevoegd.' };
-  } catch (error) {
-    console.error("Add manager error:", error);
-    return { success: false, message: 'Kon beheerder niet toevoegen.' };
-  }
-}
-
-export async function removeManagerAction(formData: FormData): Promise<FormState> {
-    const managerId = formData.get('managerId') as string;
-    if (!managerId) return { success: false, message: 'Geen gebruiker geselecteerd.' };
 
     try {
-        const user = await getAuthenticatedUser();
-        const mainProfileId = user.profile.id;
+        await adminDb.collection('users').doc(user.id).update({ address: parsed.data });
+        revalidatePath('/dashboard/profile');
+        return { message: 'Adres bijgewerkt.', success: true };
+    } catch (error) {
+        return { message: 'Databasefout. Kon adres niet opslaan.' };
+    }
+}
 
-        const batch = adminDb.batch();
+// --- Manager Actions ---
+export async function addManager(prevState: FormState, formData: FormData): Promise<FormState> {
+    const user = await getAuthenticatedUserProfile();
+    if (!user) return { message: 'Authenticatie mislukt.' };
 
-        const mainProfileRef = adminDb.collection('users').doc(mainProfileId);
-        batch.update(mainProfileRef, { manages: FieldValue.arrayRemove(managerId) });
+    const email = formData.get('email') as string;
+    if (!z.string().email().safeParse(email).success) {
+        return { message: 'Ongeldig e-mailadres.', issues: ['Voer een geldig e-mailadres in.'] };
+    }
 
-        const managerProfileRef = adminDb.collection('users').doc(managerId);
-        batch.update(managerProfileRef, { managedBy: FieldValue.arrayRemove(mainProfileId) });
+    const managerToAdd = await findUserByEmail(email);
+    if (!managerToAdd) {
+        return { message: 'Gebruiker niet gevonden.', issues: [`Geen gebruiker gevonden met e-mail: ${email}`] };
+    }
+    if(managerToAdd.id === user.id) {
+        return { message: 'Je kan jezelf niet toevoegen.' };
+    }
+    if(user.managers.includes(managerToAdd.id)) {
+        return { message: 'Deze gebruiker is al een beheerder.' };
+    }
 
-        await batch.commit();
+    try {
+        const newManagers = [...user.managers, managerToAdd.id];
+        await adminDb.collection('users').doc(user.id).update({ managers: newManagers });
 
         revalidatePath('/dashboard/profile');
-        return { success: true, message: 'Beheerder verwijderd.' };
+        return { message: `${managerToAdd.displayName} is nu een beheerder.`, success: true };
     } catch (error) {
-        console.error("Remove manager error:", error);
-        return { success: false, message: 'Kon beheerder niet verwijderen.' };
+        return { message: 'Databasefout. Kon beheerder niet toevoegen.' };
     }
+}
+
+export async function removeManager(managerId: string): Promise<FormState & { success: boolean }> {
+    const user = await getAuthenticatedUserProfile();
+    if (!user) return { message: 'Authenticatie mislukt.', success: false };
+
+    try {
+        // CORRECTIE: 'id' expliciet als string typeren.
+        const newManagers = user.managers.filter((id: string) => id !== managerId);
+        await adminDb.collection('users').doc(user.id).update({ managers: newManagers });
+
+        revalidatePath('/dashboard/profile');
+        return { message: 'Beheerder verwijderd.', success: true };
+    } catch (error) {
+        return { message: 'Databasefout. Kon beheerder niet verwijderen.', success: false };
+    }
+}
+
+// --- Update Photo ---
+export async function updatePhotoURL(photoURL: string): Promise<FormState & { success: boolean }> {
+  const user = await getAuthenticatedUserProfile();
+  if (!user) return { message: 'Authenticatie mislukt.', success: false };
+
+  if (!z.string().url().safeParse(photoURL).success) {
+      return { message: 'Ongeldige foto URL.', success: false };
+  }
+
+  try {
+      await adminDb.collection('users').doc(user.id).update({ photoURL });
+      revalidatePath('/dashboard/profile');
+      if(user.username) revalidatePath(`/profile/${user.username}`);
+      return { message: 'Profielfoto bijgewerkt!', success: true };
+  } catch (error) {
+      console.error(error);
+      return { message: 'Databasefout. Kon foto niet opslaan.', success: false };
+  }
 }

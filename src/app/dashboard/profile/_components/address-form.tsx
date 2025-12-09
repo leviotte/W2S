@@ -1,104 +1,76 @@
 // src/app/dashboard/profile/_components/address-form.tsx
-
 'use client';
-
-import { z } from 'zod';
+import { useFormState } from 'react-dom';
+import { useEffect } from 'react';
+import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { type SessionUser } from '@/types/user';
-import { toast } from 'sonner';
+import { AddressSchema, type UserProfile, type Address } from '@/types/user';
+import { updateAddress } from '@/app/dashboard/profile/actions';
 
-import { profileAddressSchema } from '@/lib/validators/profile';
-import { updateAddressAction } from '../actions'; 
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
 
-// Zod schema voor het formulier, afgeleid van het validatie schema
-type FormValues = z.infer<typeof profileAddressSchema>;
-
-// Definieer de velden van het formulier voor iteratie
-const addressFields: {
-  key: keyof NonNullable<FormValues['address']>; // CORRECTIE: keyof op het afgeleide type!
-  label: string;
-}[] = [
-  { key: 'street', label: 'Straat en huisnummer' },
-  { key: 'city', label: 'Stad' },
-  { key: 'postalCode', label: 'Postcode' },
-  { key: 'country', label: 'Land' },
-];
-
 interface AddressFormProps {
-  user: SessionUser;
+  profile: UserProfile;
 }
 
-export function AddressForm({ user }: AddressFormProps) {
-  const form = useForm<FormValues>({
-    resolver: zodResolver(profileAddressSchema),
+const addressFields: { key: keyof Address; label: string }[] = [
+    { key: 'street', label: 'Straat' },
+    { key: 'number', label: 'Huisnummer' },
+    { key: 'box', label: 'Bus' },
+    { key: 'postalCode', label: 'Postcode' },
+    { key: 'city', label: 'Stad' },
+    { key: 'country', label: 'Land' },
+];
+
+export default function AddressForm({ profile }: AddressFormProps) {
+  const [state, formAction] = useFormState(updateAddress, { message: '' });
+
+  const { register, formState: { errors, isDirty } } = useForm<Address>({
+    resolver: zodResolver(AddressSchema),
     defaultValues: {
-      address: {
-        street: user.address?.street || '',
-        city: user.address?.city || '',
-        postalCode: user.address?.postalCode || '',
-        country: user.address?.country || '',
-      },
+      street: profile.address?.street || '',
+      number: profile.address?.number || '',
+      box: profile.address?.box || '',
+      postalCode: profile.address?.postalCode || '',
+      city: profile.address?.city || '',
+      country: profile.address?.country || '',
     },
   });
 
-  const { isSubmitting } = form.formState;
-
-  const onSubmit = async (values: FormValues) => {
-    const result = await updateAddressAction(values);
-    if (result.success) {
-      toast.success('Adres succesvol bijgewerkt!');
-    } else {
-      toast.error(result.message || 'Er is een fout opgetreden.');
+  useEffect(() => {
+    if (state.message) {
+       if (state.issues) {
+        toast.error(state.message, { description: state.issues.join(', ') });
+      } else {
+        toast.success(state.message);
+      }
     }
-  };
+  }, [state]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Adres</CardTitle>
-        <CardDescription>
-          Werk hier je adresgegevens bij. Deze worden enkel gebruikt voor relevante doeleinden.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {addressFields.map(({ key, label }) => (
-                <FormField
-                  key={key}
-                  control={form.control}
-                  name={`address.${key}`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{label}</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          value={field.value ?? ''}
-                          disabled={isSubmitting}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              ))}
+    <form action={formAction}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Adres</CardTitle>
+          <CardDescription>Update hier je adresgegevens.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-6 sm:grid-cols-2">
+          {addressFields.map((field) => (
+            <div className="grid gap-2" key={field.key}>
+              <Label htmlFor={field.key}>{field.label}</Label>
+              <Input id={field.key} {...register(field.key)} />
+              {errors[field.key] && <p className="text-sm text-red-500">{errors[field.key]?.message}</p>}
             </div>
-            <div className="flex justify-end">
-              <SubmitButton isSubmitting={isSubmitting}>
-                Opslaan
-              </SubmitButton>
-            </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+          ))}
+        </CardContent>
+        <CardFooter className="border-t px-6 py-4">
+          <SubmitButton loadingText="Opslaan..." disabled={!isDirty}>Opslaan</SubmitButton>
+        </CardFooter>
+      </Card>
+    </form>
   );
 }

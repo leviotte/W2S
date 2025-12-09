@@ -1,125 +1,107 @@
-'use server'; // Server Actions draaien altijd op de server
+// src/app/dashboard/event/create/actions.ts
+"use server";
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { getAuthenticatedUserProfile } from "@/lib/auth/actions";
 import { adminDb } from "@/lib/server/firebase-admin";
-import { getCurrentUser } from "@/lib/auth/actions";
+import type { Event, EventParticipant } from "@/types/event";
+import { Timestamp } from "firebase-admin/firestore";
 
-// State-definitie voor useFormState
-export interface FormState {
-  success: boolean;
-  message: string;
-  eventId?: string;
-  errors?: Record<string, string[]>;
-}
-
-// Zod schema voor validatie op de server
-const formSchema = z.object({
-    name: z.string().min(1, "Naam van het evenement is verplicht"),
-    date: z.string().min(1, "Datum is verplicht"),
-    time: z.string().optional(),
-    backgroundImage: z.string().optional(),
-    budget: z.coerce.number().positive().optional(),
-    isLootjesEvent: z.boolean().default(false),
-    registrationDeadline: z.string().optional().nullable(),
-    participantType: z.enum(["manual", "self-register"]).default("manual"),
-    maxParticipants: z.coerce.number().positive().optional(),
-    // We verwachten dat de participants als een JSON string binnenkomen van het verborgen veld
-    participants: z.string().transform((str, ctx) => {
-      try {
-        return JSON.parse(str);
-      } catch (e) {
-        ctx.addIssue({ code: 'custom', message: 'Invalid participants format' });
-        return z.NEVER;
-      }
-    }).pipe(z.array(
-        z.object({
-          id: z.string(),
-          firstName: z.string().min(1, "Voornaam is verplicht"),
-          lastName: z.string().min(1, "Achternaam is verplicht"),
-          email: z.string().email("Ongeldig e-mailadres").optional().or(z.literal("")),
-          confirmed: z.boolean(),
-        })
-    )),
+// Zod schema voor server-side validatie
+const actionSchema = z.object({
+  name: z.string().min(3, "Naam moet minimaal 3 karakters lang zijn."),
+  date: z.date({
+    required_error: "Een datum is verplicht.",
+    invalid_type_error: "Ongeldige datum.",
+  }),
+  description: z.string().optional(),
+  drawNames: z.boolean().default(false),
+  organizer: z.object({
+      id: z.string(),
+      firstName: z.string(),
+      lastName: z.string(),
+      email: z.string().email(),
+  })
 });
 
+export type FormState = {
+    success: boolean;
+    message: string;
+    eventId?: string;
+    errors?: Record<string, string[] | undefined>;
+};
 
-// De Server Action
 export async function createEventAction(
   prevState: FormState,
-  formData: FormData
+  data: z.infer<typeof actionSchema>
 ): Promise<FormState> {
-    
-  // 1. Haal de ingelogde gebruiker op via de sessie-cookie
-  const user = await getCurrentUser();
+  const user = await getAuthenticatedUserProfile();
   if (!user) {
-    return { success: false, message: "Authenticatie mislukt. Log opnieuw in." };
+    return { success: false, message: "Authenticatie mislukt." };
   }
 
-  // 2. Converteer FormData naar een object en valideer met Zod
-  const rawData = Object.fromEntries(formData.entries());
-  
-  // Speciale behandeling voor de checkbox
-  const dataToValidate = {
-    ...rawData,
-    isLootjesEvent: rawData.isLootjesEvent === "on",
-  };
-
-  const validationResult = formSchema.safeParse(dataToValidate);
-
-  if (!validationResult.success) {
-    // Log de fouten voor debugging
-    console.error("Server Action Validation Errors:", validationResult.error.flatten().fieldErrors);
+  const validatedFields = actionSchema.safeParse(data);
+  if (!validatedFields.success) {
     return {
       success: false,
-      message: "Validatie mislukt. Controleer de ingevoerde gegevens.",
-      errors: validationResult.error.flatten().fieldErrors,
+      message: "Validatie mislukt. Controleer de ingevulde velden.",
+      errors: validatedFields.error.flatten().fieldErrors,
     };
   }
-  
-  const data = validationResult.data;
+
+  const { name, date, description, drawNames, organizer } = validatedFields.data;
+
+  // Maak de organisator de eerste deelnemer
+  const initialParticipant: EventParticipant = {
+      ...organizer,
+      photoURL: user.photoURL, // Neem de photoURL van de user mee
+      confirmed: true,
+  };
+
+  // Bouw de participants Record
+  const participantsRecord: Record<string, EventParticipant> = {
+    [organizer.id]: initialParticipant,
+  };
+
+  const newEventData = {
+    name,
+    description: description || "",
+    organizerId: organizer.id,
+    organizerName: `${organizer.firstName} ${organizer.lastName}`,
+    
+    // Converteer naar Firestore Timestamps!
+    date: Timestamp.fromDate(date),
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+
+    // Gebruik de correcte data structuur
+    participants: participantsRecord,
+    participantIds: [organizer.id],
+
+    drawNames,
+    status: 'active' as const,
+    isPublic: false,
+    drawn: false,
+    tasks: [],
+  };
 
   try {
-    // 3. Bouw het Firestore-document op
-    const eventRef = adminDb.collection("events").doc();
+    const eventRef = await adminDb.collection("events").add(newEventData);
     
-    const eventData = {
-      name: data.name,
-      organizerId: user.profile.id, // Gebruik de uid van de AppUser
-      date: new Date(`${data.date}T${data.time || '00:00:00'}`),
-      createdAt: new Date(),
-      backgroundImage: data.backgroundImage || "",
-      budget: data.budget || null,
-      isLootjesEvent: data.isLootjesEvent,
-      participantType: data.participantType,
-      maxParticipants: data.maxParticipants || null,
-      drawnNames: {}, 
-      participants: data.participants.map((p, index) => ({
-        id: p.id,
-        name: `${p.firstName.trim()} ${p.lastName.trim()}`,
-        email: p.email || "",
-        status: index === 0 ? "accepted" : "pending",
-      })),
-      registrationDeadline: data.registrationDeadline ? new Date(data.registrationDeadline) : null,
-    };
-    
-    // 4. Schrijf naar Firestore
-    await eventRef.set(eventData);
-
-    // 5. Revalidate het pad om de UI te updaten en succes terug te geven
     revalidatePath("/dashboard");
-    revalidatePath("/dashboard/events");
-    
+    revalidatePath("/dashboard/upcoming");
+
     return {
       success: true,
-      message: "Evenement succesvol aangemaakt!",
+      message: `Evenement '${name}' is aangemaakt!`,
       eventId: eventRef.id,
     };
   } catch (error) {
-    console.error("Firestore Error creating event:", error);
+    console.error("Fout bij het aanmaken van evenement:", error);
     return {
       success: false,
-      message: "Er is een fout opgetreden bij het aanmaken van het evenement in de database.",
+      message: "Een onverwachte serverfout is opgetreden.",
     };
   }
 }

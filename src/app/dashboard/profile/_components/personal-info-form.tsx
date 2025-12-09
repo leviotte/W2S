@@ -1,73 +1,83 @@
 // src/app/dashboard/profile/_components/personal-info-form.tsx
 'use client';
 
-import { useEffect } from 'react';
 import { useFormState } from 'react-dom';
+import { useEffect } from 'react';
+import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { toast } from 'sonner';
+import { UserProfileSchema, type UserProfile } from '@/types/user';
+import { updatePersonalInfo } from '@/app/dashboard/profile/actions';
 
-import { updatePersonalInfoAction } from '@/app/dashboard/profile/actions';
-import { profileInfoSchema } from '@/lib/validators/profile';
-import type { UserProfile } from '@/types/user';
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { SubmitButton } from '@/components/ui/submit-button';
-import * as z from 'zod';
 
-type FormValues = Zod.infer<typeof profileInfoSchema>;
+const PersonalInfoSchema = UserProfileSchema.pick({
+  firstName: true,
+  lastName: true,
+  isPublic: true,
+});
+
+type PersonalInfoFormData = Zod.infer<typeof PersonalInfoSchema>;
 
 interface PersonalInfoFormProps {
   profile: UserProfile;
 }
 
 export default function PersonalInfoForm({ profile }: PersonalInfoFormProps) {
-  const [state, formAction] = useFormState(updatePersonalInfoAction, { success: false, message: '' });
+  const [state, formAction] = useFormState(updatePersonalInfo, { message: '' });
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(profileInfoSchema),
+  const { register, control, formState: { errors, isDirty } } = useForm<PersonalInfoFormData>({
+    resolver: zodResolver(PersonalInfoSchema),
     defaultValues: {
       firstName: profile.firstName || '',
       lastName: profile.lastName || '',
-      email: profile.email || '',
-      phone: profile.phone || '',
-      birthdate: profile.birthdate || '',
+      isPublic: profile.isPublic || false,
     },
   });
 
   useEffect(() => {
     if (state.message) {
-      state.success ? toast.success('Succes', { description: state.message }) : toast.error('Fout', { description: state.message });
+      if (state.issues) {
+        toast.error(state.message, { description: state.issues.join(', ')});
+      } else {
+        toast.success(state.message);
+      }
     }
   }, [state]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Persoonlijke Gegevens</CardTitle>
-        <CardDescription>Deze gegevens worden gebruikt voor je profiel.</CardDescription>
-      </CardHeader>
-      <Form {...form}>
-        <form action={formAction}>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField name="firstName" control={form.control} render={({ field }) => (
-              <FormItem><FormLabel>Voornaam</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+    <form action={formAction}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Persoonlijke Gegevens</CardTitle>
+          <CardDescription>Deze gegevens zijn zichtbaar op je publieke profielpagina.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-2">
+            <Label htmlFor="firstName">Voornaam</Label>
+            <Input id="firstName" {...register('firstName')} />
+            {errors.firstName && <p className="text-sm text-red-500">{errors.firstName.message}</p>}
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="lastName">Achternaam</Label>
+            <Input id="lastName" {...register('lastName')} />
+            {errors.lastName && <p className="text-sm text-red-500">{errors.lastName.message}</p>}
+          </div>
+          <div className="flex items-center space-x-2 pt-2">
+            <Controller name="isPublic" control={control} render={({ field }) => (
+              <Switch id="isPublic" checked={field.value} onCheckedChange={field.onChange} />
             )} />
-            <FormField name="lastName" control={form.control} render={({ field }) => (
-              <FormItem><FormLabel>Achternaam</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-            )} />
-            <FormField name="email" control={form.control} render={({ field }) => (
-              <FormItem><FormLabel>E-mail</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
-            )} />
-            {/* Voeg hier de andere velden toe (phone, birthdate) */}
-          </CardContent>
-          <CardFooter className="border-t px-6 py-4">
-            <SubmitButton>Gegevens Opslaan</SubmitButton>
-          </CardFooter>
-        </form>
-      </Form>
-    </Card>
+            <Label htmlFor="isPublic">Publiek profiel</Label>
+          </div>
+        </CardContent>
+        <CardFooter className="border-t px-6 py-4">
+          <SubmitButton loadingText="Opslaan..." disabled={!isDirty}>Opslaan</SubmitButton>
+        </CardFooter>
+      </Card>
+    </form>
   );
 }

@@ -1,154 +1,100 @@
 // src/app/dashboard/profile/_components/share-profile-form.tsx
 'use client';
 
-import { useState, useTransition, useCallback } from 'react';
-import { useDebouncedCallback } from 'use-debounce';
+import { useFormState, useFormStatus } from 'react-dom';
+import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { Loader2, UserPlus, X } from 'lucide-react';
-
+import { X } from 'lucide-react';
+import { addManager, removeManager } from '@/app/dashboard/profile/actions';
 import type { UserProfile } from '@/types/user';
-import {
-  addManagerAction,
-  removeManagerAction,
-  searchUsersAction,
-} from '@/app/dashboard/profile/actions';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { UserAvatar } from '@/components/shared/user-avatar';
+import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
+import { UserAvatar } from '@/components/shared/user-avatar';
 
 interface ShareProfileFormProps {
-  initialManagers: UserProfile[];
+  profile: UserProfile;
+  managers: UserProfile[];
 }
 
-export function ShareProfileForm({ initialManagers }: ShareProfileFormProps) {
-  const [isPending, startTransition] = useTransition();
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
+export default function ShareProfileForm({ profile, managers }: ShareProfileFormProps) {
+  const [addState, addFormAction] = useFormState(addManager, { message: '' });
+  const addFormRef = useRef<HTMLFormElement>(null);
 
-  // We gebruiken de initialManagers prop om de lijst van huidige manager IDs bij te houden.
-  const currentManagerIds = initialManagers.map(m => m.id);
-
-  const handleSearch = useDebouncedCallback(async (term: string) => {
-    if (term.length < 3) {
-      setSearchResults([]);
-      setIsSearching(false);
-      return;
+  useEffect(() => {
+    if (addState.message) {
+      if (addState.issues) {
+        toast.error(addState.message, { description: addState.issues.join(', ') });
+      } else {
+        toast.success(addState.message);
+        addFormRef.current?.reset();
+      }
     }
-    setIsSearching(true);
-    const results = await searchUsersAction(term, currentManagerIds);
-    setSearchResults(results);
-    setIsSearching(false);
-  }, 300); // 300ms debounce
+  }, [addState]);
 
-  const handleAddManager = (formData: FormData) => {
-    startTransition(async () => {
-      const result = await addManagerAction(formData);
-      if (result.success) {
-        toast.success(result.message);
-        setSearchResults(prev => prev.filter(user => user.id !== formData.get('managerId')));
-      } else {
-        toast.error(result.message);
-      }
-    });
-  };
-  
-  const handleRemoveManager = (formData: FormData) => {
-    startTransition(async () => {
-      const result = await removeManagerAction(formData);
-      if (result.success) {
-        toast.success(result.message);
-      } else {
-        toast.error(result.message);
-      }
-    });
+  return (
+    <div className="space-y-6">
+      <form ref={addFormRef} action={addFormAction}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Deel Toegang</CardTitle>
+            <CardDescription>
+              Voeg een andere gebruiker toe als beheerder van dit profiel.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-2">
+              <Label htmlFor="email">E-mailadres van gebruiker</Label>
+              <Input id="email" name="email" type="email" placeholder="naam@voorbeeld.com" required />
+            </div>
+          </CardContent>
+          <CardFooter className="border-t px-6 py-4">
+            <SubmitButton loadingText="Toevoegen...">Beheerder Toevoegen</SubmitButton>
+          </CardFooter>
+        </Card>
+      </form>
+
+      {managers.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Huidige Beheerders</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {managers.map((manager) => (
+              <div key={manager.id} className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <UserAvatar user={manager} className="h-9 w-9" />
+                  <div>
+                    <p className="font-medium">{manager.displayName}</p>
+                    <p className="text-sm text-muted-foreground">{manager.email}</p>
+                  </div>
+                </div>
+                <RemoveButton managerId={manager.id} />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function RemoveButton({ managerId }: { managerId: string }) {
+  const { pending } = useFormStatus();
+
+  const handleRemove = async () => {
+    const { success, message } = await removeManager(managerId);
+    if (success) toast.success(message);
+    else toast.error(message);
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Profiel Delen</CardTitle>
-        <CardDescription>
-          Geef andere gebruikers toegang om dit profiel te beheren. Ze kunnen
-          wishlists, evenementen en instellingen aanpassen.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* --- Zoeksectie --- */}
-        <div>
-          <label htmlFor="manager-search" className="mb-2 block text-sm font-medium">
-            Zoek gebruiker op e-mail
-          </label>
-          <div className="relative">
-            <Input
-              id="manager-search"
-              placeholder="naam@voorbeeld.com"
-              onChange={(e) => {
-                setIsSearching(true);
-                handleSearch(e.target.value);
-              }}
-            />
-            {isSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin" />}
-          </div>
-          
-          {searchResults.length > 0 && (
-            <div className="mt-4 space-y-2 rounded-md border">
-              {searchResults.map((user) => (
-                <div key={user.id} className="flex items-center justify-between p-2">
-                  <div className="flex items-center gap-3">
-                    <UserAvatar profile={user} className="h-8 w-8" />
-                    <div>
-                      <p className="font-medium">{user.displayName}</p>
-                      <p className="text-sm text-muted-foreground">{user.email}</p>
-                    </div>
-                  </div>
-                  <form action={handleAddManager}>
-                    <input type="hidden" name="managerId" value={user.id} />
-                    <SubmitButton size="sm" variant="outline" loadingText="Voeg toe...">
-                      <UserPlus className="mr-2 h-4 w-4" /> Toevoegen
-                    </SubmitButton>
-                  </form>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-1">
-          <h4 className="font-medium">Huidige Beheerders</h4>
-          {initialManagers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Je hebt nog geen beheerders toegevoegd.</p>
-          ) : (
-            <ul className="divide-y rounded-md border">
-              {initialManagers.map((manager) => (
-                <li key={manager.id} className="flex items-center justify-between p-3">
-                  <div className="flex items-center gap-3">
-                    <UserAvatar profile={manager} className="h-9 w-9" />
-                    <div>
-                      <p className="font-medium">{manager.displayName}</p>
-                      <p className="text-sm text-muted-foreground">{manager.email}</p>
-                    </div>
-                  </div>
-                  <form action={handleRemoveManager}>
-                    <input type="hidden" name="managerId" value={manager.id} />
-                    <SubmitButton 
-                      variant="ghost" 
-                      size="icon" 
-                      className="text-muted-foreground hover:text-destructive"
-                      loadingText=""
-                      disabled={isPending}
-                    >
-                      <X className="h-4 w-4" />
-                    </SubmitButton>
-                  </form>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+    <form action={handleRemove}>
+      <SubmitButton variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" loadingText="" disabled={pending}>
+        <X className="h-4 w-4" />
+      </SubmitButton>
+    </form>
   );
 }

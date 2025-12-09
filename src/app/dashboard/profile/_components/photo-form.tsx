@@ -1,12 +1,12 @@
 // src/app/dashboard/profile/_components/photo-form.tsx
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { useFormState } from 'react-dom';
+import { useState, useRef, useTransition } from 'react';
 import { toast } from 'sonner';
 import { Upload } from 'lucide-react';
 
-import { updatePhotoAction } from '@/app/dashboard/profile/actions';
+import { updatePhotoURL } from '@/app/dashboard/profile/actions';
+import { uploadFile } from '@/lib/client/storage';
 import type { UserProfile } from '@/types/user';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -19,76 +19,78 @@ interface PhotoFormProps {
 }
 
 export default function PhotoForm({ profile }: PhotoFormProps) {
-  const [state, formAction] = useFormState(updatePhotoAction, { success: false, message: '' });
+  const [isPending, startTransition] = useTransition();
+  const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Effect voor toast-notificaties
-  useEffect(() => {
-    if (state.message) {
-      state.success ? toast.success('Succes', { description: state.message }) : toast.error('Fout', { description: state.message });
-      // Als de upload succesvol was, verwijder de preview zodat de nieuwe prop-waarde wordt getoond
-      if (state.success) {
-        setPreviewUrl(null); 
-        if(fileInputRef.current) fileInputRef.current.value = ''; // Reset de file input
-      }
-    }
-  }, [state]);
-
-  // Effect om de object URL op te schonen
-  useEffect(() => {
-    return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [previewUrl]);
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (previewUrl) URL.revokeObjectURL(previewUrl); // Ruim de vorige preview op
-      setPreviewUrl(URL.createObjectURL(file));
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      if (previewUrl) URL.revokeObjectURL(previewUrl); // Ruim oude preview op
+      setFile(selectedFile);
+      setPreviewUrl(URL.createObjectURL(selectedFile));
     }
   };
 
+  const handleSubmit = () => {
+    if (!file) {
+      toast.error('Selecteer eerst een bestand.');
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        // 1. Upload het bestand vanaf de CLIENT naar Firebase Storage
+        const photoURL = await uploadFile(file, `profile-pictures/${profile.id}/${file.name}`);
+
+        // 2. Roep de SERVER action aan met de resulterende URL
+        const result = await updatePhotoURL(photoURL);
+
+        if (result.success) {
+          toast.success(result.message);
+          setFile(null);
+          setPreviewUrl(null);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        } else {
+          toast.error(result.message);
+        }
+      } catch (error) {
+        toast.error('Upload mislukt. Probeer het opnieuw.');
+        console.error(error);
+      }
+    });
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Profielfoto</CardTitle>
-        <CardDescription>Een duidelijke foto helpt anderen je te herkennen. Max 4MB.</CardDescription>
-      </CardHeader>
-      <form action={formAction}>
-        <CardContent>
-          <div className="flex items-center gap-6">
-            <UserAvatar 
-              src={previewUrl ?? profile.photoURL} 
-              name={profile.firstName} 
-              size="lg" 
-              className="h-24 w-24"
-            />
-            <div className="grid gap-2">
-                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
-                    <Upload className="mr-2 h-4 w-4" /> Wijzig Foto
-                </Button>
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    name="photo" // BELANGRIJK: de naam moet matchen met de server action
-                    accept="image/png, image/jpeg, image/webp"
-                    onChange={handleFileChange}
-                    className="hidden"
-                />
-                 <p className="text-xs text-muted-foreground">
-                    {fileInputRef.current?.files?.[0]?.name ?? 'Geen bestand geselecteerd.'}
-                </p>
-            </div>
-          </div>
+    // We gebruiken nu een form met een action die onze transition-wrapped handler aanroept
+    <form action={handleSubmit}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Profielfoto</CardTitle>
+          <CardDescription>Een duidelijke foto helpt anderen je te herkennen.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center gap-4">
+          <UserAvatar user={profile} src={previewUrl ?? profile.photoURL} className="h-32 w-32" />
+          <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="mr-2 h-4 w-4" /> Wijzig Foto
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            name="photo"
+            accept="image/png, image/jpeg, image/webp"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          {file && <p className="text-xs text-muted-foreground">{file.name}</p>}
         </CardContent>
-        <CardFooter className="border-t px-6 py-4">
-          <SubmitButton disabled={!previewUrl}>Foto Opslaan</SubmitButton>
+        <CardFooter className="flex justify-end">
+          <SubmitButton isSubmitting={isPending} disabled={!file || isPending}>
+            Opslaan
+          </SubmitButton>
         </CardFooter>
-      </form>
-    </Card>
+      </Card>
+    </form>
   );
 }
