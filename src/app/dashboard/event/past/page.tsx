@@ -1,7 +1,7 @@
 // src/app/dashboard/event/past/page.tsx
 import { redirect } from 'next/navigation';
 import { adminDb } from "@/lib/server/firebase-admin";
-import { getCurrentUser } from "@/lib/server/auth";
+import { getCurrentUser } from "@/lib/auth/actions";
 import { eventSchema, type Event } from "@/types/event";
 import { Timestamp } from 'firebase-admin/firestore'; // Belangrijk: import van admin SDK!
 
@@ -53,7 +53,7 @@ export default async function PastEventsPage() {
     return redirect('/?modal=login&callbackUrl=/dashboard/event/past');
   }
   
-  const pastEvents = await getPastEvents(currentUser.profile.id);
+  const pastEvents = await getPastEvents(currentUser.id);
 
   // We geven de data door aan een client component die de interactie afhandelt.
   return <PastEventsClientPage initialEvents={pastEvents} />;

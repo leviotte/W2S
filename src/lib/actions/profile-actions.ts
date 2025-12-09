@@ -23,7 +23,7 @@ const subProfileSchema = z.object({
 export async function createSubProfileAction(data: unknown) {
   // 1. Authenticatie en Autorisatie
   const session = await getSession();
-  if (!session?.user?.id) {
+  if (!session?.user?.profile.id) {
     return { success: false, error: 'Authenticatie vereist.' };
   }
 
@@ -37,7 +37,7 @@ export async function createSubProfileAction(data: unknown) {
 
   try {
     // 3. Database operatie
-    const userRef = adminDb.collection('users').doc(session.user.id);
+    const userRef = adminDb.collection('users').doc(session.user.profile.id);
     
     // Voeg het profiel toe aan de 'subprofiles' subcollectie
     const newSubProfileRef = await userRef.collection('subprofiles').add({

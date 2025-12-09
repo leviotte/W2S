@@ -30,7 +30,7 @@ export const useWishlists = () => {
       return;
     }
 
-    const q = query(collection(db, 'wishlists'), where('userId', '==', currentUser.profile.id));
+    const q = query(collection(db, 'wishlists'), where('userId', '==', currentUser.id));
     const unsubscribe = onSnapshot(q, snapshot => {
       setWishlists(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Wishlist)));
       setLoading(false);

@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { adminDb } from "@/lib/server/firebase-admin";
-import { getCurrentUser } from "@/lib/server/auth"; // We gebruiken jouw superieure functie!
+import { getCurrentUser } from "@/lib/auth/actions";
 
 // State-definitie voor useFormState
 export interface FormState {
@@ -85,7 +85,7 @@ export async function createEventAction(
     
     const eventData = {
       name: data.name,
-      organizerId: user.id, // Gebruik de uid van de AppUser
+      organizerId: user.profile.id, // Gebruik de uid van de AppUser
       date: new Date(`${data.date}T${data.time || '00:00:00'}`),
       createdAt: new Date(),
       backgroundImage: data.backgroundImage || "",

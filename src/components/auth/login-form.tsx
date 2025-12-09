@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { getClientAuth } from '@/lib/client/firebase';
 import { createSessionAction } from '@/lib/auth/actions';
-import { useAuthModal } from '@/lib/store/use-modal-store';
+import { useAuthModal } from '@/lib/store/use-auth-modal';
 
 // 1. Schema definitie
 const loginFormSchema = z.object({

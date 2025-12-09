@@ -4,7 +4,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useModalStore } from '@/lib/store/use-modal-store';
+import { useModalStore } from '@/lib/store/use-auth-modal';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 // Jouw formulieren worden hier geïmporteerd

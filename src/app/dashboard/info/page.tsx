@@ -1,8 +1,8 @@
 import { Suspense } from 'react';
-import { getCurrentUser } from '@/lib/server/auth';
-import { getFollowCounts } from '@/lib/data/users'; // Nieuwe server-functie
-import { getEventCountsForUser } from '@/lib/data/events'; // Nieuwe server-functie
-import { getWishlistStatsForUser } from '@/lib/data/wishlists'; // Nieuwe server-functie
+import { getCurrentUser } from '@/lib/auth/actions';
+import { getFollowCounts } from '@/lib/server/data/users';
+import { getEventCountsForUser } from '@/lib/server/data/events'; // Nieuwe server-functie
+import { getWishlistStatsForUser } from '@/lib/server/data/wishlists'; // Nieuwe server-functie
 import DashboardClientWrapper from '@/components/dashboard/dashboard-client-wrapper';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,7 +18,7 @@ export default async function DashboardInfoPage() {
 
   // OPMERKING: We moeten hier nog de logica voor actieve subprofielen implementeren.
   // Voor nu focussen we op de hoofdgebruiker om de dataflow te fixen.
-  const userId = user.id;
+  const userId = user.profile.id;
 
   // 2. Haal ALLE initiële data parallel op met Promise.all
   const [initialFollows, initialEvents, initialWishlists] = await Promise.all([

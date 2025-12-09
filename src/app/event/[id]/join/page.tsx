@@ -66,7 +66,7 @@ export default function EventParticipationPage() {
         const eventData = validation.data;
         setEvent(eventData);
 
-        const profilesQuery = query(collection(db, "profiles"), where("userId", "==", currentUser.profile.id));
+        const profilesQuery = query(collection(db, "profiles"), where("userId", "==", currentUser.id));
         const profilesSnapshot = await getDocs(profilesQuery);
         
         const userProfiles: ProfileOption[] = profilesSnapshot.docs.map((doc) => ({
@@ -75,7 +75,7 @@ export default function EventParticipationPage() {
         }));
 
         setProfiles([
-          { ...currentUser, id: currentUser.profile.id }, // currentUser is nu een volledig UserProfile
+          { ...currentUser, id: currentUser.id }, // currentUser is nu een volledig UserProfile
           ...userProfiles
         ]);
 

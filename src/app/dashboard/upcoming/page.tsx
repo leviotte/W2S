@@ -1,6 +1,6 @@
 // src/app/dashboard/upcoming/page.tsx
 import { Suspense } from 'react';
-import { getCurrentUser } from '@/lib/server/auth';
+import { getCurrentUser } from '@/lib/auth/actions';
 import { getEventsForUser } from '@/lib/server/data/events'; // SERVER-SIDE FETCHING!
 import { redirect } from 'next/navigation';
 import UpcomingEventsClientPage from './_components/upcoming-events-client-page'; // NIEUW CLIENT COMPONENT
@@ -19,7 +19,7 @@ export default async function UpcomingEventsPage() {
 
   // 1. DATA WORDT HIER GELADEN, OP DE SERVER!
   // We halen alle events in één keer op. De client filtert ze later.
-  const allEvents = await getEventsForUser(currentUser.profile.id);
+  const allEvents = await getEventsForUser(currentUser.id);
 
   return (
     <div className="container py-8">
@@ -37,7 +37,7 @@ export default async function UpcomingEventsPage() {
         {/* 2. WE GEVEN DE DATA ALS PROP DOOR AAN HET CLIENT COMPONENT */}
         <UpcomingEventsClientPage
           initialEvents={allEvents}
-          userId={currentUser.profile.id}
+          userId={currentUser.id}
         />
       </Suspense>
     </div>

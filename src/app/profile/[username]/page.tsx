@@ -1,112 +1,85 @@
-// app/profile/[username]/page.tsx
-// DE "GOLD STANDARD" USER PROFILE PAGINA - 100% SERVER COMPONENT
+// src/app/profile/[username]/page.tsx
 
-import Link from 'next/link';
-import { MapPin, Cake } from 'lucide-react';
 import { notFound } from 'next/navigation';
+import { Mail, MapPin, Cake } from 'lucide-react';
+import Image from 'next/image';
 
-// NIEUW: Veilige, server-side helpers importeren
-import { getCurrentUser } from '@/lib/server/auth';
-import { getUserProfileBySlug, getPublicWishlistsByUserId } from '@/services/userService';
+import { getProfileByUsername, getUserWishlists } from '@/lib/server/data/users';
+import { getCurrentUser } from '@/lib/auth/actions';
 
-// NIEUW: Client Components die we nodig hebben
-import FollowButton from "@/components/FollowButton"; 
-import FollowersFollowingCount from "@/components/FollowersFollowingCount";
-import { UserAvatar } from "@/components/shared/user-avatar";
-import type { Wishlist } from "@/types/user";
+import { UserAvatar } from '@/components/shared/user-avatar';
+import { FollowButton } from '@/components/FollowButton';
+import { FollowersFollowingCount } from '@/components/FollowersFollowingCount';
+import { WishlistsSection } from '@/components/wishlist/WishlistsSection';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { Wishlist } from '@/types/wishlist'; // We moeten dit type nog aanmaken!
 
-// De pagina ontvangt 'params' van de URL.
-interface PageProps {
-  params: {
-    username: string; // Dit komt overeen met de mapnaam `[username]`
-  };
-}
+export const revalidate = 60; // Revalidate deze pagina elke 60 seconden
 
-export default async function UserProfilePage({ params }: PageProps) {
-  // Stap 1: Server-Side Authenticatie & Data Fetching (in parallel!)
-  // We halen de ingelogde gebruiker (de 'viewer') en het profiel dat we bekijken tegelijk op.
-  const [viewer, profileData] = await Promise.all([
+export default async function UserProfilePage({
+  params,
+}: {
+  params: { username: string };
+}) {
+  const { username } = params;
+
+  // 1. Haal de data parallel op voor maximale performance
+  const [profileData, viewer] = await Promise.all([
+    getProfileByUsername(username),
     getCurrentUser(),
-    getUserProfileBySlug(params.username)
   ]);
-  
-  // Als getUserProfileBySlug faalt, zal de `notFound()` al getriggerd zijn.
-  
-  // Stap 2: Haal de wenslijsten van de profielgebruiker op
-  const wishlists = await getPublicWishlistsByUserId(profileData.id);
 
-  // Stap 3: Bepaal de context
-  // De 'viewer' is de ingelogde persoon die de pagina bezoekt.
-  // 'profileData' is het profiel van de persoon wiens pagina we bekijken.
-  const isOwner = viewer?.id === profileData.id;
-  const viewerId = viewer?.id;
+  // Als het profiel niet bestaat, toon een 404 pagina
+  if (!profileData) {
+    notFound();
+  }
 
-  // Stap 4: Render de UI met de 100% server-fetched data
+  // 2. Haal de wishlists van dit profiel op
+  // Deze functie moeten we nog maken in `lib/server/data/users.ts`
+  const wishlists: Wishlist[] = await getUserWishlists(profileData.id);
+
+  const viewerId = viewer?.id ?? '';
+  const isOwnProfile = viewerId === profileData.id;
+
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="text-center shadow-xl rounded-lg p-8 bg-gray-100 flex flex-col items-center justify-center space-y-4">
-        <UserAvatar
-          src={profileData.photoURL ?? profileData.avatarURL}
-          alt={`${profileData.firstName || profileData.name}'s profile`}
-          className="w-32 h-32"
-        />
-        <h1 className="text-2xl text-accent font-bold my-4">
-          {profileData.firstName
-            ? `${profileData.firstName} ${profileData.lastName}`
-            : profileData.name}
-        </h1>
-
-        {/* Details van het profiel */}
-        {profileData.birthdate && (
-          <p className="text-gray-600 flex justify-center my-2">
-            <Cake className="mr-2 text-[#b34c4c]" />
-            {new Date(profileData.birthdate).toLocaleDateString("nl-BE")}
-          </p>
-        )}
-        {profileData.address?.city && (
-          <p className="text-gray-600 flex justify-center my-2">
-            <MapPin className="mr-2 text-blue-500" /> {profileData.address.city}
-          </p>
-        )}
-
-        <div>
-          {/* Conditioneel renderen van Client Components met server data */}
-          {!isOwner && viewerId && (
-            <FollowButton
-              viewerId={viewerId}
-              targetId={profileData.id}
-              isTargetProfile={!!profileData.name} // Simpele check of het een subprofiel is
-            />
-          )}
-          {isOwner && (
-            <FollowersFollowingCount
-              userId={profileData.id}
-              isProfile={!!profileData.name}
-            />
-          )}
+    <div className="container mx-auto max-w-4xl p-4">
+      <Card className="overflow-hidden">
+        <div className="relative h-32 md:h-48 bg-gray-200">
+          {/* TO-DO: Implement profile banner image */}
         </div>
-      </div>
-
-      <div className="mt-8">
-        <h2 className="text-xl font-bold mb-4 text-accent">
-          Openbare wishlists
-        </h2>
-        {wishlists.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {wishlists.map((wishlist) => (
-              <Link
-                key={wishlist.id}
-                href={`/wishlist/${wishlist.id}`} // Correcte, publieke link naar een wishlist
-                className="block p-4 rounded-xl shadow-xl hover:shadow-md bg-gray-100 hover:bg-gray-50 cursor-pointer transition-shadow"
-              >
-                <h3 className="text-lg font-medium">{wishlist.name}</h3>
-                <p className="text-gray-500">{wishlist.items?.length || 0} items</p>
-              </Link>
-            ))}
+        <CardContent className="p-4 sm:p-6">
+          <div className="relative flex flex-col items-center sm:flex-row sm:items-end -mt-16 sm:-mt-20">
+            <UserAvatar
+              src={profileData.photoURL}
+              name={profileData.displayName}
+              className="h-24 w-24 md:h-32 md:w-32 border-4 border-card"
+            />
+            <div className="mt-4 sm:ml-6 flex-grow text-center sm:text-left">
+              <h1 className="text-2xl font-bold">{profileData.displayName}</h1>
+              {/* TO-DO: Logica voor birthdate en address, indien aanwezig in je nieuwe schema */}
+            </div>
+            <div className="mt-4 sm:mt-0">
+              {!isOwnProfile && viewerId && (
+                <FollowButton
+                  viewerId={viewerId}
+                  targetId={profileData.id}
+                  // isTargetProfile is hier niet nodig als de logica in de component goed zit
+                />
+              )}
+            </div>
           </div>
-        ) : (
-          <p className="text-gray-500">Deze gebruiker heeft nog geen openbare wishlists.</p>
-        )}
+          <div className="mt-6 flex justify-center sm:justify-start">
+             <FollowersFollowingCount userId={profileData.id} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="mt-6">
+        <WishlistsSection 
+          wishlists={wishlists}
+          isOwnProfile={isOwnProfile}
+          // De user prop is hier niet nodig als we enkel wishlists tonen
+        />
       </div>
     </div>
   );

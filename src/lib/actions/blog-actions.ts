@@ -49,8 +49,8 @@ export async function createPostAction(data: unknown) {
     
     await postsCollectionRef.add({
       ...validationResult.data,
-      authorId: "dummy_user_id", // Later vervangen door session.user.id
-      authorName: "Levi Otte",   // Later vervangen door session.user.name
+      authorId: "dummy_user_id", // Later vervangen door session.user.profile.id
+      authorName: "Levi Otte",   // Later vervangen door session.user.profile.name
       createdAt: FieldValue.serverTimestamp(),
     });
 

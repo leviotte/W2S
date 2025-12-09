@@ -1,52 +1,46 @@
-import { getCurrentUser } from '@/lib/server/auth';
+import { getCurrentUser } from '@/lib/auth/actions';
 import { redirect } from 'next/navigation';
 import { SocialAccountsForm } from './_components/social-accounts-form';
 import { adminDb } from '@/lib/server/firebase-admin';
+import PageTitle from '@/components/layout/page-title';
+import { PasswordChangeSection } from './_components/password-change-section'; // Importeren!
+import { Separator } from '@/components/ui/separator';
 
 export const metadata = {
   title: 'Instellingen | Wish2Share',
   description: 'Beheer je profiel- en accountinstellingen.',
 };
 
-/**
- * Een robuuste, server-side functie om de social links voor een specifieke gebruiker op te halen.
- */
 async function getUserSocials(uid: string) {
   try {
     const userDoc = await adminDb.collection('users').doc(uid).get();
-    if (!userDoc.exists) {
-      return {}; // Geen gebruiker gevonden, geef een leeg object terug.
-    }
-    // Geef de 'socials' map terug, of een leeg object als die niet bestaat.
-    return userDoc.data()?.socials || {};
+    return userDoc.exists ? userDoc.data()?.socials || {} : {};
   } catch (error) {
     console.error(`Kon socials niet laden voor gebruiker ${uid}:`, error);
-    return {}; // Voorkom een crash bij een database fout.
+    return {}; 
   }
 }
 
 export default async function SettingsPage() {
   const user = await getCurrentUser();
   if (!user) {
-    redirect('/login');
+    redirect('/?auth=login'); // Stuur naar homepage met login modal
   }
 
-  // Haal de data specifiek voor deze gebruiker op met onze nieuwe, cleane functie.
-  const socials = await getUserSocials(user.id);
+  const socials = await getUserSocials(user.profile.id);
 
   return (
-    <div className="space-y-6 p-4 md:p-8 max-w-4xl mx-auto">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Instellingen</h2>
-        <p className="text-muted-foreground">
-          Beheer hier de instellingen voor je account.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <PageTitle title="Instellingen" description="Beheer hier de instellingen voor je account." />
       
-      {/* Geef de data direct door aan het formulier. */}
+      {/* Socials Formulier */}
       <SocialAccountsForm socials={socials} />
+      
+      <Separator />
 
-      {/* Ruimte voor toekomstige instellingen (profiel, wachtwoord, etc.) */}
+      {/* Wachtwoord Wijzigen Sectie */}
+      <PasswordChangeSection />
+
     </div>
   );
 }

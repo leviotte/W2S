@@ -2,7 +2,7 @@
 'use server';
 
 import { adminDb } from '@/lib/server/firebase-admin';
-import { getCurrentUser } from '@/lib/server/auth';
+import { getCurrentUser } from '@/lib/auth/actions';
 import { revalidatePath } from 'next/cache';
 
 export async function deleteEventAction(eventId: string): Promise<{ success: boolean; message: string }> {
@@ -17,7 +17,7 @@ export async function deleteEventAction(eventId: string): Promise<{ success: boo
     const eventData = eventDoc.data();
 
     // SECURITY CHECK: Alleen de organisator mag verwijderen.
-    if (!eventDoc.exists || eventData?.organizerId !== currentUser.profile.id) {
+    if (!eventDoc.exists || eventData?.organizerId !== currentUser.id) {
       return { success: false, message: 'Geen toestemming om dit evenement te verwijderen.' };
     }
 

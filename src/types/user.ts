@@ -1,7 +1,8 @@
 // src/types/user.ts
+
 import { z } from 'zod';
 
-// Base Address Schema, herbruikbaar
+// Schema voor een adres, kan optioneel zijn
 export const AddressSchema = z.object({
   street: z.string().optional(),
   city: z.string().optional(),
@@ -11,47 +12,39 @@ export const AddressSchema = z.object({
 
 export type Address = z.infer<typeof AddressSchema>;
 
-// Main User Profile Schema (data in 'users' or 'profiles' collection)
-export const UserProfileSchema = z.object({
+// Basis-schema voor een profiel (zowel hoofdprofiel als subprofiel)
+const ProfileBaseSchema = z.object({
   id: z.string(),
-  email: z.string().email(),
-  firstName: z.string(),
-  lastName: z.string(),
-  name: z.string(), // Often `${firstName} ${lastName}`
-  username: z.string().optional(),
+  displayName: z.string(),
   photoURL: z.string().url().nullable().optional(),
-  birthdate: z.string().optional(),
-  gender: z.string().optional(),
-  phone: z.string().optional(),
-  address: AddressSchema,
-  isPublic: z.boolean().default(true),
-  isAdmin: z.boolean().default(false),
-  managers: z.array(z.string()).default([]), // Array of user IDs
+  isPublic: z.boolean().default(false),
+  managers: z.array(z.string()).default([]),
+  ownerId: z.string(), // ID van de hoofdgebruiker die eigenaar is
+});
+
+// Schema voor een SubProfiel
+export const UserProfileSchema = ProfileBaseSchema.extend({
+  // Specifieke velden voor subprofielen indien nodig
 });
 
 export type UserProfile = z.infer<typeof UserProfileSchema>;
 
-// Sub-profile is essentially a UserProfile with a userId pointing to the owner
-export const SubProfileSchema = UserProfileSchema.extend({
-  userId: z.string(), // The ID of the main account that owns this profile
+// Schema voor de hoofdgebruiker (Sessie-gebruiker)
+export const SessionUserSchema = ProfileBaseSchema.extend({
+  email: z.string().email(),
+  isAdmin: z.boolean().default(false),
+  // firstName en lastName zijn optioneel in het hoofdprofiel
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  address: AddressSchema.optional(),
 });
 
-export type SubProfile = z.infer<typeof SubProfileSchema>;
+export type SessionUser = z.infer<typeof SessionUserSchema>;
 
-// Manager type for clarity in components
-export const ManagerSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  photoURL: z.string().url().nullable().optional(),
-});
-
-export type Manager = z.infer<typeof ManagerSchema>;
-
-// Dit is de belangrijkste: de structuur van onze Iron Session!
-export const AuthedUserSchema = z.object({
-  profile: UserProfileSchema,
-  // Hier kunnen we later extra sessie-specifieke data toevoegen,
-  // bv. activeProfileId, login-tijd, etc.
-});
-
-export type AuthedUser = z.infer<typeof AuthedUserSchema>;
+// Type voor een manager, zoals gebruikt in de UI
+export type Manager = {
+  id: string;
+  displayName: string;
+  email: string;
+  photoURL?: string | null;
+};

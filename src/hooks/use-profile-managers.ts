@@ -92,7 +92,7 @@ export function useProfileManagers(profileId: string) {
     }
 
     const searchUsers = async () => {
-      if (!currentUser?.id) return;
+      if (!currentUser?.profile.id) return;
       setIsSearching(true);
       try {
         const usersRef = collection(db, 'users');
@@ -110,7 +110,7 @@ export function useProfileManagers(profileId: string) {
 
         const results = querySnapshot.docs
           .map(docToManager)
-          .filter(user => user.id !== currentUser.profile.id && !managerUids.includes(user.id));
+          .filter(user => user.profile.id !== currentUser.id && !managerUids.includes(user.profile.id));
         
         setSearchResults(results);
       } catch (error) {
@@ -122,15 +122,15 @@ export function useProfileManagers(profileId: string) {
     };
 
     searchUsers();
-  }, [debouncedSearchQuery, currentUser?.id, managers]);
+  }, [debouncedSearchQuery, currentUser?.profile.id, managers]);
   
   const addManager = async (user: Manager) => {
-    if (!user.id) return;
+    if (!user.profile.id) return;
     try {
-        await addManagerToProfile(profileId, user.id);
+        await addManagerToProfile(profileId, user.profile.id);
         setSearchQuery('');
         setSearchResults([]);
-        toast.success(`${user.firstName || 'Gebruiker'} is nu een beheerder.`);
+        toast.success(`${user.profile.firstName || 'Gebruiker'} is nu een beheerder.`);
     } catch (error) {
         console.error("Error adding manager:", error);
         toast.error("Kon beheerder niet toevoegen.");

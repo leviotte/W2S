@@ -124,7 +124,7 @@ export function CreateEventForm({ categories, backImages }: CreateEventFormProps
       participantType: "manual",
       maxParticipants: undefined,
       participants: currentUser ? [{
-          id: isMainProfile ? currentUser.profile.id : profileData?.id || crypto.randomUUID(),
+          id: isMainProfile ? currentUser.id : profileData?.id || crypto.randomUUID(),
           firstName: isMainProfile ? currentUser.profile.firstName : profileData?.firstName || "",
           lastName: isMainProfile ? currentUser.profile.lastName : profileData?.lastName || "",
           email: currentUser.profile.email || "",

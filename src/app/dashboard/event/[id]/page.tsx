@@ -6,9 +6,9 @@ import { adminDb } from "@/lib/server/firebase-admin";
 import type { Event, EventParticipant } from "@/types/event";
 import { eventSchema } from "@/types/event";
 import type { Wishlist } from "@/types/wishlist";
-import { wishlistSchema } from "@/types/wishlist";
+import { WishlistSchema } from "@/types/wishlist";
 import type { AuthedUser } from "@/types/user";
-import { sessionUserSchema } from "@/types/user";
+import { SessionUserSchema } from "@/types/user";
 
 // FIX: 'default' import gebruiken omdat EventDashboardClient een default export is.
 import EventDashboardClient from "./_components/event-dashboard-client";
@@ -44,7 +44,7 @@ async function getWishlistsData(participants: EventParticipant[]): Promise<Recor
   const wishlists: Record<string, Wishlist> = {};
   for (const doc of wishlistDocs) {
     if (doc.exists) {
-      const validation = wishlistSchema.safeParse({ ...doc.data(), id: doc.id });
+      const validation = WishlistSchema.safeParse({ ...doc.data(), id: doc.id });
       if (validation.success) {
         wishlists[doc.id] = validation.data;
       }
@@ -61,7 +61,7 @@ export default async function EventDashboardPage({ params }: { params: { id: str
   
   // FIX: De 'isLoggedIn' en 'user' properties bestaan direct op het session object van getSession().
   if (session.isLoggedIn && session.user) {
-    const profileValidation = sessionUserSchema.safeParse(session.user);
+    const profileValidation = SessionUserSchema.safeParse(session.user);
     if (profileValidation.success) {
       const profile = profileValidation.data;
       validatedUser = {
@@ -95,9 +95,9 @@ export default async function EventDashboardPage({ params }: { params: { id: str
       participants={participants}
       wishlists={wishlists}
       currentUser={validatedUser}
-      currentUserId={validatedUser.id}
-      isOrganizer={initialEvent.organizerId === validatedUser.id}
-      drawnParticipantId={initialEvent.drawnNames?.[validatedUser.id]}
+      currentUserId={validatedUser.profile.id}
+      isOrganizer={initialEvent.organizerId === validatedUser.profile.id}
+      drawnParticipantId={initialEvent.drawnNames?.[validatedUser.profile.id]}
     />
   );
 }

@@ -1,47 +1,43 @@
 // src/lib/store/use-auth-store.ts
 import { create } from 'zustand';
-import type { AuthedUser } from '@/types/user';
+import type { UserProfile } from '@/types/user';
 
-// 1. Definieer de interface voor de STATE van de store
-// Dit is de data die we globaal op de client willen bijhouden.
-// Merk op: GEEN events, wishlists, of profiles hier!
-export interface AuthState {
-  currentUser: AuthedUser | null;
-  isInitialized: boolean;
-  isLoading: boolean;
+// --- State & Actions voor de AUTH MODAL ---
+
+interface AuthModalState {
+  isLoginOpen: boolean;
+  isRegisterOpen: boolean;
+  openLogin: () => void;
+  openRegister: () => void;
+  closeModals: () => void;
+  switchToRegister: () => void;
+  switchToLogin: () => void;
 }
 
-// 2. Definieer de interface voor de ACTIONS van de store
-// Dit zijn de functies die de state kunnen aanpassen.
-// Het zijn simpele, synchrone setters. De async logica verhuist naar Server Actions.
-export interface AuthActions {
-  setCurrentUser: (user: AuthedUser | null) => void;
-  setInitialized: (initialized: boolean) => void;
-  setLoading: (loading: boolean) => void;
-  logout: () => void;
+export const useAuthModalStore = create<AuthModalState>((set) => ({
+  isLoginOpen: false,
+  isRegisterOpen: false,
+  openLogin: () => set({ isLoginOpen: true, isRegisterOpen: false }),
+  openRegister: () => set({ isRegisterOpen: true, isLoginOpen: false }),
+  closeModals: () => set({ isLoginOpen: false, isRegisterOpen: false }),
+  switchToRegister: () => set({ isLoginOpen: false, isRegisterOpen: true }),
+  switchToLogin: () => set({ isLoginOpen: true, isRegisterOpen: false }),
+}));
+
+// --- State & Actions voor de AUTH SESSIE ZELF ---
+
+export type SessionStatus = 'loading' | 'authenticated' | 'unauthenticated';
+
+interface AuthSessionState {
+  sessionUser: UserProfile | null;
+  status: SessionStatus;
+  setUser: (user: UserProfile | null) => void;
+  setStatus: (status: SessionStatus) => void;
 }
 
-// 3. Creëer de store met de initiële state en de implementatie van de actions
-export const useAuthStore = create<AuthState & AuthActions>((set) => ({
-  // --- Initiële State ---
-  currentUser: null,
-  isInitialized: false, // Start op false. Wordt true nadat de eerste sessie-check is gedaan.
-  isLoading: true, // Start op true. We gaan ervan uit dat we laden tot isInitialized true is.
-
-  // --- Actions Implementatie ---
-  setCurrentUser: (user) => set({ currentUser: user }),
-
-  setInitialized: (initialized) => set({ isInitialized: initialized }),
-
-  setLoading: (loading) => set({ isLoading: loading }),
-
-  logout: () => {
-    // De daadwerkelijke server-side logout gebeurt in een Server Action.
-    // Deze functie reset enkel de client-side state.
-    set({
-      currentUser: null,
-      isLoading: false,
-      isInitialized: true, // We zijn 'geïnitialiseerd' in een uitgelogde staat.
-    });
-  },
+export const useAuthSessionStore = create<AuthSessionState>((set) => ({
+  sessionUser: null,
+  status: 'loading', // Start altijd als 'loading'
+  setUser: (user) => set({ sessionUser: user, status: user ? 'authenticated' : 'unauthenticated' }),
+  setStatus: (status) => set({ status }),
 }));

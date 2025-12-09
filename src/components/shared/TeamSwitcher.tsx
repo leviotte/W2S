@@ -1,126 +1,125 @@
-"use client";
+// src/components/shared/TeamSwitcher.tsx
 
-import { useEffect } from 'react';
+'use client';
+
+import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronsUpDown, CircleUserRound, Plus } from 'lucide-react';
-import { useProfileStore, type Profile, type User } from '@/lib/store/use-profile-store';
+import { Check, ChevronsUpDown, PlusCircle } from 'lucide-react';
+
+import { useAuthStore } from '@/lib/store/use-auth-store';
+import { cn } from '@/lib/utils';
+
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
+import { type SessionUser, type UserProfile } from '@/types/user';
 
-export function TeamSwitcher({ user }: { user: User }) {
+// Combineer de types voor het gemak. Een profiel kan een hoofdprofiel (SessionUser) of subprofiel (UserProfile) zijn.
+type AnyProfile = SessionUser | UserProfile;
+
+export function TeamSwitcher() {
   const router = useRouter();
+  const { user, profiles, isLoading, activeProfileId, setActiveProfileId } = useAuthStore(state => ({
+    user: state.user,
+    profiles: state.profiles,
+    isLoading: state.isLoading,
+    activeProfileId: state.activeProfileId,
+    setActiveProfileId: state.setActiveProfileId,
+  }));
+  
+  const [open, setOpen] = React.useState(false);
 
-  // Haal state en actions uit onze nieuwe, gespecialiseerde store
-  const { 
-    profiles, 
-    activeProfile, 
-    loading, 
-    initializeProfiles, 
-    cleanupListeners, 
-    switchToProfile 
-  } = useProfileStore();
-
-  // Initialiseer de profielen en ruim de listeners op wanneer de component unmount
-  useEffect(() => {
-    if (user?.id) {
-      initializeProfiles(user, router);
-    }
-    return () => {
-      cleanupListeners();
-    };
-  }, [user?.id, initializeProfiles, cleanupListeners, router]);
-
-  const handleAddProfile = () => {
-    router.push('/dashboard?tab=add-profile');
+  const handleProfileSwitch = (profileId: string) => {
+    setActiveProfileId(profileId);
+    setOpen(false);
+    // Herlaad de pagina om zeker te zijn dat alle data voor het nieuwe profiel wordt geladen
+    // Dit is een simpele maar effectieve strategie
+    router.refresh(); 
   };
+  
+  // Combineer hoofdaccount en subprofielen tot één enkele, getypte lijst
+  const allProfiles: AnyProfile[] = user ? [user, ...profiles] : [...profiles];
+  
+  // Zoek het geselecteerde profiel in de gecombineerde lijst, met het hoofdaccount als fallback
+  const selectedProfile = allProfiles.find(p => p.id === activeProfileId) || user;
 
-  // MENTOR-VERBETERING: Toon een loading state voor een betere UX
-  if (loading && profiles.length === 0) {
+  // Toon een duidelijke loading state
+  if (isLoading) {
     return (
-      <div className="flex items-center space-x-2 p-2">
-        <Skeleton className="h-8 w-8 rounded-full" />
-        <div className="space-y-1">
-          <Skeleton className="h-4 w-[120px]" />
+        <div className="flex items-center space-x-2 p-2">
+            <Skeleton className="h-8 w-8 rounded-full" />
+            <Skeleton className="h-6 w-28" />
         </div>
-      </div>
     );
   }
-
-  const currentProfile = activeProfile || profiles.find(p => p.mainAccount);
-  const avatar = currentProfile?.avatarURL;
-  const activeName = currentProfile?.name || 'Selecteer Profiel';
+  
+  // Als er geen gebruiker is na het laden, toon niets (of een login knop)
+  if (!user) {
+    return null; 
+  }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="w-full justify-start px-2 h-auto">
-          <div className="flex items-center space-x-2 w-full">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-              {avatar ? (
-                <img
-                  src={avatar}
-                  alt={activeName}
-                  className="h-full w-full rounded-full object-cover"
-                />
-              ) : (
-                <CircleUserRound className="h-6 w-6" />
-              )}
-            </div>
-
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-semibold">{activeName}</span>
-            </div>
-
-            <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
-          </div>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          aria-label="Selecteer een profiel"
+          className="w-[200px] justify-between"
+        >
+          <Avatar className="mr-2 h-6 w-6">
+            <AvatarImage
+              src={selectedProfile?.photoURL || undefined}
+              alt={selectedProfile?.displayName || 'Gebruiker'}
+            />
+            <AvatarFallback>{selectedProfile?.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <span className="truncate max-w-[120px]">{selectedProfile?.displayName}</span>
+          <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </DropdownMenuTrigger>
-
-      <DropdownMenuContent className="min-w-[200px]" align="start">
-        <DropdownMenuLabel className="text-xs text-muted-foreground">Wissel van profiel</DropdownMenuLabel>
-        
-        {profiles.map((p) => (
-          <DropdownMenuItem
-            key={p.id}
-            onClick={() => switchToProfile(p.id, router)} // MENTOR-FIX: Correcte onClick syntax
-            className={`gap-2 p-2 ${p.id === activeProfile?.id ? 'bg-accent text-accent-foreground' : ''}`}
-            disabled={p.id === activeProfile?.id}
-          >
-            <div className="flex items-center space-x-2">
-              {p.avatarURL ? (
-                <img
-                  src={p.avatarURL}
-                  alt={p.name}
-                  className="h-6 w-6 rounded-full object-cover"
+      <DropdownMenuContent className="w-[200px]" align="end" forceMount>
+        <DropdownMenuLabel>Beschikbare Profielen</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          {allProfiles.map((profile) => (
+            <DropdownMenuItem
+              key={profile.id}
+              onSelect={() => handleProfileSwitch(profile.id)}
+              className="text-sm cursor-pointer"
+            >
+              <Avatar className="mr-2 h-5 w-5">
+                <AvatarImage
+                  src={profile.photoURL || undefined}
+                  alt={profile.displayName}
                 />
-              ) : (
-                <CircleUserRound className="h-6 w-6" />
-              )}
-              <span>{p.name}</span>
-            </div>
-          </DropdownMenuItem>
-        ))}
-
-        {/* Toon "Voeg profiel toe" enkel als het hoofdaccount actief is */}
-        {activeProfile?.mainAccount && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleAddProfile} className="gap-2 p-2">
-              <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
-                <Plus className="size-4" />
-              </div>
-              <span className="font-medium">Voeg profiel toe</span>
+                <AvatarFallback>{profile.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <span className="truncate">{profile.displayName}</span>
+              <Check
+                className={cn(
+                  'ml-auto h-4 w-4',
+                  activeProfileId === profile.id ? 'opacity-100' : 'opacity-0'
+                )}
+              />
             </DropdownMenuItem>
-          </>
-        )}
+          ))}
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => router.push('/dashboard/add-profile')} className="cursor-pointer">
+          <PlusCircle className="mr-2 h-5 w-5" />
+          Nieuw Profiel
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

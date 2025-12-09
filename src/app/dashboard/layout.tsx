@@ -1,5 +1,5 @@
 // src/app/dashboard/layout.tsx
-import { getCurrentUser } from '@/lib/server/auth';
+import { getCurrentUser } from '@/lib/auth/actions';
 import { redirect } from 'next/navigation';
 import DashboardNav from '@/components/layout/dashboard-nav';
 // DE FIX: De extensie .tsx weghalen.
