@@ -1,38 +1,29 @@
-/**
- * src/app/dashboard/layout.tsx
- *
- * GOUDSTANDAARD PATROON: Hybride authenticatie.
- * 1. Server Component: Controleert de sessie VOOR het renderen. Onmiddellijke redirect als niet ingelogd.
- * 2. AuthProvider (Client Component): Hydrateert de client-side state (Zustand) met de user-data.
- */
-import { redirect } from 'next/navigation';
+// src/app/dashboard/layout.tsx
 import { getCurrentUser } from '@/lib/server/auth';
-import AuthProvider from '@/components/providers/auth-provider'; // Onze nieuwe client-side brug
-import { Toaster } from 'sonner';
+import { redirect } from 'next/navigation';
+import DashboardNav from '@/components/layout/dashboard-nav';
+// DE FIX: De extensie .tsx weghalen.
+import { sidebarNavItems } from '@/lib/config/dashboard'; 
 
-export default async function DashboardLayout({
-  children,
-}: {
+interface DashboardLayoutProps {
   children: React.ReactNode;
-}) {
-  const user = await getCurrentUser();
+}
 
-  // SERVER-SIDE GATEKEEPER:
-  // Als een niet-ingelogde gebruiker hier direct landt, wordt hij onmiddellijk
-  // en zonder client-side flikkering weggestuurd.
-  if (!user) {
-    redirect('/?modal=login&callbackUrl=/dashboard');
+export default async function DashboardLayout({ children }: DashboardLayoutProps) {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    redirect('/?auth=login');
   }
 
-  // Als de gebruiker WEL is ingelogd, renderen we de client-side provider
-  // en geven we de user-data door om de Zustand store te "hydrateren".
   return (
-    <AuthProvider user={user}>
-      {/* Hier kan een specifieke dashboard-sidebar of sub-navigatie komen */}
-      <div className="container mx-auto p-4">
+    <div className="container grid flex-1 gap-12 md:grid-cols-[200px_1fr]">
+      <aside className="hidden w-[200px] flex-col md:flex">
+        <DashboardNav items={sidebarNavItems} />
+      </aside>
+      <main className="flex w-full flex-1 flex-col overflow-hidden">
         {children}
-      </div>
-      <Toaster richColors position="top-right" />
-    </AuthProvider>
+      </main>
+    </div>
   );
 }

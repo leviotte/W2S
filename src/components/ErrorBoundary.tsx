@@ -1,42 +1,33 @@
+// src/components/ErrorBoundary.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import React from 'react';
+// DE FIX: Importeren uit de library, niet uit React zelf.
+import { ErrorBoundary as ReactErrorBoundary, FallbackProps } from 'react-error-boundary';
+import { Button } from '@/components/ui/button';
 
-interface ErrorBoundaryProps {
-  children: React.ReactNode;
-  fallback?: React.ReactNode;
+function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
+  return (
+    <div role="alert" className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+      <p>Oeps, er is iets misgegaan:</p>
+      <pre className="text-sm my-2 p-2 bg-red-50 rounded">{error.message}</pre>
+      <Button onClick={resetErrorBoundary} variant="destructive">
+        Probeer opnieuw
+      </Button>
+    </div>
+  );
 }
 
-export default function ErrorBoundary({ children, fallback }: ErrorBoundaryProps) {
-  const [error, setError] = useState<Error | null>(null);
-  const pathname = usePathname();
-
-  // Reset error automatically when user navigates
-  useEffect(() => {
-    if (error) setError(null);
-  }, [pathname]);
-
-  const handleError = (err: Error) => {
-    console.error("Captured error:", err);
-    setError(err);
-  };
-
-  // React’s functional error boundary pattern
+export function ErrorBoundary({ children }: { children: React.ReactNode }) {
   return (
-    <React.ErrorBoundary fallbackRender={() => (
-      fallback || (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg shadow-sm">
-          <h2 className="text-lg font-semibold text-[#b34c4c] mb-1">
-            Er ging iets mis
-          </h2>
-          <p className="text-sm text-[#b34c4c]">
-            Herlaad de pagina of neem contact op als dit blijft voorkomen.
-          </p>
-        </div>
-      )
-    )} onError={handleError}>
+    <ReactErrorBoundary
+      FallbackComponent={ErrorFallback}
+      onReset={() => {
+        // bijvoorbeeld: reset de state van de app of laad de pagina opnieuw
+        window.location.reload();
+      }}
+    >
       {children}
-    </React.ErrorBoundary>
+    </ReactErrorBoundary>
   );
 }

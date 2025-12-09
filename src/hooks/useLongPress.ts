@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 
 export const useLongPress = (callback: () => void, duration = 500) => {
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isPressed = useRef(false);
 
   const start = useCallback(() => {

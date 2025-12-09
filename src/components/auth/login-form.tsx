@@ -1,132 +1,124 @@
-/**
- * src/components/auth/login-form.tsx
- *
- * GOLD STANDARD VERSIE: Gekoppeld aan de useAuthStore voor client-side authenticatie.
- */
+// src/features/auth/_components/login-form.tsx
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useState, useTransition } from 'react';
+import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useAuthStore } from '@/lib/store/use-auth-store';
-import { loginSchema, type LoginInput } from '@/lib/validators/auth';
+import { z } from 'zod';
+import { toast } from 'sonner';
+import { Eye, EyeOff } from 'lucide-react';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { toast } from 'sonner';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { getClientAuth } from '@/lib/client/firebase';
+import { createSessionAction } from '@/lib/auth/actions';
+import { useAuthModal } from '@/lib/store/use-modal-store';
 
-interface LoginFormProps {
-  onSuccess: () => void;
-  onSwitchToRegister: () => void;
-  onSwitchToForgotPassword: () => void;
-}
+// 1. Schema definitie
+const loginFormSchema = z.object({
+  email: z.string().email('Ongeldig e-mailadres.'),
+  password: z.string().min(1, 'Wachtwoord is verplicht.'),
+});
 
-export function LoginForm({
-  onSuccess,
-  onSwitchToRegister,
-  onSwitchToForgotPassword,
-}: LoginFormProps) {
-  // Haal de login functie en loading state uit onze centrale store
-  const { login, loading } = useAuthStore((state) => ({
-    login: state.login,
-    loading: state.loading,
-  }));
+type LoginFormValues = z.infer<typeof loginFormSchema>;
 
-  const form = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
+export function LoginForm() {
+  const [isPending, startTransition] = useTransition();
+  const [showPassword, setShowPassword] = useState(false);
+  const { closeModal } = useAuthModal();
+
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginFormSchema),
     defaultValues: { email: '', password: '' },
   });
 
-  // De functie die wordt aangeroepen bij het submitten van het formulier
-  const onSubmit = async (data: LoginInput) => {
-    const userProfile = await login(data.email, data.password);
-    if (userProfile) {
-      // De toast voor succes wordt al in de store afgehandeld!
-      onSuccess(); // Sluit de modal
-    }
-    // De toast voor fouten wordt ook al in de store afgehandeld.
+  const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
+    startTransition(async () => {
+      try {
+        // Stap 1: Authenticeer bij Firebase op de client
+        const userCredential = await signInWithEmailAndPassword(getClientAuth(), data.email, data.password);
+        const user = userCredential.user;
+        const idToken = await user.getIdToken();
+
+        // Stap 2: Roep de Server Action aan om de server-side sessie te maken
+        const result = await createSessionAction(idToken);
+
+        // --- KIJK GOED: HIER IS DE CORRECTIE ---
+        // Controleer het resultaat van de Server Action op de "gold standard" manier
+        if (!result.success) {
+          // Binnen dit blok WEET TypeScript dat `result.error` bestaat.
+          toast.error(`Login mislukt: ${result.error}`);
+          return;
+        }
+
+        // Buiten het 'if'-blok, WEET TypeScript dat `result.user` bestaat.
+        toast.success(`Welkom terug, ${result.user.profile.firstName}!`);
+        closeModal();
+
+      } catch (error: any) {
+        // Vang fouten van de client-side Firebase authenticatie op
+        console.error("Firebase login error:", error);
+        const errorMessage = error.code === 'auth/invalid-credential' 
+          ? 'Ongeldige login-gegevens. Controleer je e-mail en wachtwoord.'
+          : 'Er is een onbekende fout opgetreden.';
+        toast.error(errorMessage);
+      }
+    });
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col items-center gap-1 text-center">
-        <h1 className="text-2xl font-bold">Log in op je Account</h1>
-        <p className="text-balance text-muted-foreground">
-          Welkom terug bij Wish2Share
-        </p>
-      </div>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>E-mailadres</FormLabel>
+              <FormControl>
+                <Input type="email" placeholder="jouw@email.com" {...field} autoComplete="email" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Wachtwoord</FormLabel>
+              <FormControl>
+                <div className="relative">
+                  <Input 
+                    type={showPassword ? 'text' : 'password'} 
+                    placeholder="••••••••" 
+                    {...field} 
+                    autoComplete="current-password"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute inset-y-0 right-0 h-full px-3"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Verberg wachtwoord' : 'Toon wachtwoord'}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-      <Form {...form}>
-        {/* CORRECTIE: De 'onSubmit' logica is nu correct gekoppeld */}
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="flex flex-col gap-4"
-        >
-          <FormField
-            control={form.control} // CORRECTIE: 'control' prop was nodig
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>E-mail</FormLabel>
-                <FormControl>
-                  <Input placeholder="naam@voorbeeld.be" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control} // CORRECTIE: 'control' prop was nodig
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Wachtwoord</FormLabel>
-                <FormControl>
-                  <Input type="password" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div className="text-right">
-            <Button
-              type="button"
-              variant="link"
-              size="sm"
-              onClick={onSwitchToForgotPassword} // CORRECTIE: 'onClick' was nodig
-              className="h-auto p-0 font-medium"
-            >
-              Wachtwoord vergeten?
-            </Button>
-          </div>
-
-          <Button disabled={loading} type="submit" className="w-full">
-            {loading && <LoadingSpinner size="sm" className="mr-2" />}
-            Log In
-          </Button>
-        </form>
-      </Form>
-
-      <div className="text-center text-sm">
-        Nog geen account?{' '}
-        <Button
-          variant="link"
-          size="sm"
-          onClick={onSwitchToRegister} // CORRECTIE: 'onClick' was nodig
-          className="h-auto p-0 font-semibold"
-        >
-          Registreer hier
+        <Button type="submit" className="w-full" disabled={isPending}>
+          {isPending ? 'Inloggen...' : 'Log in'}
         </Button>
-      </div>
-    </div>
+      </form>
+    </Form>
   );
 }

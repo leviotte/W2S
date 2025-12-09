@@ -1,85 +1,101 @@
 // src/lib/auth/actions.ts
 'use server';
 
-import { getSession, createSessionUser } from '@/lib/server/auth';
-import { adminAuth, adminDb } from '@/lib/server/firebase-admin';
+import { getIronSession } from 'iron-session';
+import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
-import { userProfileSchema } from '@/types'; // Importeren vanuit de hoofd-index
+import { redirect } from 'next/navigation';
+import { z } from 'zod';
 
-/**
- * ---- REGISTER ACTION ----
- */
-export async function registerAction(idToken: string, firstName: string, lastName: string) {
+// AANPASSING: De importnamen zijn gecorrigeerd naar wat firebase-admin.ts daadwerkelijk exporteert.
+import { adminAuth, adminDb } from '@/lib/server/firebase-admin';
+import { sessionOptions, type SessionData } from '@/lib/server/session';
+import { UserProfileSchema, type AuthedUser, type UserProfile } from '@/types/user';
+
+// --- TYPE DEFINITIES --- //
+
+type AuthActionResult = 
+  | { success: true; user: AuthedUser }
+  | { success: false; error: string };
+
+// --- SERVER ACTIONS --- //
+
+export async function createSessionAction(idToken: string): Promise<AuthActionResult> {
   try {
+    // AANPASSING: Gebruik de direct geïmporteerde 'adminAuth' en 'adminDb'.
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const userDoc = await adminDb.collection('users').doc(decodedToken.uid).get();
+
+    if (!userDoc.exists) {
+      throw new Error('Gebruikersprofiel niet gevonden in Firestore. Probeer opnieuw te registreren.');
+    }
+
+    const userProfile = UserProfileSchema.parse({ id: userDoc.id, ...userDoc.data() });
+    const authedUser: AuthedUser = { profile: userProfile };
+
+    const session = await getIronSession<SessionData>(cookies(), sessionOptions);
+    session.user = authedUser;
+    await session.save();
+    console.log(`✅ Server session created for: ${userProfile.email}`);
+
+    revalidatePath('/', 'layout');
+
+    return { success: true, user: authedUser };
+  } catch (error: any) {
+    console.error('🚨 Create Session Action Error:', error);
+    return { success: false, error: 'Sessie aanmaken mislukt: ' + error.message };
+  }
+}
+
+const registerInputSchema = z.object({
+  idToken: z.string(),
+  firstName: z.string().min(1, 'Voornaam is verplicht.'),
+  lastName: z.string().min(1, 'Achternaam is verplicht.'),
+});
+
+export async function registerAction(input: unknown): Promise<AuthActionResult> {
+  try {
+    const { idToken, firstName, lastName } = registerInputSchema.parse(input);
+    // AANPASSING: Gebruik de direct geïmporteerde 'adminAuth' en 'adminDb'.
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     const { uid, email } = decodedToken;
 
-    if (!email) throw new Error('E-mail niet aanwezig in Firebase token.');
+    if (!email) throw new Error("E-mail niet gevonden in Firebase token.");
 
-    // Creëer en valideer het nieuwe profiel
-    const newUserProfile = userProfileSchema.parse({
+    const newUserProfile: UserProfile = {
       id: uid,
       email: email,
-      firstName: firstName,
-      lastName: lastName,
-      createdAt: new Date().toISOString(),
-      // Zorg voor default waarden
-      isPublic: true,
+      firstName,
+      lastName,
+      name: `${firstName} ${lastName}`,
+      username: `${firstName.toLowerCase()}${lastName.toLowerCase()}`,
+      photoURL: decodedToken.picture || null,
       isAdmin: false,
-      followers: [],
-      following: [],
+      isPublic: true,
+      address: null,
       managers: [],
-    });
-
-    await adminDb.collection('users').doc(uid).set(newUserProfile);
-
-    // Creëer de sessie met het zojuist aangemaakte profiel
-    const session = await getSession();
-    session.user = newUserProfile;
-    await session.save();
+    };
     
-    revalidatePath('/', 'layout');
-    return { success: true, user: newUserProfile };
+    UserProfileSchema.parse(newUserProfile);
+
+    // AANPASSING: Gebruik de direct geïmporteerde 'adminDb'.
+    await adminDb.collection('users').doc(uid).set(newUserProfile);
+    console.log(`✅ Firestore profile created for: ${email}`);
+    
+    // Hergebruik onze createSessionAction, die nu ook correct werkt.
+    return await createSessionAction(idToken);
 
   } catch (error: any) {
-    console.error('[Register Action] Fout:', error.message);
-    return { success: false, error: 'Account aanmaken is mislukt.' };
+    console.error('🚨 Register Action Error:', error);
+    if (error instanceof z.ZodError) {
+      return { success: false, error: `Validatiefout: ${error.errors.map(e => e.message).join(', ')}` };
+    }
+    return { success: false, error: 'Account aanmaken mislukt: ' + error.message };
   }
 }
 
-
-/**
- * ---- LOGIN ACTION ----
- */
-export async function loginAction(idToken: string) {
-  try {
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
-    const userProfile = await createSessionUser(decodedToken.uid);
-
-    const session = await getSession();
-    session.user = userProfile;
-    await session.save();
-
-    revalidatePath('/', 'layout');
-    return { success: true, user: userProfile };
-  } catch (error: any) {
-    console.error('[Login Action] Fout:', error.message);
-    return { success: false, error: 'Authenticatie mislukt.' };
-  }
-}
-
-/**
- * ---- LOGOUT ACTION ----
- */
 export async function logoutAction() {
-  try {
-    const session = await getSession();
-    session.destroy();
-
-    revalidatePath('/', 'layout');
-    return { success: true };
-  } catch (error: any) {
-    console.error('[Logout Action] Fout:', error.message);
-    return { success: false, error: 'Uitloggen mislukt.' };
-  }
+  const session = await getIronSession<SessionData>(cookies(), sessionOptions);
+  await session.destroy();
+  redirect('/');
 }

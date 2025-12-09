@@ -1,32 +1,29 @@
-'use client';
+// src/components/shared/store-initializer.tsx
+"use client";
 
-import { useRef, useEffect } from 'react';
-// FIX: We importeren de correct genaamde 'useAuthStore'
-import { useAuthStore } from '@/lib/store/use-auth-store'; 
-import type { UserProfile } from '@/types/user';
+import { useRef, useEffect } from "react";
+import { useAuthStore } from "@/lib/store/use-auth-store";
+import type { SessionUser } from "@/types/user";
 
 interface StoreInitializerProps {
-  user: UserProfile | null;
+  user: SessionUser | null;
 }
 
-/**
- * Dit client component heeft maar één taak: de server-side user data
- * (opgehaald in een Server Component) synchroniseren met de client-side
- * Zustand store bij de eerste render. Dit voorkomt hydration errors.
- */
 function StoreInitializer({ user }: StoreInitializerProps) {
-  // Gebruik useRef om te zorgen dat dit maar één keer gebeurt per component-instantie.
   const initialized = useRef(false);
 
+  // We gebruiken useEffect om te synchroniseren na de eerste render.
   useEffect(() => {
+    // De check op 'initialized' is niet strikt nodig met een correcte dependency array,
+    // maar het is een goede gewoonte om te voorkomen dat de actie onnodig opnieuw wordt uitgevoerd.
     if (!initialized.current) {
-      // FIX: We roepen de state aan op de correcte store 'useAuthStore'
       useAuthStore.getState().setCurrentUser(user);
       initialized.current = true;
     }
-  }, [user]); // De dependency array zorgt ervoor dat de store update als de user-prop verandert.
+  }, [user]);
 
-  return null; // Dit component rendert zelf niets, het is puur voor logica.
+  // Dit component rendert zelf niets
+  return null;
 }
 
 export default StoreInitializer;

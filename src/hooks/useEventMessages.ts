@@ -14,8 +14,8 @@ export const useEventMessages = (event: Event | undefined, currentUser: UserProf
       const message = {
         id: crypto.randomUUID(),
         text,
-        userId: currentUser.id,
-        userName: isAnonymous ? `Anonymous ${event.name}-fan` : `${currentUser.firstName} ${currentUser.lastName}`,
+        userId: currentUser.profile.id,
+        userName: isAnonymous ? `Anonymous ${event.name}-fan` : `${currentUser.profile.firstName} ${currentUser.profile.lastName}`,
         timestamp: new Date().toISOString(),
         isAnonymous,
         gifUrl

@@ -1,7 +1,33 @@
 // src/app/api/auth/login/route.ts
 import { NextResponse } from 'next/server';
-import { getSession, createSessionUser } from '@/lib/server/auth';
-import { adminAuth } from '@/lib/server/firebase-admin';
+import { getSession } from '@/lib/server/auth';
+import { adminDb, adminAuth } from '@/lib/server/firebase-admin';
+import { sessionUserSchema, type SessionUser } from '@/types/user';
+
+/**
+ * Interne functie om de user profile data op te halen en te valideren.
+ * Wordt ENKEL hier gebruikt bij het inloggen.
+ */
+async function createAndValidateSessionUser(userId: string): Promise<SessionUser> {
+  const userDocRef = adminDb.collection('users').doc(userId);
+  const userDoc = await userDocRef.get();
+
+  if (!userDoc.exists) {
+    throw new Error('Gebruikersdocument niet gevonden in Firestore.');
+  }
+
+  const userData = userDoc.data();
+  
+  // Valideer de data uit Firestore tegen ons Zod schema.
+  const validation = sessionUserSchema.safeParse({ id: userDoc.id, ...userData });
+
+  if (!validation.success) {
+    console.error("Zod validatie fout bij aanmaken sessie gebruiker:", validation.error.flatten());
+    throw new Error("Gebruikersdata uit Firestore is corrupt of ongeldig.");
+  }
+  
+  return validation.data;
+}
 
 export async function POST(request: Request) {
   try {
@@ -10,23 +36,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'ID token is vereist' }, { status: 400 });
     }
 
-    // Verifieer het ID token met Firebase Admin
     const decodedToken = await adminAuth.verifyIdToken(idToken);
-    const { uid } = decodedToken;
+    const userId = decodedToken.uid;
 
-    // Haal de volledige user profile data op
-    const userProfile = await createSessionUser(uid);
+    const userProfileForSession = await createAndValidateSessionUser(userId);
 
-    // Sla het volledige, gevalideerde UserProfile op in de sessie
     const session = await getSession();
-    session.user = userProfile;
+    session.user = userProfileForSession;
+    session.isLoggedIn = true; // Cruciaal voor de check in getCurrentUser!
     await session.save();
 
-    console.log(`[Auth API] Sessie succesvol aangemaakt voor gebruiker: ${userProfile.firstName}`);
-    return NextResponse.json(userProfile);
+    return NextResponse.json(userProfileForSession);
 
-  } catch (error: any) {
-    console.error('[Auth API] Login Fout:', error.message);
-    return NextResponse.json({ error: 'Authenticatie mislukt', details: error.message }, { status: 401 });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Onbekende fout';
+    console.error("[Login API] Fout:", error);
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

@@ -110,7 +110,7 @@ export function useProfileManagers(profileId: string) {
 
         const results = querySnapshot.docs
           .map(docToManager)
-          .filter(user => user.id !== currentUser.id && !managerUids.includes(user.id));
+          .filter(user => user.id !== currentUser.profile.id && !managerUids.includes(user.id));
         
         setSearchResults(results);
       } catch (error) {

@@ -1,18 +1,26 @@
+// src/components/dashboard/dash-event-cards.tsx
 "use client";
 
 import { motion } from "framer-motion";
 import { CalendarCheck, Lock, Globe, ListTodo, GalleryHorizontalEnd, PanelTopClose, LucideProps } from "lucide-react";
 import { ForwardRefExoticComponent, RefAttributes, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-// We importeren de AuthStore niet meer hier, omdat event logica er niet in thuis hoort.
-// import { useAuthStore } from "@/lib/store/use-auth-store"; 
+
+// Exporteer dit type zodat de wrapper het kan gebruiken
+export type EventStats = {
+  onGoing: number;
+  all: number;
+  past: number;
+};
+
+// We voegen WishlistStats hier ook toe voor consistentie
+import type { WishlistStats } from "@/lib/data/wishlists";
 
 interface Props {
-  organizedEvents: { onGoing: number; all: number; past: number };
-  wishlists?: { total: number; public: number; private: number };
+  organizedEvents: EventStats;
+  wishlists: WishlistStats;
 }
 
-// Een type voor een enkele stat, voor betere type-veiligheid
 type CardStat = {
   icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>;
   label: string;
@@ -22,25 +30,13 @@ type CardStat = {
 
 export default function DashEventCards({ organizedEvents, wishlists }: Props) {
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-    // TODO: Deze logica verplaatsen we later naar een specifieke useEventStore.
-    // const { loadEvents } = useEventStore();
-    // loadEvents();
-  }, []);
-
-  // Als we dit component als Server Component zouden renderen, is dit niet nodig.
-  // Voor nu, met de "use client" directieve, is dit een goede praktijk.
-  if (!mounted) return null;
-
-  // VERBETERING: Consistente datastructuur. Beide kaarten hebben nu een 'stats' array.
   const cards = [
     {
       id: 1,
       label: "Mijn Events",
-      onClick: () => router.push("/dashboard?tab=events&subTab=upcoming"),
+      // DE FIX: onClick is een property, geen spread
+      onClick: () => router.push("/dashboard/upcoming"),
       stats: [
         { icon: GalleryHorizontalEnd, label: "Totaal", value: organizedEvents.all, color: "text-blue-600 dark:text-blue-400" },
         { icon: PanelTopClose, label: "Aankomend", value: organizedEvents.onGoing, color: "text-emerald-600 dark:text-emerald-400" },
@@ -50,7 +46,8 @@ export default function DashEventCards({ organizedEvents, wishlists }: Props) {
     {
       id: 2,
       label: "Mijn Wishlists",
-      onClick: () => router.push("/dashboard?tab=wishlists&subTab=list"),
+      // DE FIX: onClick is een property, geen spread
+      onClick: () => router.push("/dashboard/wishlists"),
       stats: [
         { icon: ListTodo, label: "Totaal", value: wishlists?.total || 0, color: "text-blue-600 dark:text-blue-400" },
         { icon: Globe, label: "Openbaar", value: wishlists?.public || 0, color: "text-green-600 dark:text-green-400" },
@@ -67,13 +64,11 @@ export default function DashEventCards({ organizedEvents, wishlists }: Props) {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          // CORRECTIE: onClick wordt nu correct als prop doorgegeven.
+          // DE FIX: Correcte onClick syntax
           onClick={card.onClick}
           className="bg-card dark:bg-green-900/20 cursor-pointer shadow-md rounded-xl p-6 flex flex-col gap-4 transition-shadow duration-300 hover:shadow-lg hover:shadow-lime-700/50"
         >
           <h3 className="text-lg font-semibold text-card-foreground dark:text-white mb-1">{card.label}</h3>
-
-          {/* VEREENVOUDIGING: Geen if/else meer nodig, we mappen altijd over de stats. */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-muted-foreground dark:text-gray-300">
             {card.stats.map((stat) => (
               <div key={stat.label} className="flex items-center gap-2">

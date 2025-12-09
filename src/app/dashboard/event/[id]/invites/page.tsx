@@ -63,8 +63,8 @@ export default function EventInvitesPage({ params }: { params: { id: string } })
       pageTitle = "Verstuur Uitnodiging";
       pageSubtitle = `Nodig vrienden uit voor: ${event.name}`;
       sectionTitle = "Deel de uitnodiging";
-      emailSubject = `${currentUser.firstName} nodigt je uit voor ${event.name}`;
-      messageBody = `Hallo,\n\nJe bent uitgenodigd voor ${event.name}! Klik op de link om deel te nemen.\n\nNeem deel via: ${eventLink}${deadlineText}\n\nGroetjes,\n${currentUser.firstName}`;
+      emailSubject = `${currentUser.profile.firstName} nodigt je uit voor ${event.name}`;
+      messageBody = `Hallo,\n\nJe bent uitgenodigd voor ${event.name}! Klik op de link om deel te nemen.\n\nNeem deel via: ${eventLink}${deadlineText}\n\nGroetjes,\n${currentUser.profile.firstName}`;
       break;
   }
 

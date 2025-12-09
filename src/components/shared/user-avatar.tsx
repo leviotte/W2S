@@ -1,5 +1,5 @@
 /**
- * components/shared/UserAvatar.tsx
+ * components/shared/user-avatar.tsx
  *
  * Een zeer herbruikbaar component om de avatar van een entiteit te tonen.
  * Dit component is bewust "dom" en losgekoppeld van specifieke datastructuren zoals 'UserProfile'.

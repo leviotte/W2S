@@ -1,7 +1,7 @@
 // src/lib/services/categoryService.ts
 import { Product, ProductQueryOptions } from '@/types/product';
 import { filterAndSearchProducts } from './productFilterService';
-import dummyProducts from '@/data/dummyProducts';
+import dummyProducts from '@/lib/mock-data/dummyProducts';
 
 export const getCategoryProducts = async (
   category: string,

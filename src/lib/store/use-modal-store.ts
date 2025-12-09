@@ -1,18 +1,21 @@
-/**
- * src/lib/store/use-modal-store.ts
- */
+// src/lib/store/use-modal-store.ts
 import { create } from 'zustand';
 
-type ModalState = {
-  isLoginModalOpen: boolean;
-  onSuccessCallback: (() => void) | null;
-  showLoginModal: (onSuccess?: () => void) => void;
-  hideLoginModal: () => void;
-};
+export type AuthModalView = 'login' | 'register' | 'forgot_password';
 
-export const useModalStore = create<ModalState>((set) => ({
-  isLoginModalOpen: false,
-  onSuccessCallback: null,
-  showLoginModal: (onSuccess) => set({ isLoginModalOpen: true, onSuccessCallback: onSuccess || null }),
-  hideLoginModal: () => set({ isLoginModalOpen: false, onSuccessCallback: null }),
+interface AuthModalState {
+  isOpen: boolean;
+  view: AuthModalView;
+  open: (view?: AuthModalView) => void;
+  close: () => void;
+  setView: (view: AuthModalView) => void;
+}
+
+// MENTOR-NOTITIE: We hernoemen het naar useAuthModal voor de duidelijkheid.
+export const useAuthModal = create<AuthModalState>((set) => ({
+  isOpen: false,
+  view: 'login',
+  open: (view = 'login') => set({ isOpen: true, view }),
+  close: () => set({ isOpen: false }),
+  setView: (view) => set({ view }),
 }));

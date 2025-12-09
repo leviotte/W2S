@@ -1,95 +1,73 @@
-// app/dashboard/info/page.tsx
-"use client";
+import { Suspense } from 'react';
+import { getCurrentUser } from '@/lib/server/auth';
+import { getFollowCounts } from '@/lib/data/users'; // Nieuwe server-functie
+import { getEventCountsForUser } from '@/lib/data/events'; // Nieuwe server-functie
+import { getWishlistStatsForUser } from '@/lib/data/wishlists'; // Nieuwe server-functie
+import DashboardClientWrapper from '@/components/dashboard/dashboard-client-wrapper';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
-import { useState, useEffect } from "react";
-import DashEventCards from "@/components/dashboard/DashEventCards";
-import FollowersFollowingCards from "@/components/FollowersFollowingCards";
-import { useAuthStore } from "@/lib/store/use-auth-store";
-import { setupRealtimeListener } from "@/lib/utils/followActions";
-import { getOrganizedEventCount } from "@/lib/utils/eventUpdates";
+// Dit is nu een ASYNCHRONE Server Component!
+export default async function DashboardInfoPage() {
+  // 1. Haal de gebruiker op de server op. Redirect als hij niet is ingelogd.
+  const user = await getCurrentUser();
+  if (!user) {
+    // In een echte app zou je hier redirecten, maar voor nu is een error prima.
+    throw new Error('Not authenticated');
+  }
 
-export default function DashboardInfo() {
-  const { currentUser, wishlists, loadWishlists } = useAuthStore();
+  // OPMERKING: We moeten hier nog de logica voor actieve subprofielen implementeren.
+  // Voor nu focussen we op de hoofdgebruiker om de dataflow te fixen.
+  const userId = user.id;
 
-  const activeProfileId = typeof window !== "undefined" ? localStorage.getItem("activeProfile") : null;
-  const isProfile = activeProfileId !== "main-account";
-  const userId = isProfile ? activeProfileId : currentUser?.id;
-  const profileName = isProfile ? currentUser?.name : currentUser?.firstName;
-
-  const [followersCount, setFollowersCount] = useState(0);
-  const [followingCount, setFollowingCount] = useState(0);
-  const [wishlistStats, setWishlistStats] = useState({
-    total: 0,
-    public: 0,
-    private: 0,
-  });
-  const [organizedEventsCount, setOrganizedEventsCount] = useState<{
-    onGoing: number;
-    all: number;
-  }>({ onGoing: 0, all: 0 });
-
-  // Load wishlists when user is ready
-  useEffect(() => {
-    if (currentUser) loadWishlists();
-  }, [currentUser, loadWishlists]);
-
-  // Update wishlist stats whenever wishlists change
-  useEffect(() => {
-    if (wishlists && wishlists.length > 0) {
-      const publicWishlists = wishlists.filter(wl => !wl.isPrivate);
-      const privateWishlists = wishlists.filter(wl => wl.isPrivate);
-
-      setWishlistStats({
-        total: wishlists.length,
-        public: publicWishlists.length,
-        private: privateWishlists.length,
-      });
-    } else {
-      setWishlistStats({ total: 0, public: 0, private: 0 });
-    }
-  }, [wishlists]);
-
-  // Setup realtime listeners for followers/following and organized events
-  useEffect(() => {
-    if (!userId) return;
-
-    const unsubscribeFollowers = setupRealtimeListener(
-      userId,
-      isProfile,
-      "followers",
-      data => setFollowersCount(data.length)
-    );
-
-    const unsubscribeFollowing = setupRealtimeListener(
-      userId,
-      isProfile,
-      "following",
-      data => setFollowingCount(data.length)
-    );
-
-    getOrganizedEventCount(userId, isProfile, data => setOrganizedEventsCount(data));
-
-    return () => {
-      unsubscribeFollowers?.();
-      unsubscribeFollowing?.();
-    };
-  }, [userId, isProfile]);
+  // 2. Haal ALLE initiële data parallel op met Promise.all
+  const [initialFollows, initialEvents, initialWishlists] = await Promise.all([
+    getFollowCounts(userId),
+    getEventCountsForUser(userId),
+    getWishlistStatsForUser(userId),
+  ]);
 
   return (
     <main className="p-2 sm:p-4">
       <h1 className="text-2xl font-bold text-accent my-2">
-        {profileName}'s Dashboard
+        {user.profile.firstName}'s Dashboard
       </h1>
 
-      <DashEventCards
-        organizedEvents={organizedEventsCount}
-        wishlists={wishlistStats}
-      />
-
-      <FollowersFollowingCards
-        followersCount={followersCount}
-        followingCount={followingCount}
-      />
+      {/* 
+        3. De Client Wrapper ontvangt alle initiële data als props.
+           Hij zorgt voor de weergave en start de realtime listeners.
+           De Suspense is een best practice voor als de data-fetching traag is.
+      */}
+      <Suspense fallback={<DashboardSkeleton />}>
+        <DashboardClientWrapper
+          userId={userId}
+          isProfile={false} // Vereenvoudigd voor nu
+          initialFollows={initialFollows}
+          initialEvents={initialEvents}
+          initialWishlists={initialWishlists}
+        />
+      </Suspense>
     </main>
+  );
+}
+
+// Een Skeleton loader is een 'gold standard' UX-verbetering.
+function DashboardSkeleton() {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {[...Array(4)].map((_, i) => (
+        <Card key={i}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              <Skeleton className="h-4 w-24" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-8 w-16" />
+            <Skeleton className="h-4 w-full mt-2" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
   );
 }

@@ -1,9 +1,15 @@
-// app/components/FollowersFollowingCards.tsx
+// src/components/followers/followers-following-cards.tsx
 "use client";
 
 import { motion } from "framer-motion";
-import { Users, UserCheck } from "lucide-react"; // Icons from Lucide
+import { Users, UserCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
+
+// Exporteer dit type
+export type FollowStats = {
+  followers: number;
+  following: number;
+};
 
 interface FollowersFollowingCardsProps {
   followersCount: number;
@@ -19,17 +25,17 @@ export default function FollowersFollowingCards({
   const stats = [
     {
       id: 1,
-      label: "Followers",
+      label: "Volgers",
       count: followersCount,
       Icon: Users,
-      onClick: () => router.push("/dashboard?tab=user&subTab=followers"),
+      onClick: () => router.push("/profile/followers"),
     },
     {
       id: 2,
-      label: "Following",
+      label: "Volgend",
       count: followingCount,
       Icon: UserCheck,
-      onClick: () => router.push("/dashboard?tab=user&subTab=following"),
+      onClick: () => router.push("/profile/following"),
     },
   ];
 
@@ -41,8 +47,9 @@ export default function FollowersFollowingCards({
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="bg-white dark:bg-green-900 cursor-pointer shadow-md rounded-xl p-6 flex flex-col gap-4 transition-shadow duration-500 hover:shadow-lime-700 hover:shadow-md"
+          // DE FIX: Correcte onClick syntax
           onClick={stat.onClick}
+          className="bg-white dark:bg-green-900 cursor-pointer shadow-md rounded-xl p-6 flex flex-col gap-4 transition-shadow duration-500 hover:shadow-lime-700 hover:shadow-md"
         >
           <div className="flex items-center gap-4">
             <stat.Icon className="w-8 h-8 text-green-700 dark:text-green-300" />

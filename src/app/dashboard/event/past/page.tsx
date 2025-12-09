@@ -1,47 +1,60 @@
-// VERBETERING: Dit is nu een Server Component! Sneller en veiliger.
-import { getDocs, collection, query, where, Timestamp } from "firebase/firestore";
-import { adminDb } from "@/lib/server/firebase-admin"; // Gebruik de admin SDK op de server
-import { getCurrentUser } from "@/lib/server/auth"; // Server-side auth check
-import { eventSchema } from "@/types/event";
+// src/app/dashboard/event/past/page.tsx
+import { redirect } from 'next/navigation';
+import { adminDb } from "@/lib/server/firebase-admin";
+import { getCurrentUser } from "@/lib/server/auth";
+import { eventSchema, type Event } from "@/types/event";
+import { Timestamp } from 'firebase-admin/firestore'; // Belangrijk: import van admin SDK!
 
-import { PastEventsClientPage } from "./_components/past-events-client-page"; // We maken een client component voor de interactie
+// We verplaatsen de interactieve logica naar een Client Component.
+import { PastEventsClientPage } from "./_components/past-events-client-page";
 
-async function getPastEvents(userId: string) {
+async function getPastEvents(userId: string): Promise<Event[]> {
   try {
-    const eventsRef = collection(adminDb, "events");
-    const q = query(
-      eventsRef,
-      where(`participants.${userId}.id`, "==", userId), // Query of de user deelnemer is
-      where("date", "<", Timestamp.now()) // Filter op events in het verleden
-    );
+    const eventsRef = adminDb.collection("events");
+    
+    // DE FIX: Dit is de correcte query-syntax voor de Firebase Admin SDK.
+    const snapshot = await eventsRef
+      .where(`participants.${userId}.id`, "==", userId)
+      .where("date", "<", Timestamp.now())
+      .get();
 
-    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+      return [];
+    }
+
     const events = snapshot.docs.map(doc => {
-        const data = doc.data();
-        const validation = eventSchema.safeParse({ ...data, id: doc.id });
-        if(validation.success) {
-            // Converteer Date objecten naar strings voor serialisatie
-            return JSON.parse(JSON.stringify(validation.data));
-        }
+      const data = doc.data();
+      // DE FIX: Zorg ervoor dat data een object is voordat we het valideren.
+      if (typeof data !== 'object' || data === null) return null;
+
+      const validation = eventSchema.safeParse({ ...data, id: doc.id });
+      
+      if (validation.success) {
+        // Converteer Date objecten en Timestamps naar ISO strings voor serialisatie.
+        // Dit is een veilige manier om data van server naar client te sturen.
+        return JSON.parse(JSON.stringify(validation.data));
+      } else {
+        console.warn(`Event ${doc.id} heeft ongeldige data:`, validation.error.flatten());
         return null;
-    }).filter(Boolean);
+      }
+    }).filter((event): event is Event => event !== null); // Type guard om nulls te filteren
 
     return events;
   } catch (error) {
-    console.error("Failed to fetch past events:", error);
+    console.error("Fout bij ophalen van afgelopen evenementen:", error);
     return [];
   }
 }
 
 export default async function PastEventsPage() {
-  const user = await getCurrentUser();
-  if (!user) {
-    // Redirect of foutmelding, afhankelijk van je logica
-    return <div className="container mx-auto p-4"><p>Je moet ingelogd zijn om deze pagina te zien.</p></div>;
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    // We gebruiken de ID van de ingelogde gebruiker. Zonder gebruiker, geen data.
+    return redirect('/?modal=login&callbackUrl=/dashboard/event/past');
   }
   
-  const pastEvents = await getPastEvents(user.id);
+  const pastEvents = await getPastEvents(currentUser.profile.id);
 
-  // We geven de data door aan een client component die de interactie (routing, dialogs) afhandelt.
+  // We geven de data door aan een client component die de interactie afhandelt.
   return <PastEventsClientPage initialEvents={pastEvents} />;
 }

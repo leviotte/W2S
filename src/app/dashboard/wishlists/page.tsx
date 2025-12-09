@@ -113,7 +113,7 @@ const WishlistsPage: React.FC = () => {
   useEffect(() => {
     const getProfileData = async () => {
       if (!currentUser) return;
-      const userId = isMainProfile ? currentUser.id : activeProfile;
+      const userId = isMainProfile ? currentUser.profile.id : activeProfile;
       const collection = isMainProfile ? "users" : "profiles";
       const profileDoc = await getDoc(doc(db, collection, userId!));
       setProfileData(profileDoc.data() as ProfileData);
