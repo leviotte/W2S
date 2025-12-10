@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { getAuthenticatedUserProfile } from '@/lib/auth/actions';
+import { getCurrentUser } from '@/lib/auth/actions';
 import { adminDb } from '@/lib/server/firebase-admin';
 import { findUserByEmail } from '@/lib/server/data/users';
 import { AddressSchema, UserProfileSchema } from '@/types/user';
@@ -22,7 +22,7 @@ const PersonalInfoUpdateSchema = UserProfileSchema.pick({
 });
 
 export async function updatePersonalInfo(prevState: FormState, formData: FormData): Promise<FormState> {
-  const user = await getAuthenticatedUserProfile();
+  const user = await getCurrentUser();
   if (!user) return { message: 'Authenticatie mislukt.' };
 
   const rawData = {
@@ -60,7 +60,7 @@ export async function updatePersonalInfo(prevState: FormState, formData: FormDat
 
 // --- Update Address ---
 export async function updateAddress(prevState: FormState, formData: FormData): Promise<FormState> {
-    const user = await getAuthenticatedUserProfile();
+    const user = await getCurrentUser();
     if (!user) return { message: 'Authenticatie mislukt.' };
     
     const parsed = AddressSchema.safeParse(Object.fromEntries(formData.entries()));
@@ -83,7 +83,7 @@ export async function updateAddress(prevState: FormState, formData: FormData): P
 
 // --- Manager Actions ---
 export async function addManager(prevState: FormState, formData: FormData): Promise<FormState> {
-    const user = await getAuthenticatedUserProfile();
+    const user = await getCurrentUser();
     if (!user) return { message: 'Authenticatie mislukt.' };
 
     const email = formData.get('email') as string;
@@ -114,7 +114,7 @@ export async function addManager(prevState: FormState, formData: FormData): Prom
 }
 
 export async function removeManager(managerId: string): Promise<FormState & { success: boolean }> {
-    const user = await getAuthenticatedUserProfile();
+    const user = await getCurrentUser();
     if (!user) return { message: 'Authenticatie mislukt.', success: false };
 
     try {
@@ -131,7 +131,7 @@ export async function removeManager(managerId: string): Promise<FormState & { su
 
 // --- Update Photo ---
 export async function updatePhotoURL(photoURL: string): Promise<FormState & { success: boolean }> {
-  const user = await getAuthenticatedUserProfile();
+  const user = await getCurrentUser();
   if (!user) return { message: 'Authenticatie mislukt.', success: false };
 
   if (!z.string().url().safeParse(photoURL).success) {

@@ -1,15 +1,13 @@
 // src/components/shared/TeamSwitcher.tsx
-
 'use client';
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, ChevronsUpDown, PlusCircle } from 'lucide-react';
+import { ChevronsUpDown, LogOut, PlusCircle, Settings, User as UserIcon } from 'lucide-react';
+import Link from 'next/link';
+import { useTransition } from 'react';
 
-import { useAuthStore } from '@/lib/store/use-auth-store';
 import { cn } from '@/lib/utils';
-
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -20,107 +18,104 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Skeleton } from '@/components/ui/skeleton';
-import { type SessionUser, type UserProfile } from '@/types/user';
+import { UserAvatar } from './user-avatar';
+import type { UserProfile } from '@/types/user';
+import { destroySession } from '@/lib/auth/actions';
 
-// Combineer de types voor het gemak. Een profiel kan een hoofdprofiel (SessionUser) of subprofiel (UserProfile) zijn.
-type AnyProfile = SessionUser | UserProfile;
+type TeamSwitcherProps = {
+  user: UserProfile;
+  profiles: UserProfile[];
+  className?: string;
+};
 
-export function TeamSwitcher() {
+export default function TeamSwitcher({ user, profiles, className }: TeamSwitcherProps) {
   const router = useRouter();
-  const { user, profiles, isLoading, activeProfileId, setActiveProfileId } = useAuthStore(state => ({
-    user: state.user,
-    profiles: state.profiles,
-    isLoading: state.isLoading,
-    activeProfileId: state.activeProfileId,
-    setActiveProfileId: state.setActiveProfileId,
-  }));
-  
-  const [open, setOpen] = React.useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  // Lokale state voor de UI. Kan later een simpele client-store worden if needed.
+  const [activeProfileId, setActiveProfileId] = React.useState(user.id);
+  const [showMenu, setShowMenu] = React.useState(false);
+
+  const allProfiles = [user, ...profiles];
+  const selectedProfile = allProfiles.find(p => p.id === activeProfileId) ?? user;
+
+  const handleLogout = () => {
+    startTransition(() => {
+      destroySession();
+    });
+  };
 
   const handleProfileSwitch = (profileId: string) => {
     setActiveProfileId(profileId);
-    setOpen(false);
-    // Herlaad de pagina om zeker te zijn dat alle data voor het nieuwe profiel wordt geladen
-    // Dit is een simpele maar effectieve strategie
-    router.refresh(); 
+    setShowMenu(false);
+    // Optioneel: refresh de pagina als de data drastisch moet wijzigen.
+    // Voor nu is het wisselen in de UI voldoende voor de look & feel.
+    // router.refresh();
   };
-  
-  // Combineer hoofdaccount en subprofielen tot één enkele, getypte lijst
-  const allProfiles: AnyProfile[] = user ? [user, ...profiles] : [...profiles];
-  
-  // Zoek het geselecteerde profiel in de gecombineerde lijst, met het hoofdaccount als fallback
-  const selectedProfile = allProfiles.find(p => p.id === activeProfileId) || user;
-
-  // Toon een duidelijke loading state
-  if (isLoading) {
-    return (
-        <div className="flex items-center space-x-2 p-2">
-            <Skeleton className="h-8 w-8 rounded-full" />
-            <Skeleton className="h-6 w-28" />
-        </div>
-    );
-  }
-  
-  // Als er geen gebruiker is na het laden, toon niets (of een login knop)
-  if (!user) {
-    return null; 
-  }
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          aria-label="Selecteer een profiel"
-          className="w-[200px] justify-between"
-        >
-          <Avatar className="mr-2 h-6 w-6">
-            <AvatarImage
-              src={selectedProfile?.photoURL || undefined}
-              alt={selectedProfile?.displayName || 'Gebruiker'}
-            />
-            <AvatarFallback>{selectedProfile?.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
-          </Avatar>
-          <span className="truncate max-w-[120px]">{selectedProfile?.displayName}</span>
-          <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-[200px]" align="end" forceMount>
-        <DropdownMenuLabel>Beschikbare Profielen</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
+    <div className={cn('flex items-center space-x-2', className)}>
+      {/* Profiel-selector Dropdown */}
+      <DropdownMenu open={showMenu} onOpenChange={setShowMenu}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={showMenu}
+            className="w-[220px] justify-between"
+          >
+            <div className="flex items-center truncate">
+              <UserAvatar profile={selectedProfile} className="mr-2 h-5 w-5" />
+              <span className="truncate">{selectedProfile.displayName}</span>
+            </div>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-[220px]">
+          <DropdownMenuLabel>Wissel van profiel</DropdownMenuLabel>
+          <DropdownMenuSeparator />
           {allProfiles.map((profile) => (
-            <DropdownMenuItem
-              key={profile.id}
-              onSelect={() => handleProfileSwitch(profile.id)}
-              className="text-sm cursor-pointer"
-            >
-              <Avatar className="mr-2 h-5 w-5">
-                <AvatarImage
-                  src={profile.photoURL || undefined}
-                  alt={profile.displayName}
-                />
-                <AvatarFallback>{profile.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <span className="truncate">{profile.displayName}</span>
-              <Check
-                className={cn(
-                  'ml-auto h-4 w-4',
-                  activeProfileId === profile.id ? 'opacity-100' : 'opacity-0'
-                )}
-              />
+            <DropdownMenuItem key={profile.id} onSelect={() => handleProfileSwitch(profile.id)}>
+              <UserAvatar profile={profile} className="mr-2 h-5 w-5" />
+              <span>{profile.displayName}</span>
             </DropdownMenuItem>
           ))}
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => router.push('/dashboard/add-profile')} className="cursor-pointer">
-          <PlusCircle className="mr-2 h-5 w-5" />
-          Nieuw Profiel
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuSeparator />
+          <Link href="/dashboard/add-profile" passHref>
+            <DropdownMenuItem>
+              <PlusCircle className="mr-2 h-5 w-5" />
+              Nieuw Profiel
+            </DropdownMenuItem>
+          </Link>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Gebruikersacties Dropdown (rechter avatar) */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+            <UserAvatar profile={user} />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56" align="end" forceMount>
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-medium leading-none">{user.displayName}</p>
+              <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <Link href="/dashboard" passHref><DropdownMenuItem><UserIcon className="mr-2 h-4 w-4" /><span>Dashboard</span></DropdownMenuItem></Link>
+            <Link href="/dashboard/settings" passHref><DropdownMenuItem><Settings className="mr-2 h-4 w-4" /><span>Instellingen</span></DropdownMenuItem></Link>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleLogout} disabled={isPending}>
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>{isPending ? 'Uitloggen...' : 'Uitloggen'}</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }

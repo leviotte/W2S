@@ -1,36 +1,28 @@
-// src/app/dashboard/event/[id]/page.tsx
 import { notFound } from "next/navigation";
-import { getSession } from "@/lib/server/auth";
+import { getSession } from "@/lib/auth/actions";
 import { adminDb } from "@/lib/server/firebase-admin";
-
 import type { Event, EventParticipant } from "@/types/event";
 import { eventSchema } from "@/types/event";
 import type { Wishlist } from "@/types/wishlist";
 import { WishlistSchema } from "@/types/wishlist";
-import type { AuthedUser } from "@/types/user";
+import type { AuthedUser, UserProfile } from "@/types/user"; // Importeer UserProfile ook
 import { SessionUserSchema } from "@/types/user";
-
-// FIX: 'default' import gebruiken omdat EventDashboardClient een default export is.
 import EventDashboardClient from "./_components/event-dashboard-client";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 
-// FIX: Volledige implementatie van de data-fetching functies.
 async function getEventData(eventId: string): Promise<Event | null> {
   const eventRef = adminDb.collection("events").doc(eventId);
   const docSnap = await eventRef.get();
 
-  if (!docSnap.exists) {
-    return null;
-  }
+  if (!docSnap.exists) return null;
 
   const data = { ...docSnap.data(), id: docSnap.id };
   const validation = eventSchema.safeParse(data);
 
   if (!validation.success) {
-    console.error(`Server-side event data validation failed for ID ${eventId}:`, validation.error.flatten());
+    console.error(`Event data validation failed for ID ${eventId}:`, validation.error.flatten());
     return null;
   }
-
   return validation.data;
 }
 
@@ -53,14 +45,13 @@ async function getWishlistsData(participants: EventParticipant[]): Promise<Recor
   return wishlists;
 }
 
-export default async function EventDashboardPage({ params }: { params: { id: string }}) {
+export default async function EventDashboardPage({ params }: { params: { id:string } }) {
   const eventId = params.id;
   const session = await getSession();
 
   let validatedUser: AuthedUser | null = null;
   
-  // FIX: De 'isLoggedIn' en 'user' properties bestaan direct op het session object van getSession().
-  if (session.isLoggedIn && session.user) {
+  if (session.user?.isLoggedIn) {
     const profileValidation = SessionUserSchema.safeParse(session.user);
     if (profileValidation.success) {
       const profile = profileValidation.data;
@@ -76,7 +67,6 @@ export default async function EventDashboardPage({ params }: { params: { id: str
   }
   
   if (!validatedUser) {
-    // Hier kun je later een redirect naar /login doen.
     return <div className="flex h-screen items-center justify-center"><LoadingSpinner size="lg" /></div>;
   }
   
@@ -94,7 +84,9 @@ export default async function EventDashboardPage({ params }: { params: { id: str
       event={initialEvent}
       participants={participants}
       wishlists={wishlists}
-      currentUser={validatedUser}
+      // --- DE DEFINITIEVE FIX ---
+      // Geef de geneste 'profile' door, want dat is wat de component verwacht.
+      currentUser={validatedUser.profile} 
       currentUserId={validatedUser.profile.id}
       isOrganizer={initialEvent.organizerId === validatedUser.profile.id}
       drawnParticipantId={initialEvent.drawnNames?.[validatedUser.profile.id]}

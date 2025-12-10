@@ -13,8 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { getClientAuth } from '@/lib/client/firebase';
-import { createSessionAction } from '@/lib/auth/actions';
-import { useAuthModal } from '@/lib/store/use-auth-modal';
+import { createSession } from '@/lib/auth/actions';
+import { useAuthStore } from '@/lib/store/use-auth-store';
 
 // 1. Schema definitie
 const loginFormSchema = z.object({
@@ -27,7 +27,7 @@ type LoginFormValues = z.infer<typeof loginFormSchema>;
 export function LoginForm() {
   const [isPending, startTransition] = useTransition();
   const [showPassword, setShowPassword] = useState(false);
-  const { closeModal } = useAuthModal();
+  const { closeModal } = useAuthStore();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -43,7 +43,7 @@ export function LoginForm() {
         const idToken = await user.getIdToken();
 
         // Stap 2: Roep de Server Action aan om de server-side sessie te maken
-        const result = await createSessionAction(idToken);
+        const result = await createSession(idToken);
 
         // --- KIJK GOED: HIER IS DE CORRECTIE ---
         // Controleer het resultaat van de Server Action op de "gold standard" manier

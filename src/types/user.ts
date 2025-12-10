@@ -1,49 +1,68 @@
-// src/types/user.ts
-import { z } from 'zod';
+import { z } from "zod";
+
+// Helper schema voor Firestore Timestamps
+const timestampSchema = z.preprocess((arg) => {
+  if (arg && typeof arg === 'object' && 'toDate' in arg && typeof arg.toDate === 'function') {
+    return arg.toDate();
+  }
+  if (arg instanceof Date || typeof arg === 'string') {
+    return new Date(arg);
+  }
+  return arg;
+}, z.date());
 
 export const AddressSchema = z.object({
-  street: z.string().optional(),
-  number: z.string().optional(),
-  box: z.string().optional(),
-  postalCode: z.string().optional(),
-  city: z.string().optional(),
-  country: z.string().optional(),
-});
-export type Address = z.infer<typeof AddressSchema>;
+  street: z.string().optional().nullable(),
+  number: z.string().optional().nullable(),
+  box: z.string().optional().nullable(),
+  postalCode: z.string().optional().nullable(),
+  city: z.string().optional().nullable(),
+  country: z.string().optional().nullable(),
+}).default({});
 
-export const SocialLinksSchema = z.object({
-  website: z.string().url().optional().or(z.literal('')),
-  facebook: z.string().url().optional().or(z.literal('')),
-  instagram: z.string().url().optional().or(z.literal('')),
-});
-export type SocialLinks = z.infer<typeof SocialLinksSchema>;
+export const UserSocialsSchema = z.object({
+  website: z.string().url().or(z.literal('')).optional().nullable(),
+  facebook: z.string().url().or(z.literal('')).optional().nullable(),
+  instagram: z.string().url().or(z.literal('')).optional().nullable(),
+  linkedin: z.string().url().or(z.literal('')).optional().nullable(),
+}).default({});
 
 export const UserProfileSchema = z.object({
   id: z.string(),
-  email: z.string().email(),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  displayName: z.string(),
-  photoURL: z.string().url().optional().nullable(),
-  username: z.string().optional(),
-  birthdate: z.string().optional(),
-  gender: z.string().optional(),
-  phone: z.string().optional(),
+  email: z.string().email("Ongeldig e-mailadres"),
+  firstName: z.string().optional().nullable(),
+  lastName: z.string().optional().nullable(),
+  displayName: z.string().min(2, "Weergavenaam is te kort"),
+  photoURL: z.string().url("Ongeldige URL voor profielfoto").optional().nullable(),
+  username: z.string().optional().nullable(),
+  birthdate: z.string().optional().nullable(),
+  gender: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
   address: AddressSchema.optional(),
-  isPublic: z.boolean().default(true),
+  isPublic: z.boolean().default(false),
   isAdmin: z.boolean().default(false),
   isPartner: z.boolean().default(false),
-  createdAt: z.any().optional(),
-  updatedAt: z.any().optional(),
-  socials: SocialLinksSchema.optional(),
-  ownerId: z.string(), 
+  ownerId: z.string().optional(), 
   managers: z.array(z.string()).default([]),
+  createdAt: timestampSchema.default(() => new Date()),
+  updatedAt: timestampSchema.default(() => new Date()),
+  socials: UserSocialsSchema.optional(), // Maak socials optioneel voor bestaande profielen
 });
 
-export type UserProfile = z.infer<typeof UserProfileSchema>;
+// --- DE FIX ---
+// Alias voor backward compatibility tijdens de migratie.
+export const SessionUserSchema = UserProfileSchema;
 
-// DIT IS DE ENIGE JUISTE DEFINITIE VOOR DE SESSIE-COOKIE
-export type SessionData = {
-  uid: string;
-  isLoggedIn: boolean;
+// TypeScript types
+export type UserProfile = z.infer<typeof UserProfileSchema>;
+export type UserSocials = z.infer<typeof UserSocialsSchema>;
+export type Address = z.infer<typeof AddressSchema>;
+
+// Dit type bootst de oude datastructuur na die de client componenten verwachten.
+// Het bevat een genest 'profile' object.
+export type AuthedUser = {
+  isLoggedIn: true;
+  id: string;
+  email: string;
+  profile: UserProfile;
 };

@@ -6,7 +6,7 @@ import './globals.css';
 // Providers en Globale Componenten
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { AuthProvider } from '@/components/providers/auth-provider';
-import SiteHeader from '@/components/layout/site-header';
+import { SiteHeader } from '@/components/layout/site-header';
 import AuthModal from '@/components/auth/auth-modal';
 import { Toaster } from 'sonner';
 import Footer from '@/components/Footer';

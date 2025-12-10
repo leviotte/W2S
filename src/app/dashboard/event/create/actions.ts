@@ -1,47 +1,35 @@
-// src/app/dashboard/event/create/actions.ts
-"use server";
+'use server';
 
-import { z } from "zod";
-import { revalidatePath } from "next/cache";
-import { getAuthenticatedUserProfile } from "@/lib/auth/actions";
-import { adminDb } from "@/lib/server/firebase-admin";
-import type { Event, EventParticipant } from "@/types/event";
-import { Timestamp } from "firebase-admin/firestore";
+import { z } from 'zod';
+import { getCurrentUser } from '@/lib/auth/actions';
+import { adminDb } from '@/lib/server/firebase-admin';
+import { revalidatePath } from 'next/cache';
 
-// Zod schema voor server-side validatie
-const actionSchema = z.object({
-  name: z.string().min(3, "Naam moet minimaal 3 karakters lang zijn."),
-  date: z.date({
-    required_error: "Een datum is verplicht.",
-    invalid_type_error: "Ongeldige datum.",
-  }),
+export interface FormState {
+  success: boolean;
+  message: string;
+  errors?: Record<string, string[] | undefined>;
+  eventId?: string;
+}
+
+// ** DE FIX **: De ongeldige 'invalid_type_error' parameter is verwijderd.
+const eventActionSchema = z.object({
+  name: z.string().min(3, { message: "Naam moet minimaal 3 karakters lang zijn."}),
+  date: z.coerce.date(), // Dit is nu correct.
   description: z.string().optional(),
-  drawNames: z.boolean().default(false),
-  organizer: z.object({
-      id: z.string(),
-      firstName: z.string(),
-      lastName: z.string(),
-      email: z.string().email(),
-  })
+  organizerProfileId: z.string().min(1, { message: "Organisator profiel is verplicht."}),
+  organizerEmail: z.string().email(),
+  drawNames: z.preprocess((val) => val === 'on', z.boolean()),
 });
 
-export type FormState = {
-    success: boolean;
-    message: string;
-    eventId?: string;
-    errors?: Record<string, string[] | undefined>;
-};
-
-export async function createEventAction(
-  prevState: FormState,
-  data: z.infer<typeof actionSchema>
-): Promise<FormState> {
-  const user = await getAuthenticatedUserProfile();
-  if (!user) {
-    return { success: false, message: "Authenticatie mislukt." };
+export async function createEventAction(prevState: FormState, formData: FormData): Promise<FormState> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    return { success: false, message: "Authenticatie vereist." };
   }
 
-  const validatedFields = actionSchema.safeParse(data);
+  const validatedFields = eventActionSchema.safeParse(Object.fromEntries(formData.entries()));
+
   if (!validatedFields.success) {
     return {
       success: false,
@@ -50,58 +38,41 @@ export async function createEventAction(
     };
   }
 
-  const { name, date, description, drawNames, organizer } = validatedFields.data;
-
-  // Maak de organisator de eerste deelnemer
-  const initialParticipant: EventParticipant = {
-      ...organizer,
-      photoURL: user.photoURL, // Neem de photoURL van de user mee
-      confirmed: true,
-  };
-
-  // Bouw de participants Record
-  const participantsRecord: Record<string, EventParticipant> = {
-    [organizer.id]: initialParticipant,
-  };
-
-  const newEventData = {
-    name,
-    description: description || "",
-    organizerId: organizer.id,
-    organizerName: `${organizer.firstName} ${organizer.lastName}`,
-    
-    // Converteer naar Firestore Timestamps!
-    date: Timestamp.fromDate(date),
-    createdAt: Timestamp.now(),
-    updatedAt: Timestamp.now(),
-
-    // Gebruik de correcte data structuur
-    participants: participantsRecord,
-    participantIds: [organizer.id],
-
-    drawNames,
-    status: 'active' as const,
-    isPublic: false,
-    drawn: false,
-    tasks: [],
-  };
+  const { name, date, description, organizerProfileId, organizerEmail, drawNames } = validatedFields.data;
 
   try {
-    const eventRef = await adminDb.collection("events").add(newEventData);
-    
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/upcoming");
+    const organizerProfileRef = await adminDb.collection('users').doc(organizerProfileId).get();
+    if (!organizerProfileRef.exists) {
+      return { success: false, message: 'Geselecteerd organisatorprofiel niet gevonden.' };
+    }
+    const organizerProfileData = organizerProfileRef.data()!;
 
-    return {
-      success: true,
-      message: `Evenement '${name}' is aangemaakt!`,
-      eventId: eventRef.id,
+    const newEvent = {
+      name,
+      date,
+      description: description ?? '',
+      drawNames,
+      organizerId: organizerProfileId,
+      organizer: {
+        id: organizerProfileId,
+        firstName: organizerProfileData.firstName || '',
+        lastName: organizerProfileData.lastName || '',
+        email: organizerEmail,
+      },
+      participants: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
+
+    const docRef = await adminDb.collection('events').add(newEvent);
+
+    revalidatePath('/dashboard/upcoming');
+    revalidatePath(`/dashboard/event/${docRef.id}`);
+
+    return { success: true, message: "Evenement succesvol aangemaakt!", eventId: docRef.id };
+
   } catch (error) {
-    console.error("Fout bij het aanmaken van evenement:", error);
-    return {
-      success: false,
-      message: "Een onverwachte serverfout is opgetreden.",
-    };
+    console.error("Error creating event:", error);
+    return { success: false, message: "Er is een onbekende fout opgetreden." };
   }
 }

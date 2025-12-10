@@ -68,7 +68,7 @@ export default function AddressForm({ profile }: AddressFormProps) {
           ))}
         </CardContent>
         <CardFooter className="border-t px-6 py-4">
-          <SubmitButton loadingText="Opslaan..." disabled={!isDirty}>Opslaan</SubmitButton>
+          <SubmitButton pendingText="Opslaan..." disabled={!isDirty}>Opslaan</SubmitButton>
         </CardFooter>
       </Card>
     </form>

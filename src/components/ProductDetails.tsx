@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback } from "react";
 import DOMPurify from "dompurify";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/client/firebase";
+import { X } from "lucide-react"; // Gebruik Lucide voor consistentie
 
 interface Platform {
   URL: string;
@@ -11,16 +12,21 @@ interface Platform {
   Source: string;
 }
 
+// Consistentere naming (kleine letters)
 interface Product {
-  ID?: string;
-  id?: string;
-  Title: string;
-  Description?: string;
-  ImageURL?: string;
+  id?: string; // Voorkeur voor 'id'
+  ID?: string; // Behoud voor compatibiliteit
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  ImageURL?: string; // Behoud voor compatibiliteit
   ean?: string;
-  URL?: string;
-  Price?: number;
-  Source?: string;
+  url?: string;
+  URL?: string; // Behoud voor compatibiliteit
+  price?: number;
+  Price?: number; // Behoud voor compatibiliteit
+  source?: string;
+  Source?: string; // Behoud voor compatibiliteit
   platforms?: Record<string, Platform>;
   isIncluded?: boolean;
 }
@@ -42,39 +48,60 @@ export default function ProductDetailCard({
   addItemToWishlist,
   handleDeleteItem,
 }: ProductDetailCardProps) {
+  // ... (je bestaande state en hooks blijven hier)
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState(
     product.platforms ? Object.keys(product.platforms)[0] : null
   );
 
   const toggleDescription = () => setShowFullDescription((prev) => !prev);
+  
+  // VERBETERING: Normaliseer data toegang
+  const title = product.title;
+  const imageUrl = product.imageUrl || product.ImageURL;
+  const description = product.description || "";
+  const price = product.price ?? product.Price;
+  const url = product.url || product.URL;
+  const source = product.source || product.Source;
 
+
+  // VERBETERING: De code voor de 'handle delete' actie is nu type-safe
+  const onDeleteClick = () => {
+    const idToDelete = product.id || product.ID;
+    if (idToDelete && handleDeleteItem) {
+        handleDeleteItem(idToDelete);
+    }
+    if (removeItemFromList) {
+        removeItemFromList(product);
+    }
+  };
+
+  // ... rest van je component logica...
   const platforms = product.platforms ? Object.keys(product.platforms) : [];
   const hasMultiplePlatforms = platforms.length > 1;
 
   const currentPlatform = useMemo(() => {
     if (product.platforms && selectedPlatform) return product.platforms[selectedPlatform];
     return {
-      URL: product.URL || "#",
-      Price: product.Price || 0,
-      Source: product.Source || "unknown",
+      URL: url || "#",
+      Price: price || 0,
+      Source: source || "unknown",
     };
-  }, [product, selectedPlatform]);
+  }, [product, selectedPlatform, url, price, source]);
 
   const getShopImage = useCallback((source: string | null) => {
-    if (!source) return "/bol.png";
-    return source === "amz"
+    if (!source) return "/logos/bol.png"; // Correct pad
+    return source.toLowerCase() === "amz"
       ? "https://amazon-blogs-brightspot-lower.s3.amazonaws.com/about/00/92/0260aab44ee8a2faeafde18ee1da/amazon-logo-inverse.svg"
-      : "/bol.png";
+      : "/logos/bol.png";
   }, []);
 
-  const trackProductClick = useCallback(
-    async (platformName: string | null) => {
+  const trackProductClick = useCallback( async (platformName: string | null) => {
       try {
         await addDoc(collection(db, "clicks"), {
-          productId: product.ID || product.id,
+          productId: product.id || product.ID,
           source: platformName?.toUpperCase() || "UNKNOWN",
-          title: product.Title,
+          title: product.title,
           timestamp: serverTimestamp(),
         });
       } catch (error) {
@@ -83,57 +110,38 @@ export default function ProductDetailCard({
     },
     [product]
   );
-
+  
   const CHARACTER_LIMIT = 150;
-  const descriptionText = product.Description || "";
-
+  
   return (
     <div
-      onClick={(e) => e.stopPropagation()}
-      className="fixed inset-0 cursor-auto bg-black/10 flex items-center justify-center z-50"
+      onClick={() => setModal(false)}
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
     >
-      <div className="bg-white relative rounded-lg shadow-xl flex flex-col md:flex-row w-full lg:max-w-4xl max-w-[90%] lg:min-h-[550px] md:min-h-[470px] md:max-h-fit max-h-[85vh] overflow-y-auto">
-        {/* Close Button */}
-        <button
-          onClick={() => {
-            setActiveProduct(null);
-            setModal(false);
-          }}
-          className="absolute top-1.5 right-1.5 z-[10] text-gray-500 hover:text-gray-700"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-8 w-8"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
+      <div onClick={(e) => e.stopPropagation()} className="bg-white relative rounded-lg shadow-xl flex flex-col md:flex-row w-full max-w-4xl max-h-[90vh] overflow-hidden">
+        
+        <button onClick={() => setModal(false)} className="absolute top-2 right-2 z-20 text-gray-400 hover:text-gray-600">
+          <X size={28} />
         </button>
 
-        {/* Product Image */}
-        <div className="md:p-8 px-8 py-14 md:w-[55%] rounded-tl-lg rounded-tr-lg md:rounded-tr-none md:rounded-bl-lg flex items-center justify-center">
-          <img src={product.ImageURL} alt={product.Title} className="scale-[1.2]" />
+        <div className="md:w-1/2 p-8 flex items-center justify-center bg-gray-100">
+          {imageUrl && <img src={imageUrl} alt={title} className="max-w-full max-h-full object-contain" />}
         </div>
 
-        {/* Product Details */}
-        <div className="pl-6 md:py-6 pb-6 pt-[32px] pr-10 md:w-[45%] md:max-h-[550px] md:overflow-y-auto relative bg-[#f5f5f5] rounded-tr-lg rounded-br-lg">
-          <div className="mb-4">
-            <h1 className="text-xl font-bold text-gray-800 mb-1">{product.Title}</h1>
-            {product.ean && <p className="text-xs text-gray-500">EAN: {product.ean}</p>}
-          </div>
+        <div className="md:w-1/2 p-6 flex flex-col overflow-y-auto">
+           {/* Je bestaande JSX voor de product details. Hieronder een licht opgeschoonde versie als voorbeeld */}
+           <h1 className="text-2xl font-bold text-gray-900 mb-2">{title}</h1>
+           {product.ean && <p className="text-xs text-gray-500 mb-4">EAN: {product.ean}</p>}
 
-          {/* Platforms */}
-          {hasMultiplePlatforms && (
+           {hasMultiplePlatforms && (
             <div className="mb-4">
-              <p className="text-sm font-medium mb-2">Available at:</p>
-              <div className="flex space-x-2">
+              <p className="text-sm font-medium mb-2 text-gray-600">Verkrijgbaar bij:</p>
+              <div className="flex flex-wrap gap-2">
                 {platforms.map((platform) => (
                   <button
                     key={platform}
                     onClick={() => setSelectedPlatform(platform)}
-                    className={`px-3 py-1 rounded-md text-sm ${
+                    className={`px-3 py-1 rounded-md text-sm transition-colors ${
                       selectedPlatform === platform
                         ? "bg-[#606c38] text-white"
                         : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -145,94 +153,48 @@ export default function ProductDetailCard({
               </div>
             </div>
           )}
-
-          {/* Price */}
-          <a
-            href={currentPlatform.URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => trackProductClick(selectedPlatform)}
-            className="cursor-pointer hover:bg-white/50 transition-all ease-in-out duration-300 flex group items-center justify-between mb-4 px-4 py-2 bg-white rounded-[10px]"
-          >
-            <div className="flex items-center">
-              <img src={getShopImage(selectedPlatform)} alt={`${selectedPlatform} logo`} className={`${selectedPlatform === "amz" ? "h-5 mt-[5px] w-16" : "h-6 w-10"}`} />
+          
+          <a href={currentPlatform.URL} target="_blank" rel="noopener noreferrer" onClick={() => trackProductClick(selectedPlatform)} className="block my-4 p-4 bg-green-50 rounded-lg border border-green-200 hover:border-green-400 transition">
+            <div className="flex justify-between items-center">
+                <img src={getShopImage(selectedPlatform)} alt={`${selectedPlatform} logo`} className={`h-6 ${selectedPlatform === "amz" ? "w-16" : "w-10"}`} />
+                <span className="text-xl font-bold text-[#606c38]">€{currentPlatform.Price?.toFixed(2)} *</span>
             </div>
-            <p className="text-lg font-bold text-[#606c38]">
-              <span className="group-hover:underline">€{currentPlatform.Price}</span>
-              <span> *</span>
-            </p>
           </a>
 
-          {/* Price Comparison */}
-          {hasMultiplePlatforms && (
-            <div className="mb-4 p-3 bg-white/50 rounded-md">
-              <p className="text-sm font-medium mb-1">Price Comparison:</p>
-              {platforms.map((platform) => (
-                <div key={platform} className="flex justify-between items-center">
-                  <span className="text-sm">{platform.toUpperCase()}</span>
-                  <span className="text-sm font-medium">€{product.platforms![platform].Price}</span>
-                </div>
-              ))}
-              {platforms.length > 1 && (
-                <div className="mt-2 pt-2 border-t border-gray-200">
-                  <p className="text-xs text-[#606c38]">
-                    Save up to €
-                    {Math.abs(
-                      product.platforms![platforms[0]].Price - product.platforms![platforms[1]].Price
-                    ).toFixed(2)}{" "}
-                    by comparing!
-                  </p>
-                </div>
+          {description && (
+            <div className="prose prose-sm max-w-none text-gray-600 mb-4">
+              {description.length > CHARACTER_LIMIT && !showFullDescription ? (
+                  <>
+                    <p>{description.substring(0, CHARACTER_LIMIT)}...</p>
+                    <button onClick={toggleDescription} className="text-blue-600 font-semibold text-sm">Lees meer</button>
+                  </>
+              ) : (
+                  <>
+                    <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(description) }} />
+                    {description.length > CHARACTER_LIMIT && (
+                      <button onClick={toggleDescription} className="text-blue-600 font-semibold text-sm">Toon minder</button>
+                    )}
+                  </>
               )}
             </div>
           )}
 
-          {/* Description */}
-          <div className="mb-6 text-gray-700">
-            {descriptionText && (
-              <>
-                {!showFullDescription && descriptionText.replace(/<[^>]+>/g, "").length > CHARACTER_LIMIT ? (
-                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(descriptionText.replace(/(<([^>]+)>)/gi, "").substring(0, CHARACTER_LIMIT) + "...") }} />
-                ) : (
-                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(descriptionText) }} />
-                )}
-                {descriptionText.replace(/<[^>]+>/g, "").length > CHARACTER_LIMIT && (
-                  <span onClick={toggleDescription} className="text-[#606c38] font-medium cursor-pointer block mt-2">
-                    {showFullDescription ? "show less" : "read more"}
-                  </span>
-                )}
-              </>
-            )}
+          <div className="mt-auto pt-4">
+            <Button
+                onClick={() => {
+                if (product.isIncluded) {
+                    onDeleteClick();
+                } else {
+                    addItemToWishlist?.(product);
+                }
+                }}
+                variant={product.isIncluded ? "destructive" : "default"}
+                className="w-full"
+            >
+                {product.isIncluded ? "Verwijder van wenslijst" : "Voeg toe aan wenslijst"}
+            </Button>
+            <p className="text-xs text-gray-400 mt-2 text-center">* Prijzen en beschikbaarheid kunnen wijzigen.</p>
           </div>
-
-          {/* Disclaimer */}
-          <div className="text-sm text-gray-500 mb-4">
-            <p>
-              Prices, shipping fees, and product availability may change without notice. The details shown on the web shop at the time of purchase will be the ones that apply to your order.
-            </p>
-          </div>
-        </div>
-
-        {/* Wishlist Button */}
-        <div className="flex absolute md:top-[420px] top-[290px] md:ml-[60px] inset-x-0 mx-auto justify-center">
-          <button
-            onClick={() => {
-              if (product.isIncluded) {
-                handleDeleteItem?.(product.ID || product.id);
-                removeItemFromList?.(product);
-              } else {
-                addItemToWishlist?.(product);
-              }
-            }}
-            className="rounded-full bg-white border border-gray-300 shadow-md px-6 py-2 flex items-center text-green-700 hover:bg-gray-50"
-          >
-            <span className="mr-2">
-              {product.isIncluded ? "Remove from wish list" : "Add to wish list"}
-            </span>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill={product.isIncluded ? "#606c38" : "#dedede"} viewBox="0 0 24 24" stroke="transparent">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-            </svg>
-          </button>
         </div>
       </div>
     </div>

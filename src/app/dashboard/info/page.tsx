@@ -18,7 +18,7 @@ export default async function DashboardInfoPage() {
 
   // OPMERKING: We moeten hier nog de logica voor actieve subprofielen implementeren.
   // Voor nu focussen we op de hoofdgebruiker om de dataflow te fixen.
-  const userId = user.profile.id;
+  const userId = user.id;
 
   // 2. Haal ALLE initiële data parallel op met Promise.all
   const [initialFollows, initialEvents, initialWishlists] = await Promise.all([
@@ -30,7 +30,7 @@ export default async function DashboardInfoPage() {
   return (
     <main className="p-2 sm:p-4">
       <h1 className="text-2xl font-bold text-accent my-2">
-        {user.profile.firstName}'s Dashboard
+        {user.firstName}'s Dashboard
       </h1>
 
       {/* 

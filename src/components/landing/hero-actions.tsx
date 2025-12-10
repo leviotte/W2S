@@ -5,14 +5,14 @@ import { useRouter } from 'next/navigation';
 import { Gift, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 // FIX: Correcte import van beide hooks
-import { useAuthStore, useAuthModal } from '@/lib/store/use-auth-store';
+import { useAuthStore } from '@/lib/store/use-auth-store';
 
 export default function HeroActions() {
   const router = useRouter();
   
   const currentUser = useAuthStore((state) => state.currentUser);
   // FIX: We halen de 'open' functie op uit de modal-specifieke hook
-  const { open: openModal } = useAuthModal();
+  const { open: openModal } = useAuthStore();
 
   const handleNavigation = (path: string) => {
     if (!currentUser) {

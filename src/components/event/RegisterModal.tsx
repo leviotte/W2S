@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import DateInput from "@/components/DateInput";
+import DateInput from "@/components/ui/date-picker";
 import { useRouter } from "next/navigation";
 
 interface RegisterModalProps {

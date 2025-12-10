@@ -1,4 +1,3 @@
-// src/app/dashboard/event/create/_components/CreateEventForm.tsx
 "use client";
 
 import { useEffect } from "react";
@@ -25,15 +24,14 @@ import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
-// Client-side Zod schema. `coerce` is perfect voor formulier-input.
+// ** DE FIX **: Correcte Zod syntax voor alle velden.
 const eventFormSchema = z.object({
-  name: z.string().min(3, "Naam moet minimaal 3 karakters lang zijn."),
-  date: z.coerce.date({
-    required_error: "Een datum is verplicht.",
-    invalid_type_error: "Dat is geen geldige datum.",
+  name: z.string().min(3, { message: "Naam moet minimaal 3 karakters lang zijn." }),
+  date: z.date().nullable().refine(date => date !== null, {
+    message: "Een datum is verplicht.",
   }),
   description: z.string().optional(),
-  profile: z.string(),
+  organizerProfileId: z.string().min(1, { message: "Kies een organisator." }), // Correcte syntax voor 'required'
   drawNames: z.boolean().default(false),
 });
 
@@ -54,8 +52,9 @@ export default function CreateEventForm({ currentUser, profiles }: CreateEventFo
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
       name: "",
+      date: null,
       description: "",
-      profile: currentUser.id,
+      organizerProfileId: currentUser.id,
       drawNames: false,
     },
   });
@@ -67,40 +66,19 @@ export default function CreateEventForm({ currentUser, profiles }: CreateEventFo
     } else if (!state.success && state.message) {
       if (state.errors) {
         Object.entries(state.errors).forEach(([key, value]) => {
-          if (value) {
-            form.setError(key as keyof EventFormData, { type: "server", message: value.join(', ') });
-          }
+          form.setError(key as keyof EventFormData, { type: "server", message: value?.join(', ') });
         });
+      } else {
+        toast.error("Oeps!", { description: state.message });
       }
-      toast.error("Oeps!", { description: state.message });
     }
   }, [state, router, form]);
 
-  const handleFormAction = (formData: FormData) => {
-    const data = form.getValues();
-    const selectedProfile = profiles.find(p => p.id === data.profile);
-    
-    if (!selectedProfile) {
-        toast.error("Geselecteerd profiel niet gevonden.");
-        return;
-    }
-
-    const actionData = {
-        ...data,
-        organizer: {
-            id: selectedProfile.id,
-            firstName: selectedProfile.firstName!,
-            lastName: selectedProfile.lastName!,
-            email: currentUser.email,
-        }
-    };
-    
-    formAction(actionData as any);
-  };
-  
   return (
     <Form {...form}>
-      <form action={handleFormAction} className="space-y-8">
+      <form action={formAction} className="space-y-8">
+        <input type="hidden" name="organizerEmail" value={currentUser.email} />
+        
         <FormField
           control={form.control}
           name="name"
@@ -127,7 +105,9 @@ export default function CreateEventForm({ currentUser, profiles }: CreateEventFo
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date()} initialFocus /></PopoverContent>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} disabled={(date) => date < new Date() || date < new Date("1900-01-01")} initialFocus />
+                </PopoverContent>
               </Popover>
               <FormMessage />
             </FormItem>
@@ -146,7 +126,7 @@ export default function CreateEventForm({ currentUser, profiles }: CreateEventFo
         />
         <FormField
           control={form.control}
-          name="profile"
+          name="organizerProfileId"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Organisator</FormLabel>

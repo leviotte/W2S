@@ -1,4 +1,3 @@
-// src/components/blog/PostCard.tsx
 "use client";
 
 import Link from "next/link";
@@ -7,13 +6,16 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Trash, Edit } from "lucide-react";
+import { format } from 'date-fns'; // VERBETERING: Consistente datum-formattering
+import { nlBE } from 'date-fns/locale';
 
-// Importeer de type definitie van de server component
-import type { Post } from "@/app/blog/page";
-// Importeer onze nieuwe server action
+// VERBETERING: Verplaats de Post type naar een centrale locatie zoals @/types/blog.ts
+// Voor nu importeren we hem nog van de pagina.
+import type { PostSummary } from "@/app/blog/page"; // Hernoemd voor duidelijkheid
 import { deletePostAction } from "@/lib/actions/blog-actions";
 
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 interface PostCardProps {
-  post: Post;
+  post: PostSummary; // Gebruik de duidelijkere naam
   isAdmin: boolean;
 }
 
@@ -40,36 +42,51 @@ export function PostCard({ post, isAdmin }: PostCardProps) {
       const result = await deletePostAction(post.id);
       if (result.success) {
         toast.success("Post succesvol verwijderd!");
-        // De `revalidatePath` in de action zorgt voor de UI update
+        // De revalidatie in de server action doet de rest. Perfect!
       } else {
         toast.error(result.error || "Verwijderen mislukt.");
       }
     });
   };
 
+  // VERBETERING: Robuuste datum-formattering die niet crasht als de data anders is.
+  const postDate = post.createdAt?._seconds
+    ? format(new Date(post.createdAt._seconds * 1000), 'd MMMM yyyy', { locale: nlBE })
+    : "Onbekende datum";
+
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
-      <Link href={`/blog/${post.id}`} className="block">
-        <Image src={post.headImage} alt={post.headTitle} width={400} height={250} className="w-full h-48 object-cover" />
-      </Link>
-      <div className="p-4 flex flex-col flex-grow">
-        <Link href={`/blog/${post.id}`} className="flex-grow">
-          <h2 className="text-xl font-semibold text-slate-700 line-clamp-2">{post.headTitle}</h2>
-          <p className="mt-2 text-slate-600 line-clamp-3">{post.headDescription}</p>
+    // VERBETERING: Gebruik de Shadcn Card componenten voor visuele consistentie.
+    <Card className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-lg">
+      <CardHeader className="p-0">
+        <Link href={`/blog/${post.id}`} className="block">
+            <div className="relative aspect-video w-full">
+                <Image 
+                    src={post.headImage} 
+                    alt={post.headTitle} 
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                />
+            </div>
         </Link>
-        <div className="mt-4">
-          <p className="text-gray-500 text-sm">
-            {new Date(post.createdAt).toLocaleDateString("nl-BE", {
-              day: "numeric", month: "long", year: "numeric",
-            })}
-          </p>
-          <div className="flex justify-between items-center mt-4">
-            <Link href={`/blog/${post.id}`} className="text-warm-olive hover:underline font-bold">
-              Lees meer →
+      </CardHeader>
+      <CardContent className="flex-grow p-4">
+        <Link href={`/blog/${post.id}`} className="flex-grow">
+          <CardTitle className="text-xl font-bold leading-snug text-gray-800 line-clamp-2">
+            {post.headTitle}
+          </CardTitle>
+          <p className="mt-2 text-base text-gray-600 line-clamp-3">{post.headDescription}</p>
+        </Link>
+      </CardContent>
+      <CardFooter className="flex flex-col items-start p-4 pt-0">
+         <p className="text-sm text-gray-500">{postDate}</p>
+         <div className="mt-4 flex w-full items-center justify-between">
+            <Link href={`/blog/${post.id}`} className="font-semibold text-blue-600 hover:text-blue-500">
+              Lees meer
             </Link>
             {isAdmin && (
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={() => router.push(`/blog/${post.id}/edit`)}>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="icon" onClick={() => router.push(`/dashboard/posts/${post.id}/edit`)}>
                   <Edit className="h-4 w-4" />
                 </Button>
                 <AlertDialog>
@@ -95,9 +112,8 @@ export function PostCard({ post, isAdmin }: PostCardProps) {
                 </AlertDialog>
               </div>
             )}
-          </div>
-        </div>
-      </div>
-    </div>
+         </div>
+      </CardFooter>
+    </Card>
   );
 }

@@ -1,22 +1,27 @@
-// src/components/ui/submit-button.tsx
 'use client';
 
 import { useFormStatus } from 'react-dom';
+import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { Button, type ButtonProps } from '@/components/ui/button';
+import type { ComponentProps } from 'react';
 
-interface SubmitButtonProps extends ButtonProps {
-  isSubmitting?: boolean;
-}
+// Breid de Button props uit voor volledige compatibiliteit
+type SubmitButtonProps = ComponentProps<typeof Button> & {
+  pendingText?: string;
+};
 
-export function SubmitButton({ children, isSubmitting, ...props }: SubmitButtonProps) {
+export function SubmitButton({
+  children,
+  pendingText,
+  ...props
+}: SubmitButtonProps) {
+  // useFormStatus moet een child zijn van een <form> element
   const { pending } = useFormStatus();
-  const submitting = pending || isSubmitting;
 
   return (
-    <Button type="submit" disabled={submitting} {...props}>
-      {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-      {children}
+    <Button {...props} type="submit" disabled={props.disabled || pending}>
+      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      {pending ? pendingText || children : children}
     </Button>
   );
 }

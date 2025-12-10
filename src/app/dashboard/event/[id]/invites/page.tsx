@@ -1,7 +1,7 @@
 // src/app/dashboard/event/[id]/invites/page.tsx
 import 'server-only';
 import { notFound, useSearchParams } from 'next/navigation';
-import { getAuthenticatedUserProfile } from '@/lib/auth/actions';
+import { getCurrentUser } from '@/lib/auth/actions';
 import { getEventById } from '@/lib/server/data/events';
 import EventInvitesClient from './_components/invites-client';
 
@@ -11,7 +11,7 @@ interface InvitesPageProps {
 }
 
 export default async function EventInvitesPage({ params, searchParams }: InvitesPageProps) {
-  const user = await getAuthenticatedUserProfile();
+  const user = await getCurrentUser();
   // Deze check gebeurt nu veilig op de server.
   if (!user) {
     return notFound();

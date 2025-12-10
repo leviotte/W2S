@@ -1,5 +1,5 @@
 // src/app/dashboard/profile/page.tsx
-import { getAuthenticatedUserProfile } from '@/lib/auth/actions';
+import { getCurrentUser } from '@/lib/auth/actions';
 import { getProfileManagers } from '@/lib/server/data/users';
 import { notFound } from 'next/navigation';
 
@@ -10,7 +10,7 @@ import AddressForm from './_components/address-form';
 import ShareProfileForm from './_components/share-profile-form';
 
 export default async function ProfilePage() {
-  const profileData = await getAuthenticatedUserProfile();
+  const profileData = await getCurrentUser();
   if (!profileData) {
     notFound();
   }

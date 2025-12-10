@@ -213,7 +213,7 @@ export default function WishlistDetailPage() {
   };
 
   const handleDeleteItem = async (itemId: string) => {
-    const updatedItems = wishlist.items.filter((item: WishlistItem) => String(item.id || item.ID) !== String(itemId));
+    const updatedItems = wishlist.items.filter((item: WishlistItem) => String(item.id || item.id) !== String(itemId));
     try {
       await updateDoc(doc(db, "wishlists", wishlist.id), { items: updatedItems });
       setWishlist({ ...wishlist, items: updatedItems });

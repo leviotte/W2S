@@ -2,7 +2,7 @@
 'use server';
 
 import { z } from 'zod';
-import { getSession } from '@/lib/server/auth'; // Aanname dat dit je server-side sessie check is
+import { getSession } from '@/lib/auth/actions';
 import { adminDb, adminAuth } from '@/lib/server/firebase-admin';
 import { revalidatePath } from 'next/cache';
 import { UserProfileSchema, SocialLinksSchema } from '@/types/user';

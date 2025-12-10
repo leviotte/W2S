@@ -86,9 +86,9 @@ export default function PhotoForm({ profile }: PhotoFormProps) {
           {file && <p className="text-xs text-muted-foreground">{file.name}</p>}
         </CardContent>
         <CardFooter className="flex justify-end">
-          <SubmitButton isSubmitting={isPending} disabled={!file || isPending}>
-            Opslaan
-          </SubmitButton>
+          <SubmitButton pendingText="Uploaden..." disabled={!file}>
+    Upload Foto
+</SubmitButton>
         </CardFooter>
       </Card>
     </form>

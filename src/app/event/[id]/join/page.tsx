@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import { nlBE } from "date-fns/locale";
 import Image from "next/image";
 
-import { useAuthStore, useAuthModal } from "@/lib/store/use-auth-store";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 import { eventSchema, type Event, type EventParticipant } from "@/types/event";
 import type { SubProfile, UserProfile } from "@/types";
 
@@ -28,7 +28,7 @@ export default function EventParticipationPage() {
   const eventId = params.id as string;
 
   const { currentUser, isInitialized } = useAuthStore();
-  const { open: openModal } = useAuthModal();
+  const openModal = useAuthStore(state => state.openModal);
 
   const [event, setEvent] = useState<Event | null>(null);
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
@@ -101,7 +101,7 @@ export default function EventParticipationPage() {
         id: profileToRegister.id,
         firstName: profileToRegister.firstName,
         lastName: profileToRegister.lastName,
-        email: 'email' in profileToRegister ? profileToRegister.email : currentUser.profile.email, // Gebruik profiel email indien beschikbaar
+        email: 'email' in profileToRegister ? profileToRegister.email : currentUser.email, // Gebruik profiel email indien beschikbaar
         confirmed: true,
         wishlistId: undefined,
       };

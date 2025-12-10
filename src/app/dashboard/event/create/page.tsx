@@ -1,12 +1,12 @@
 // src/app/dashboard/event/create/page.tsx
 import 'server-only';
-import { getAuthenticatedUserProfile, getManagedProfiles } from "@/lib/auth/actions";
+import { getCurrentUser, getManagedProfiles } from "@/lib/auth/actions";
 import { redirect } from "next/navigation";
 import CreateEventForm from "./_components/CreateEventForm";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 export default async function CreateEventPage() {
-  const currentUser = await getAuthenticatedUserProfile();
+  const currentUser = await getCurrentUser();
   if (!currentUser) {
     // Stuur niet-ingelogde gebruikers naar de login-pagina
     redirect("/login"); 

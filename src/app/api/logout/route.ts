@@ -1,6 +1,6 @@
 // src/app/api/logout/route.ts
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/server/auth';
+import { getSession } from '@/lib/auth/actions';
 
 export async function POST() {
   try {

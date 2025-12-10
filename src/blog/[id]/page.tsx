@@ -1,106 +1,65 @@
-import { notFound } from "next/navigation";
-import Image from "next/image";
-import { db } from "@/lib/client/firebase";
-import { doc, getDoc } from "firebase/firestore";
-import BackButton from "@/components/blog/BackButton";
+import { adminDb } from "@/lib/server/firebase-admin";
+import { getSession } from "@/lib/auth/actions";
+import PageTitle from "@/components/layout/page-title";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { PlusCircle } from "lucide-react";
+import { PostCard } from "@/components/blog/post-card";
 
-export default async function PostPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+// BELANGRIJK: Hier definiëren en exporteren we het juiste type!
+export interface PostSummary {
+  id: string;
+  headTitle: string;
+  headDescription: string;
+  headImage: string;
+  createdAt: {
+    _seconds: number;
+    _nanoseconds: number;
+  };
+}
 
-  const postRef = doc(db, "posts", id);
-  const snap = await getDoc(postRef);
-
-  if (!snap.exists()) {
-    return notFound();
+async function getPosts(): Promise<PostSummary[]> {
+  const snapshot = await adminDb.collection("posts").orderBy("createdAt", "desc").get();
+  if (snapshot.empty) {
+    return [];
   }
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+  })) as PostSummary[];
+}
 
-  const post = { id: snap.id, ...snap.data() } as any;
+export default async function BlogPage() {
+  const session = await getSession();
+  const isAdmin = session?.user?.isAdmin || false;
+  const posts = await getPosts();
 
   return (
-    <div className="max-w-6xl mx-auto p-6 mt-16 bg-white rounded-lg">
-      <BackButton />
+    <div className="container mx-auto px-4 py-12">
+      <div className="flex items-center justify-between mb-8">
+        <PageTitle title="Ons Blog" />
+        {isAdmin && (
+          <Button asChild>
+            <Link href="/blog/create">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nieuwe Post
+            </Link>
+          </Button>
+        )}
+      </div>
 
-      <h1 className="text-5xl text-indigo-950 font-bold mt-10 mb-5">
-        {post.headTitle}
-      </h1>
-
-      <p className="text-gray-500 text-xl mt-6 font-semibold">
-        {post.createdAt?.seconds
-          ? new Date(post.createdAt.seconds * 1000).toLocaleDateString("en-US", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })
-          : "N/A"}
-      </p>
-
-      <p className="mt-2 text-2xl font-sans text-gray-700">{post.headDescription}</p>
-
-      {post.headImage && (
-        <Image
-          src={post.headImage}
-          alt="Header image"
-          width={1600}
-          height={900}
-          className="w-full mt-4 rounded-lg object-cover"
-        />
-      )}
-
-      <p className="mt-4 text-2xl font-sans text-gray-700">
-        {post.subDescription}
-      </p>
-
-      {post.sections?.map((section: any, index: number) => (
-        <div key={index} className="mt-10">
-          {section.subTitle && (
-            <h2 className="text-4xl font-semibold text-indigo-950">
-              {section.subTitle}
-            </h2>
-          )}
-
-          {section.content && (
-            <div
-              className="mt-4 text-gray-500 prose max-w-none"
-              dangerouslySetInnerHTML={{ __html: section.content }}
-            />
-          )}
-
-          {/* Items grid */}
-          {section.items && Array.isArray(section.items) && (
-            <div className="flex flex-wrap -mx-2 mt-6">
-              {section.items.map((item: any, i: number) => (
-                <div key={i} className="w-full sm:w-1/2 md:w-1/3 px-2 mb-4">
-                  <div className="max-w-sm h-full flex flex-col rounded overflow-hidden shadow-lg bg-white">
-                    <Image
-                      src={item.image}
-                      alt={item.title}
-                      width={800}
-                      height={600}
-                      className="w-full h-48 object-cover"
-                    />
-
-                    <div className="px-6 py-4 flex-grow">
-                      <div className="font-bold text-xl mb-2">{item.title}</div>
-                      <p className="text-gray-700 text-xl">{item.price}</p>
-                    </div>
-
-                    <div className="px-6 py-4">
-                      <a
-                        href={item.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:underline"
-                      >
-                        Bekijk product
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+      {posts.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {posts.map((post) => (
+            <PostCard key={post.id} post={post} isAdmin={isAdmin} />
+          ))}
         </div>
-      ))}
+      ) : (
+        <div className="text-center py-16">
+          <h2 className="text-2xl font-semibold text-gray-700">Nog geen posts...</h2>
+          <p className="mt-2 text-gray-500">Kom snel terug voor updates!</p>
+        </div>
+      )}
     </div>
   );
 }
