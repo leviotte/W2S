@@ -8,8 +8,8 @@ import { getProfileByUsername, getUserWishlists } from '@/lib/server/data/users'
 import { getCurrentUser } from '@/lib/auth/actions';
 
 import { UserAvatar } from '@/components/shared/user-avatar';
-import { FollowButton } from '@/components/FollowButton';
-import { FollowersFollowingCount } from '@/components/FollowersFollowingCount';
+import { FollowButton } from '@/components/followers/FollowButton';
+import { FollowersFollowingCount } from '@/components/followers/FollowersFollowingCount';
 import { WishlistsSection } from '@/components/wishlist/WishlistsSection';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Wishlist } from '@/types/wishlist'; // We moeten dit type nog aanmaken!

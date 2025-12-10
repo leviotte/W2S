@@ -8,7 +8,7 @@
 // We importeren de sectie-componenten die we zo meteen gaan aanmaken.
 import Hero from '@/components/landing/hero';
 import HowItWorks from '@/components/landing/HowItWorks';
-import Features from '@/components/Features';
+import Features from '@/components/landing/Features';
 
 // Dit is nu een async Server Component. Geen "use client" meer!
 export default async function HomePage() {

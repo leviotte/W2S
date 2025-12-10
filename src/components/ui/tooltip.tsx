@@ -1,16 +1,20 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as TooltipPrimitive from "@radix-ui/react-tooltip"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 
-export const TooltipProvider = TooltipPrimitive.Provider
+import { cn } from "@/lib/utils";
 
-export const Tooltip = TooltipPrimitive.Root
+const TooltipProvider = TooltipPrimitive.Provider;
 
-export const TooltipTrigger = TooltipPrimitive.Trigger
+const Tooltip = TooltipPrimitive.Root;
 
-export const TooltipContent = React.forwardRef<
+const TooltipTrigger = TooltipPrimitive.Trigger;
+
+// HIER IS DE EERSTE TOEVOEGING: We maken de Arrow-component beschikbaar
+const TooltipArrow = TooltipPrimitive.Arrow;
+
+const TooltipContent = React.forwardRef<
   React.ElementRef<typeof TooltipPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
 >(({ className, sideOffset = 4, ...props }, ref) => (
@@ -23,5 +27,13 @@ export const TooltipContent = React.forwardRef<
     )}
     {...props}
   />
-))
-TooltipContent.displayName = "TooltipContent"
+));
+TooltipContent.displayName = TooltipPrimitive.Content.displayName;
+
+export {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+  TooltipArrow, // EN HIER IS DE TWEEDE: We exporteren hem
+};

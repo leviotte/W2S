@@ -9,7 +9,7 @@ import { AuthProvider } from '@/components/providers/auth-provider';
 import { SiteHeader } from '@/components/layout/site-header';
 import AuthModal from '@/components/auth/auth-modal';
 import { Toaster } from 'sonner';
-import Footer from '@/components/Footer';
+import Footer from '@/components/layout/Footer';
 
 const inter = Inter({ subsets: ['latin'] });
 

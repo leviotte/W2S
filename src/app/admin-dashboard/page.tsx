@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 // MENTOR NOTE: We importeren deze nu, maar we gaan ze anders moeten aanroepen of herstructureren.
 // import UserProfilePage from "../profile/[username]/page";
 import AddAccountPage from "../add-account/page";
-import Metrics from "@/components/Metrics";
+import Metrics from "@/components/landing/Metrics";
 import WebBackGrounds from "../dashboard/web-backgrounds/page";
 import AffiliateStoresPage from "../dashboard/affiliate-stores/page";
 import BlogPage from "../blog/page";
