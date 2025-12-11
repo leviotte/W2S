@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { X, Plus } from "lucide-react";
-import { useAuthStore } from "@/lib/store/use-auth-store";
-import { toast } from "sonner";
+import { useState, useEffect, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { X, Plus, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
+import { loadWishlistsAction, createWishlistAction, linkWishlistToEventAction } from "@/app/dashboard/wishlists/actions";
+import type { Wishlist } from "@/types/wishlist";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface WishlistLinkModalProps {
   isOpen: boolean;
@@ -19,65 +24,51 @@ export default function WishlistLinkModal({
   eventId,
   participantId,
 }: WishlistLinkModalProps) {
-  const { wishlists, updateEvent, loadEvents, events } = useAuthStore();
   const router = useRouter();
-
+  const [isPending, startTransition] = useTransition();
+  
+  const [wishlists, setWishlists] = useState<Wishlist[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedWishlistId, setSelectedWishlistId] = useState<string>("");
   const [showNewWishlistForm, setShowNewWishlistForm] = useState(false);
   const [newWishlistName, setNewWishlistName] = useState("");
 
-  /* -------------------------------------------------------
-     Load events ONCE when modal is opened
-  -------------------------------------------------------- */
+  // Load wishlists when modal opens
   useEffect(() => {
-    if (isOpen) loadEvents();
-  }, [isOpen, loadEvents]);
+    if (isOpen) {
+      loadWishlists();
+    }
+  }, [isOpen]);
 
-  if (!isOpen) return null;
+  const loadWishlists = async () => {
+    setIsLoading(true);
+    const result = await loadWishlistsAction();
+    if (result.success) {
+      setWishlists(result.wishlists);
+    }
+    setIsLoading(false);
+  };
 
-  /* -------------------------------------------------------
-     Memoized event lookup
-  -------------------------------------------------------- */
-  const event = useMemo(
-    () => events.find((e) => e.id === eventId),
-    [events, eventId]
-  );
-
-  if (!event) return null;
-
-  const participants = event.participants || {};
-  const participant = participants[participantId];
-
-  if (!participant) {
-    toast.error("Deelnemer niet gevonden");
-    return null;
-  }
-
-  /* -------------------------------------------------------
-     Link existing wishlist
-  -------------------------------------------------------- */
   const handleLinkWishlist = useCallback(async () => {
     if (!selectedWishlistId) return;
 
-    try {
-      const updatedParticipants = {
-        ...participants,
-        [participantId]: {
-          ...participant,
-          wishlistId: selectedWishlistId,
-        },
-      };
+    startTransition(async () => {
+      const result = await linkWishlistToEventAction(
+        eventId,
+        participantId,
+        selectedWishlistId
+      );
 
-      await updateEvent(eventId, { participants: updatedParticipants });
-      onClose();
-    } catch {
-      toast.error("Koppelen van wishlist is mislukt");
-    }
-  }, [participant, participantId, participants, selectedWishlistId, updateEvent, eventId, onClose]);
+      if (result.success) {
+        toast.success(result.message);
+        router.refresh();
+        onClose();
+      } else {
+        toast.error(result.message);
+      }
+    });
+  }, [eventId, participantId, selectedWishlistId, router, onClose]);
 
-  /* -------------------------------------------------------
-     Create new wishlist + link
-  -------------------------------------------------------- */
   const handleCreateAndLinkWishlist = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -87,166 +78,213 @@ export default function WishlistLinkModal({
       return;
     }
 
-    try {
-      const { createWishlist } = useAuthStore.getState();
-
-      const wishlistId = await createWishlist({
+    startTransition(async () => {
+      const result = await createWishlistAction({
         name: cleanName,
         items: [],
         isPrivate: false,
+        eventId,
+        participantId,
       });
 
-      const updatedParticipants = {
-        ...participants,
-        [participantId]: {
-          ...participant,
-          wishlistId,
-        },
-      };
-
-      await updateEvent(eventId, { participants: updatedParticipants });
-      onClose();
-    } catch {
-      toast.error("Aanmaken van wishlist is mislukt");
-    }
+      if (result.success) {
+        toast.success(result.message);
+        
+        // Redirect is handled by the action if eventId was provided
+        if (result.redirectTo) {
+          router.push(result.redirectTo);
+        } else {
+          router.refresh();
+        }
+        
+        onClose();
+      } else {
+        toast.error(result.message);
+      }
+    });
   };
 
-  /* -------------------------------------------------------
-     UI
-  -------------------------------------------------------- */
+  const handleNavigateToCreate = () => {
+    router.push(
+      `/dashboard/wishlists/create?event=${eventId}&participant=${participantId}`
+    );
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
   return (
     <div
       onClick={(e) => e.stopPropagation()}
-      className="flex min-h-full items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
     >
       <div className="relative w-full max-w-md bg-white rounded-lg shadow-xl">
         <div className="p-6">
-
           {/* HEADER */}
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-900">
               {showNewWishlistForm ? "Nieuwe Wishlist" : "Kies een Wishlist"}
             </h2>
 
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-500 transition-colors"
+              disabled={isPending}
+            >
               <X className="h-6 w-6" />
             </button>
           </div>
 
-          {/* CREATE NEW FORM */}
-          {showNewWishlistForm ? (
+          {/* LOADING STATE */}
+          {isLoading && !showNewWishlistForm ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : showNewWishlistForm ? (
+            /* CREATE NEW FORM */
             <form onSubmit={handleCreateAndLinkWishlist} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Naam van de wishlist
-                </label>
-
-                <input
+                <Label htmlFor="wishlistName">Naam van de wishlist</Label>
+                <Input
+                  id="wishlistName"
                   type="text"
                   value={newWishlistName}
                   onChange={(e) => setNewWishlistName(e.target.value)}
-                  className="mt-1 block w-full rounded-md border-2 border-gray-300 shadow-sm focus:border-warm-olive focus:ring-warm-olive"
                   placeholder="Bijvoorbeeld: Verjaardag"
                   required
+                  disabled={isPending}
+                  className="mt-1"
                 />
               </div>
 
               <div className="flex justify-end space-x-3">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => setShowNewWishlistForm(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  disabled={isPending}
                 >
                   Terug
-                </button>
+                </Button>
 
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-warm-olive text-white rounded-md hover:bg-cool-olive"
-                >
-                  Creëer en Link
-                </button>
+                <Button type="submit" disabled={isPending}>
+                  {isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Aanmaken...
+                    </>
+                  ) : (
+                    "Creëer en Link"
+                  )}
+                </Button>
               </div>
             </form>
           ) : (
-            <>
-              {/* LIST OF EXISTING WISHLISTS */}
+            /* LIST OF EXISTING WISHLISTS */
+            <div className="space-y-4">
               {wishlists.length > 0 ? (
-                <div className="space-y-4">
-                  <div className="space-y-2">
+                <>
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
                     {wishlists.map((wishlist) => (
                       <button
                         key={wishlist.id}
                         onClick={() => setSelectedWishlistId(wishlist.id)}
-                        className={`w-full flex items-center justify-between p-4 rounded-lg border-2 transition-colors ${
-                          selectedWishlistId === wishlist.id
-                            ? "border-warm-olive bg-warm-olive/10"
-                            : "border-gray-200 hover:border-warm-olive"
-                        }`}
+                        disabled={isPending}
+                        className={`
+                          w-full flex items-center justify-between p-4 rounded-lg border-2 
+                          transition-all duration-200
+                          ${selectedWishlistId === wishlist.id
+                            ? "border-primary bg-primary/10 shadow-sm"
+                            : "border-gray-200 hover:border-primary/50 hover:bg-gray-50"
+                          }
+                          ${isPending ? "opacity-50 cursor-not-allowed" : ""}
+                        `}
                       >
                         <div className="text-left">
-                          <h4 className="font-medium text-gray-900">{wishlist.name}</h4>
+                          <h4 className="font-medium text-gray-900">
+                            {wishlist.name}
+                          </h4>
                           <p className="text-sm text-gray-500">
                             {wishlist.items?.length || 0} items
                           </p>
                         </div>
 
                         <div
-                          className={`w-4 h-4 rounded-full border-2 ${
-                            selectedWishlistId === wishlist.id
-                              ? "border-warm-olive bg-warm-olive"
+                          className={`
+                            w-5 h-5 rounded-full border-2 flex items-center justify-center
+                            ${selectedWishlistId === wishlist.id
+                              ? "border-primary bg-primary"
                               : "border-gray-300"
-                          }`}
-                        />
+                            }
+                          `}
+                        >
+                          {selectedWishlistId === wishlist.id && (
+                            <div className="w-2 h-2 rounded-full bg-white" />
+                          )}
+                        </div>
                       </button>
                     ))}
                   </div>
 
                   {/* BUTTON TO CREATE NEW */}
                   <button
-                    onClick={() =>
-                      router.push(
-                        `/dashboard?tab=wishlists&subTab=create&event=${event.id}&participant=${participantId}`
-                      )
-                    }
-                    className="w-full flex items-center justify-center space-x-2 p-4 rounded-lg border-2 border-dashed border-gray-300 text-gray-600 hover:border-warm-olive hover:text-warm-olive"
+                    onClick={() => setShowNewWishlistForm(true)}
+                    disabled={isPending}
+                    className="w-full flex items-center justify-center space-x-2 p-4 rounded-lg border-2 border-dashed border-gray-300 text-gray-600 hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
                   >
                     <Plus className="h-5 w-5" />
                     <span>Creëer een nieuwe wishlist</span>
                   </button>
 
                   {/* ACTIONS */}
-                  <div className="flex justify-end space-x-3 mt-6">
-                    <button
+                  <div className="flex justify-end space-x-3 mt-6 pt-4 border-t">
+                    <Button
+                      variant="outline"
                       onClick={onClose}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                      disabled={isPending}
                     >
-                      Annuleer
-                    </button>
+                      Annuleren
+                    </Button>
 
-                    <button
+                    <Button
                       onClick={handleLinkWishlist}
-                      disabled={!selectedWishlistId}
-                      className="px-4 py-2 bg-warm-olive text-white rounded-md hover:bg-cool-olive disabled:opacity-50"
+                      disabled={!selectedWishlistId || isPending}
                     >
-                      Link Wishlist
-                    </button>
+                      {isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Koppelen...
+                        </>
+                      ) : (
+                        "Link Wishlist"
+                      )}
+                    </Button>
                   </div>
-                </div>
+                </>
               ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-600 mb-4">Je hebt nog geen wishlist…</p>
+                /* EMPTY STATE */
+                <div className="text-center py-8 space-y-4">
+                  <div className="text-6xl">🎁</div>
+                  <div className="space-y-2">
+                    <p className="text-gray-600 font-medium">
+                      Je hebt nog geen wishlist
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Maak er één aan om te koppelen aan dit evenement
+                    </p>
+                  </div>
 
-                  <button
+                  <Button
                     onClick={() => setShowNewWishlistForm(true)}
-                    className="flex items-center justify-center px-4 py-2 mx-auto bg-warm-olive text-white rounded-md hover:bg-cool-olive"
+                    disabled={isPending}
+                    className="mt-4"
                   >
                     <Plus className="h-5 w-5 mr-2" />
-                    Maak er één aan
-                  </button>
+                    Maak een wishlist aan
+                  </Button>
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
       </div>

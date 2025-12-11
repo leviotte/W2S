@@ -23,8 +23,14 @@ interface EventDashboardClientProps {
   event: Event;
   participants: EventParticipant[];
   wishlists: Record<string, Wishlist>;
-  // --- FIX: Het type is nu UserProfile ---
-  currentUser: UserProfile;
+  currentUser: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    displayName: string;
+    photoURL?: string | null;
+  };
   currentUserId: string;
   isOrganizer: boolean;
   drawnParticipantId?: string;

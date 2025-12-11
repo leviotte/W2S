@@ -11,7 +11,7 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/
 import { app, db } from "@/lib/client/firebase";
 
 import { type Product } from "@/types/product";
-import { updatePostAction } from "@/lib/actions/blog-actions";
+import { updatePostAction } from "@/lib/server/actions/blog";
 import { AffiliateProductSearchDialog } from "@/components/products/affiliate-product-search-dialog";
 
 import { Button } from "@/components/ui/button";

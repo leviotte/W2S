@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getCachedBlogPost, getCachedBlogPosts } from '@/lib/server/data/blog';
 import { getCurrentUser } from '@/lib/auth/actions';
-import { incrementPostViews } from '@/lib/server/actions/blog';
+import { incrementViewCountAction } from '@/lib/server/actions/blog';
 import { PostContent } from './_components/post-content';
 
 type Props = {
@@ -77,7 +77,7 @@ export default async function PostPage({ params }: Props) {
   }
 
   // Increment views (non-blocking)
-  incrementPostViews(id).catch(() => {});
+  incrementViewCountAction(id).catch(() => {});
 
   const isAdmin = currentUser?.isAdmin || false;
 

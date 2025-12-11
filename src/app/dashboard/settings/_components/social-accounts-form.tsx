@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { SubmitButton } from '@/components/ui/submit-button';
 
-import { SocialLinksSchema, type SocialLinks } from '@/types/user';
+import { socialLinksSchema, type SocialLinks } from '@/types/user';
 import { updateSocialLinks } from '../actions';
 
 
@@ -35,8 +35,8 @@ const socialFields: SocialField[] = [
 
 
 export function SocialAccountsForm({ initialData }: SocialAccountsFormProps) {
-  const form = useForm<z.infer<typeof SocialLinksSchema>>({
-    resolver: zodResolver(SocialLinksSchema),
+  const form = useForm<z.infer<typeof socialLinksSchema>>({
+    resolver: zodResolver(socialLinksSchema),
     defaultValues: {
       website: initialData?.website || '',
       instagram: initialData?.instagram || '',
@@ -45,7 +45,7 @@ export function SocialAccountsForm({ initialData }: SocialAccountsFormProps) {
     },
   });
 
-  async function onSubmit(data: z.infer<typeof SocialLinksSchema>) {
+  async function onSubmit(data: z.infer<typeof socialLinksSchema>) {
     toast.promise(updateSocialLinks(data), {
       loading: 'Bezig met opslaan...',
       success: (res) => res.message,

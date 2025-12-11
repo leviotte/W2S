@@ -10,7 +10,7 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/
 import { app } from "@/lib/client/firebase";
 
 import { type Product } from "@/types/product";
-import { createPostAction } from "@/lib/actions/blog-actions";
+import { createPostAction } from "@/lib/server/actions/blog";
 import { AffiliateProductSearchDialog } from "@/components/products/affiliate-product-search-dialog";
 
 import { Button } from "@/components/ui/button";

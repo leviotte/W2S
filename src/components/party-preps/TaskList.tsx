@@ -1,37 +1,43 @@
 // src/components/party-preps/TaskList.tsx
-// GOUDSTANDAARD VERSIE: Gebruikt nu centrale, geïmporteerde types.
-
 "use client";
 
+import { useDroppable } from "@dnd-kit/core";
 import TaskItem from "./TaskItem";
-// STAP 1: Importeer de types van onze "Single Source of Truth"
 import type { Task } from "@/types/task";
 import type { EventParticipant } from "@/types/event";
 
 interface TaskListProps {
-  // STAP 2: Vervang de inline types door de geïmporteerde types
-  tasks: Task[];
   eventId: string;
-  participants: EventParticipant[]; // Aanname: dit is de structuur die je doorgeeft
+  tasks: Task[];
+  participants: EventParticipant[];
   currentUserId: string;
   isOrganizer: boolean;
-  onToggleTask: (taskId: string) => void;
-  onDeleteTask?: (taskId: string) => void;
+  onToggle: (taskId: string) => void;
+  onDelete?: (taskId: string) => void;
   onRemoveParticipant: (taskId: string, participantId: string) => void;
 }
 
 export default function TaskList({
-  tasks,
   eventId,
+  tasks,
   participants,
   currentUserId,
   isOrganizer,
-  onToggleTask,
-  onDeleteTask,
+  onToggle,
+  onDelete,
   onRemoveParticipant,
 }: TaskListProps) {
+  if (tasks.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <p>Nog geen taken toegevoegd.</p>
+        {isOrganizer && <p className="text-sm mt-2">Klik op "Voeg Taak Toe" om te beginnen.</p>}
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {tasks.map((task) => (
         <TaskItem
           key={task.id}
@@ -40,10 +46,11 @@ export default function TaskList({
           participants={participants}
           currentUserId={currentUserId}
           isOrganizer={isOrganizer}
-          // CORRECTIE: De props moeten correct doorgegeven worden
-          onToggle={() => onToggleTask(task.id)}
-          onDelete={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
-          onRemoveParticipant={(participantId) => onRemoveParticipant(task.id, participantId)}
+          onToggle={() => onToggle(task.id)}
+          onDelete={onDelete ? () => onDelete(task.id) : undefined}
+          onRemoveParticipant={(participantId) =>
+            onRemoveParticipant(task.id, participantId)
+          }
         />
       ))}
     </div>

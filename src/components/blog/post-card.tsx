@@ -12,7 +12,7 @@ import { nlBE } from 'date-fns/locale';
 // VERBETERING: Verplaats de Post type naar een centrale locatie zoals @/types/blog.ts
 // Voor nu importeren we hem nog van de pagina.
 import type { PostSummary } from "@/app/blog/page"; // Hernoemd voor duidelijkheid
-import { deletePostAction } from "@/lib/actions/blog-actions";
+import { deletePostAction } from "@/lib/server/actions/blog";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";

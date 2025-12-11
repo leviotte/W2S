@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidateTag } from 'next/cache';
+import { revalidatePath, revalidateTag } from '@/lib/utils/revalidate';
 import { adminDb } from '@/lib/server/firebase-admin';
 import { requireAdmin } from '@/lib/auth/actions';
 import type { UpdateSocialMediaInput, SocialPlatform } from '@/types/social-media';

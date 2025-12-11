@@ -7,7 +7,7 @@ import { useDebounce } from 'use-debounce';
 import { Loader2, Search } from 'lucide-react';
 
 import type { Product } from '@/types/product';
-import { searchAffiliateProducts } from '@/lib/actions/product-actions';
+import { searchAffiliateProducts } from '@/lib/server/actions/product-actions';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';

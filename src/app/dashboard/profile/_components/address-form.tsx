@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AddressSchema, type UserProfile, type Address } from '@/types/user';
+import { addressSchema, type UserProfile, type Address } from '@/types/user';
 import { updateAddress } from '@/app/dashboard/profile/actions';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,7 +30,7 @@ export default function AddressForm({ profile }: AddressFormProps) {
   const [state, formAction] = useFormState(updateAddress, { message: '' });
 
   const { register, formState: { errors, isDirty } } = useForm<Address>({
-    resolver: zodResolver(AddressSchema),
+    resolver: zodResolver(addressSchema),
     defaultValues: {
       street: profile.address?.street || '',
       number: profile.address?.number || '',

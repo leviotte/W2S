@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { createBlogPost } from '@/lib/server/actions/blog';
+import { createPostAction } from '@/lib/server/actions/blog';
 import { uploadBlogImage } from '@/lib/utils/upload';
 import { AffiliateProductsSearch } from '@/components/affiliate/affiliate-products-search';
 import type { BlogSection, BlogSectionItem } from '@/types/blog';
@@ -183,7 +183,7 @@ export function CreatePostForm() {
     }
 
     startTransition(async () => {
-      const result = await createBlogPost({
+      const result = await createPostAction({
         headTitle: headTitle.trim(),
         headDescription: headDescription.trim(),
         headImage,

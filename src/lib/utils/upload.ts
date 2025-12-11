@@ -1,5 +1,5 @@
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { app } from '@/lib/firebase/client';
+import { app } from '@/lib/client/firebase';
 
 // ============================================================================
 // TYPES

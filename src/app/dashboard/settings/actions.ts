@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { getSession } from '@/lib/auth/actions';
 import { adminDb, adminAuth } from '@/lib/server/firebase-admin';
-import { UserProfileSchema, SocialLinksSchema, type SocialLinks } from '@/types/user';
+import { userProfileSchema, socialLinksSchema, type SocialLinks } from '@/types/user';
 import { passwordChangeSchema } from '@/lib/validators/settings';
 
 // --- State Definities voor useFormState ---
@@ -77,7 +77,7 @@ export async function updateProfileInfo(
         isPublic: formData.get('isPublic') === 'on',
     };
 
-    const validatedFields = UserProfileSchema.pick({
+    const validatedFields = userProfileSchema.pick({
         displayName: true,
         username: true,
         isPublic: true,
@@ -119,7 +119,7 @@ export async function updateSocialLinks(data: SocialLinks): Promise<{ success: b
         throw new Error('Authenticatie mislukt. Log opnieuw in.');
     }
 
-    const validatedFields = SocialLinksSchema.safeParse(data);
+    const validatedFields = socialLinksSchema.safeParse(data);
     if (!validatedFields.success) {
         throw new Error('Ongeldige links opgegeven.');
     }

@@ -2,7 +2,7 @@ import 'server-only';
 
 import { cache } from 'react';
 import { adminDb } from '@/lib/server/firebase-admin';
-import type { SocialMediaAccounts } from '@/types/social-media';
+import type { SocialMediaAccounts } from '@/types';
 
 // ============================================================================
 // GET SOCIAL MEDIA ACCOUNTS

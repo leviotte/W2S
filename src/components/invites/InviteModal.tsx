@@ -5,7 +5,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { toast } from "sonner";
 import emailjs from "@emailjs/browser";
-import RequiredFieldMarker from "../RequiredFieldMarker";
+import { RequiredFieldMarker } from "@/components/shared/RequiredFieldMarker";
 
 interface InviteModalProps {
   isOpen: boolean;

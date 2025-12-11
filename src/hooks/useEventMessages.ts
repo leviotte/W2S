@@ -1,53 +1,36 @@
-import { useCallback } from 'react';
-import { toast } from 'sonner';
-import { useAuthStore } from '@/lib/store/use-auth-store';
-import { Event } from '@/types/event';
-import { UserProfile } from '@/types/user';
+import { useState, useCallback } from 'react';
+import type { ChatMessage } from '@/types/chat';
 
-export const useEventMessages = (event: Event | undefined, currentUser: UserProfile | null) => {
-  const { updateEvent } = useAuthStore();
+export function useEventMessages(initialMessages: ChatMessage[] = []) {
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
 
-  const sendMessage = useCallback(async (text: string, isAnonymous: boolean, gifUrl?: string) => {
-    if (!event || !currentUser) return;
-    try {
-      const messages = Array.isArray(event.messages) ? event.messages : [];
-      const message = {
-        id: crypto.randomUUID(),
-        text,
-        userId: currentUser.id,
-        userName: isAnonymous ? `Anonymous ${event.name}-fan` : `${currentUser.firstName} ${currentUser.lastName}`,
+  const sendMessage = useCallback(
+    (text: string, userId: string, userName: string, anonymousMode: boolean, gifUrl?: string) => {
+      const messageId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const message: ChatMessage = {
+        id: messageId,
+        text: text,
+        userId: userId,
+        userName: userName,
         timestamp: new Date().toISOString(),
-        isAnonymous,
-        gifUrl
+        isAnonymous: anonymousMode,
+        edited: false, // ✅ TOEGEVOEGD
+        gifUrl: gifUrl,
       };
-      await updateEvent(event.id, { messages: [...messages, message] });
-    } catch {
-      toast.error('Failed to send message');
-    }
-  }, [event, currentUser, updateEvent]);
 
-  const editMessage = useCallback(async (messageId: string, newText: string) => {
-    if (!event) return;
-    try {
-      const messages = Array.isArray(event.messages) ? event.messages : [];
-      const updated = messages.map(msg => msg.id === messageId ? { ...msg, text: newText } : msg);
-      await updateEvent(event.id, { messages: updated });
-      toast.success('Message edited');
-    } catch {
-      toast.error('Failed to edit message');
-    }
-  }, [event, updateEvent]);
+      setMessages((prev) => [...prev, message]);
+    },
+    []
+  );
 
-  const deleteMessage = useCallback(async (messageId: string) => {
-    if (!event) return;
-    try {
-      const messages = Array.isArray(event.messages) ? event.messages : [];
-      await updateEvent(event.id, { messages: messages.filter(msg => msg.id !== messageId) });
-      toast.success('Message deleted');
-    } catch {
-      toast.error('Failed to delete message');
-    }
-  }, [event, updateEvent]);
+  const clearMessages = useCallback(() => {
+    setMessages([]);
+  }, []);
 
-  return { sendMessage, editMessage, deleteMessage };
-};
+  return {
+    messages,
+    sendMessage,
+    clearMessages,
+  };
+}

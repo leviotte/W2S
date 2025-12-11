@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { adminDb } from '@/lib/server/firebase-admin';
-import { getSession } from '../auth/actions';
+import { getSession } from '../../auth/actions';
 
 // Definieer het schema voor een nieuw subprofiel met Zod voor validatie
 const subProfileSchema = z.object({

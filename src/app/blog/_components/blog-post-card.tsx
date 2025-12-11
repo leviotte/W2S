@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import type { BlogPost } from '@/types/blog';
-import { deleteBlogPost } from '@/lib/server/actions/blog';
+import { deletePostAction } from '@/lib/server/actions/blog';
 
 type Props = {
   post: BlogPost;
@@ -37,7 +37,7 @@ export function BlogPostCard({ post, isAdmin }: Props) {
     setIsDeleting(true);
     
     startTransition(async () => {
-      const result = await deleteBlogPost(post.id);
+      const result = await deletePostAction(post.id);
       
       if (result.success) {
         toast.success('Post verwijderd');

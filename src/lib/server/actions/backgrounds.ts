@@ -39,8 +39,8 @@ export async function addBackgroundCategory(
     });
 
     // Revalidate cache
-    revalidateTag('categories');
-    revalidateTag('backgrounds');
+    revalidateTag('categories', 'default');
+    revalidateTag('backgrounds', 'default');
 
     return {
       success: true,
@@ -66,8 +66,8 @@ export async function deleteBackgroundCategory(
 
     await adminDb.collection('backgroundCategories').doc(categoryId).delete();
 
-    revalidateTag('categories');
-    revalidateTag('backgrounds');
+    revalidateTag('categories', 'default');
+    revalidateTag('backgrounds', 'default');
 
     return { success: true, data: undefined };
   } catch (error) {
@@ -133,8 +133,8 @@ export async function uploadBackgroundImage(
     });
 
     // Revalidate cache
-    revalidateTag('backgrounds');
-    revalidateTag('images');
+    revalidateTag('backgrounds', 'default');
+    revalidateTag('images', 'default');
 
     return {
       success: true,
@@ -177,8 +177,8 @@ export async function deleteBackgroundImage(
       console.warn('Storage deletion failed (non-critical):', storageError);
     }
 
-    revalidateTag('backgrounds');
-    revalidateTag('images');
+    revalidateTag('backgrounds', 'default');
+    revalidateTag('images', 'default');
 
     return { success: true, data: undefined };
   } catch (error) {
@@ -231,8 +231,8 @@ export async function toggleBackgroundLive(
       await imageRef.update({ isLive: false });
     }
 
-    revalidateTag('backgrounds');
-    revalidateTag('images');
+    revalidateTag('backgrounds', 'default');
+    revalidateTag('images', 'default');
 
     return { success: true, data: undefined };
   } catch (error) {

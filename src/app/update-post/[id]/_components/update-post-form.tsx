@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { updateBlogPost } from '@/lib/server/actions/blog';
+import { updatePostAction } from '@/lib/server/actions/blog';
 import { uploadBlogImage } from '@/lib/utils/upload';
 import { AffiliateProductsSearch } from '@/components/affiliate/affiliate-products-search';
 import type { BlogPost, BlogSection, BlogSectionItem } from '@/types/blog';
@@ -137,7 +137,7 @@ export function UpdatePostForm({ post }: Props) {
     }
 
     startTransition(async () => {
-      const result = await updateBlogPost(post.id, {
+      const result = await updatePostAction(post.id, {
         headTitle,
         headDescription,
         headImage,

@@ -1,4 +1,4 @@
-// src/features/auth/_components/login-form.tsx
+// src/components/auth/login-form.tsx
 'use client';
 
 import { useState, useTransition } from 'react';
@@ -16,7 +16,10 @@ import { getClientAuth } from '@/lib/client/firebase';
 import { createSession } from '@/lib/auth/actions';
 import { useAuthStore } from '@/lib/store/use-auth-store';
 
-// 1. Schema definitie
+// ============================================================================
+// SCHEMA & TYPES
+// ============================================================================
+
 const loginFormSchema = z.object({
   email: z.string().email('Ongeldig e-mailadres.'),
   password: z.string().min(1, 'Wachtwoord is verplicht.'),
@@ -24,7 +27,25 @@ const loginFormSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginFormSchema>;
 
-export function LoginForm() {
+// ============================================================================
+// PROPS INTERFACE
+// ============================================================================
+
+interface LoginFormProps {
+  onSuccess: () => void;
+  onSwitchToRegister: () => void;
+  onSwitchToForgotPassword: () => void;
+}
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
+
+export function LoginForm({ 
+  onSuccess, 
+  onSwitchToRegister, 
+  onSwitchToForgotPassword 
+}: LoginFormProps) {
   const [isPending, startTransition] = useTransition();
   const [showPassword, setShowPassword] = useState(false);
   const { closeModal } = useAuthStore();
@@ -37,28 +58,22 @@ export function LoginForm() {
   const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
     startTransition(async () => {
       try {
-        // Stap 1: Authenticeer bij Firebase op de client
-        const userCredential = await signInWithEmailAndPassword(getClientAuth(), data.email, data.password);
+        const userCredential = await signInWithEmailAndPassword(
+          getClientAuth(), 
+          data.email, 
+          data.password
+        );
         const user = userCredential.user;
         const idToken = await user.getIdToken();
 
-        // Stap 2: Roep de Server Action aan om de server-side sessie te maken
-        const result = await createSession(idToken);
+        await createSession(idToken);
 
-        // --- KIJK GOED: HIER IS DE CORRECTIE ---
-        // Controleer het resultaat van de Server Action op de "gold standard" manier
-        if (!result.success) {
-          // Binnen dit blok WEET TypeScript dat `result.error` bestaat.
-          toast.error(`Login mislukt: ${result.error}`);
-          return;
-        }
-
-        // Buiten het 'if'-blok, WEET TypeScript dat `result.user` bestaat.
-        toast.success(`Welkom terug, ${result.user.profile.firstName}!`);
+        toast.success('Welkom terug!');
+        
+        // ✅ Roep onSuccess aan (voor modal sluiten etc.)
+        onSuccess();
         closeModal();
-
       } catch (error: any) {
-        // Vang fouten van de client-side Firebase authenticatie op
         console.error("Firebase login error:", error);
         const errorMessage = error.code === 'auth/invalid-credential' 
           ? 'Ongeldige login-gegevens. Controleer je e-mail en wachtwoord.'
@@ -71,6 +86,7 @@ export function LoginForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Email Field */}
         <FormField
           control={form.control}
           name="email"
@@ -78,12 +94,19 @@ export function LoginForm() {
             <FormItem>
               <FormLabel>E-mailadres</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="jouw@email.com" {...field} autoComplete="email" />
+                <Input 
+                  type="email" 
+                  placeholder="jouw@email.com" 
+                  {...field} 
+                  autoComplete="email" 
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+
+        {/* Password Field */}
         <FormField
           control={form.control}
           name="password"
@@ -106,7 +129,11 @@ export function LoginForm() {
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? 'Verberg wachtwoord' : 'Toon wachtwoord'}
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
               </FormControl>
@@ -115,9 +142,33 @@ export function LoginForm() {
           )}
         />
 
+        {/* Forgot Password Link */}
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onSwitchToForgotPassword}
+            className="text-sm text-primary hover:underline"
+          >
+            Wachtwoord vergeten?
+          </button>
+        </div>
+
+        {/* Submit Button */}
         <Button type="submit" className="w-full" disabled={isPending}>
           {isPending ? 'Inloggen...' : 'Log in'}
         </Button>
+
+        {/* Switch to Register */}
+        <div className="text-center text-sm text-muted-foreground">
+          Nog geen account?{' '}
+          <button
+            type="button"
+            onClick={onSwitchToRegister}
+            className="text-primary font-medium hover:underline"
+          >
+            Registreer hier
+          </button>
+        </div>
       </form>
     </Form>
   );

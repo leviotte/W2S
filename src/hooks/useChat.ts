@@ -1,86 +1,42 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useAuthStore } from '@/lib/store/use-auth-store';
-import { Event } from '@/types/event';
-import { ChatMessage } from '@/types/chat';
-import { toast } from 'sonner';
+import { useState, useCallback } from 'react';
+import type { ChatMessage } from '@/types/chat';
 
-export const useChat = (event: Event | undefined, currentUserId: string) => {
-  const { updateEvent } = useAuthStore();
-  const [isLoading, setIsLoading] = useState(false);
+interface UseChatReturn {
+  messages: ChatMessage[];
+  sendMessage: (text: string, userId: string, userName: string, anonymousMode: boolean, gifUrl?: string) => void;
+  clearMessages: () => void;
+}
 
-  const updateLastRead = useCallback(async () => {
-    if (!event) return;
-    try {
-      const lastReadTimestamps = {
-        ...event.lastReadTimestamps,
-        [currentUserId]: Date.now()
-      };
-      await updateEvent(event.id, { lastReadTimestamps });
-    } catch (err) {
-      console.error('Failed to update lastRead:', err);
-    }
-  }, [event, currentUserId, updateEvent]);
+export function useChat(initialMessages: ChatMessage[] = []): UseChatReturn {
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
 
-  useEffect(() => {
-    updateLastRead();
-  }, [event?.messages?.length, updateLastRead]);
-
-  const sendMessage = useCallback(async (text: string, isAnonymous: boolean, gifUrl?: string) => {
-    if (!event) return;
-    setIsLoading(true);
-    try {
-      const messages: ChatMessage[] = Array.isArray(event.messages) ? event.messages : [];
+  const sendMessage = useCallback(
+    (text: string, userId: string, userName: string, anonymousMode: boolean, gifUrl?: string) => {
+      const messageId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
       const newMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        text,
-        userId: currentUserId,
-        userName: isAnonymous
-          ? `Anonymous ${event.name}-fan`
-          : `${event.participants[currentUserId]?.firstName || ''} ${event.participants[currentUserId]?.lastName || ''}`,
+        id: messageId,
+        text: text,
+        userId: userId,
+        userName: userName,
         timestamp: new Date().toISOString(),
-        isAnonymous,
-        gifUrl
+        isAnonymous: anonymousMode,
+        edited: false, // ✅ TOEGEVOEGD
+        gifUrl: gifUrl,
       };
-      await updateEvent(event.id, { messages: [...messages, newMessage] });
-    } catch (err) {
-      toast.error('Failed to send message');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [event, currentUserId, updateEvent]);
 
-  const editMessage = useCallback(async (messageId: string, newText: string) => {
-    if (!event) return;
-    setIsLoading(true);
-    try {
-      const messages: ChatMessage[] = Array.isArray(event.messages) ? event.messages : [];
-      const updatedMessages = messages.map(msg => msg.id === messageId ? { ...msg, text: newText } : msg);
-      await updateEvent(event.id, { messages: updatedMessages });
-      toast.success('Message edited');
-    } catch (err) {
-      toast.error('Failed to edit message');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [event, updateEvent]);
+      setMessages((prev) => [...prev, newMessage]);
+    },
+    []
+  );
 
-  const deleteMessage = useCallback(async (messageId: string) => {
-    if (!event) return;
-    setIsLoading(true);
-    try {
-      const messages: ChatMessage[] = Array.isArray(event.messages) ? event.messages : [];
-      const updatedMessages = messages.filter(msg => msg.id !== messageId);
-      await updateEvent(event.id, { messages: updatedMessages });
-      toast.success('Message deleted');
-    } catch (err) {
-      toast.error('Failed to delete message');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [event, updateEvent]);
+  const clearMessages = useCallback(() => {
+    setMessages([]);
+  }, []);
 
-  return { isLoading, sendMessage, editMessage, deleteMessage, updateLastRead };
-};
+  return {
+    messages,
+    sendMessage,
+    clearMessages,
+  };
+}

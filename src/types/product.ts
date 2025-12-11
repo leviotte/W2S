@@ -1,7 +1,12 @@
 // src/types/product.ts
 import { z } from 'zod';
 
-// Dit schema definieert de zoek/filter opties. Essentieel voor je API's.
+/**
+ * ✅ SINGLE SOURCE OF TRUTH voor Product
+ * Pure product data - ZONDER wishlist-specifieke velden
+ */
+
+// Schema voor zoek/filter opties
 export const productQueryOptionsSchema = z.object({
   query: z.string().optional(),
   category: z.string().optional(),
@@ -13,31 +18,30 @@ export const productQueryOptionsSchema = z.object({
   gender: z.string().optional(),
 });
 
-// Schema voor wie een item geclaimd heeft op een wenslijst.
-export const claimedBySchema = z.object({
-  userId: z.string(),
-  userName: z.string(),
-  quantity: z.number().optional(),
-});
-
-// Enum voor de bron van het product.
+// Enum voor de bron van het product
 export const productSourceSchema = z.enum(["Amazon", "Bol.com", "Internal", "dummy"]);
 
-// Schema voor platform-specifieke data, briljant idee!
+// Schema voor platform-specifieke data (prijsvergelijking)
 export const platformSpecificDataSchema = z.object({
   source: productSourceSchema,
   url: z.string().url(),
   price: z.number(),
+  imageUrl: z.string().url().optional(),
 });
 
-// Het centrale product-schema, gebaseerd op jouw gedetailleerde opzet.
+/**
+ * Het centrale PURE product schema
+ * Bevat GEEN wishlist-specifieke velden (claimedBy, isReserved, etc.)
+ */
 export const productSchema = z.object({
-  id: z.union([z.string(), z.number()]), // ID kan ASIN (string) of EAN (nummer) zijn
+  id: z.union([z.string(), z.number()]), // ASIN (string) of EAN (number)
   source: productSourceSchema,
   title: z.string(),
   url: z.string().url(),
   imageUrl: z.string().url(),
   price: z.number(),
+  
+  // Optionele metadata
   ean: z.string().optional(),
   category: z.string().optional(),
   description: z.string().optional(),
@@ -46,18 +50,53 @@ export const productSchema = z.object({
   ageGroup: z.string().optional(),
   gender: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  // Dit is een top-idee om prijsvergelijking mogelijk te maken.
+  
+  // Prijsvergelijking over platforms
   platforms: z.array(platformSpecificDataSchema).optional(),
   hasMultiplePlatforms: z.boolean().optional(),
 });
 
-// Een WishlistItem is een Product, met een extra 'claimedBy' veld. Perfect.
-export const wishlistItemSchema = productSchema.extend({
-  claimedBy: claimedBySchema.optional().nullable(),
-});
+// ============================================================================
+// TYPES
+// ============================================================================
 
-// Exporteer de afgeleide TypeScript types voor gebruik in de hele applicatie.
 export type ProductQueryOptions = z.infer<typeof productQueryOptionsSchema>;
 export type Product = z.infer<typeof productSchema>;
-export type WishlistItem = z.infer<typeof wishlistItemSchema>;
-export type ClaimedBy = z.infer<typeof claimedBySchema>;
+export type ProductSource = z.infer<typeof productSourceSchema>;
+export type PlatformSpecificData = z.infer<typeof platformSpecificDataSchema>;
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Vindt de goedkoopste prijs over alle platforms
+ */
+export function getCheapestPrice(product: Product): number {
+  if (!product.platforms || product.platforms.length === 0) {
+    return product.price;
+  }
+  
+  const prices = [product.price, ...product.platforms.map(p => p.price)];
+  return Math.min(...prices);
+}
+
+/**
+ * Vindt het platform met de laagste prijs
+ */
+export function getCheapestPlatform(product: Product): PlatformSpecificData | null {
+  if (!product.platforms || product.platforms.length === 0) {
+    return null;
+  }
+  
+  return product.platforms.reduce((cheapest, current) => 
+    current.price < cheapest.price ? current : cheapest
+  );
+}
+
+/**
+ * Check of een product op meerdere platforms beschikbaar is
+ */
+export function hasMultiplePlatforms(product: Product): boolean {
+  return !!(product.platforms && product.platforms.length > 0);
+}

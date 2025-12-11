@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { FieldValue } from 'firebase-admin/firestore'; 
 import { adminDb } from '@/lib/server/firebase-admin';
 import { getSession } from '@/lib/auth/actions';
-import { AddressSchema, UserProfile, UserProfileSchema } from '@/types/user';
+import { addressSchema, UserProfile, userProfileSchema } from '@/types/user';
 
 // ====================================================================
 // Type definities voor consistente responses
@@ -29,7 +29,7 @@ type ToggleStatusResponse =
 // Zod Schemas voor Form Actions
 // ====================================================================
 
-const PersonalInfoUpdateSchema = UserProfileSchema.pick({
+const PersonalInfoUpdateSchema = userProfileSchema.pick({
   firstName: true,
   lastName: true,
 });
@@ -99,7 +99,7 @@ export async function updateAddress(prevState: FormState, formData: FormData): P
     const session = await getSession();
     if (!session?.user) return { message: 'Authenticatie mislukt.', success: false };
     
-    const parsed = AddressSchema.safeParse(Object.fromEntries(formData.entries()));
+    const parsed = addressSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!parsed.success) {
         const { formErrors, fieldErrors } = parsed.error.flatten();

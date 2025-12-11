@@ -24,7 +24,7 @@ import {
   updateSocialMediaAccounts,
 } from '@/lib/server/actions/social-media';
 import type { SocialMediaAccounts, SocialPlatform } from '@/types/social-media';
-import { SOCIAL_PLATFORMS } from '@/types/social-madia';
+import { SOCIAL_PLATFORMS } from '@/types/social-media';
 
 // ============================================================================
 // TYPES

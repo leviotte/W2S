@@ -1,6 +1,6 @@
 // src/components/layout/site-header.tsx
 import Link from "next/link";
-import { MainNav } from "@/components/layout/main-nav";
+import { MainNav } from "./main-nav";
 import TeamSwitcher from "../shared/TeamSwitcher";
 import { Button } from "@/components/ui/button";
 

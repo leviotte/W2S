@@ -7,7 +7,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 import { getSession } from '@/lib/auth/actions';
 import { adminDb } from '@/lib/server/firebase-admin';
-import { WishlistItemSchema } from '@/types/wishlist';
+import { wishlistItemSchema } from '@/types/wishlist';
 
 // Schema voor de formuliervalidatie op de server
 const CreateWishlistFormSchema = z.object({
@@ -18,7 +18,7 @@ const CreateWishlistFormSchema = z.object({
     try {
       const parsed = JSON.parse(str);
       // Valideer dat de geparste data een array van WishlistItems is
-      return z.array(WishlistItemSchema).parse(parsed);
+      return z.array(wishlistItemSchema).parse(parsed);
     } catch (e) {
       ctx.addIssue({ code: 'custom', message: 'Ongeldig itemformaat.' });
       return z.NEVER;

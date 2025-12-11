@@ -33,7 +33,7 @@ export type BlogPost = {
   views?: number;
 };
 
-export type CreateBlogPostInput = {
+export type createPostActionInput = {
   headTitle: string;
   headDescription: string;
   headImage: string;

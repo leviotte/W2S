@@ -20,7 +20,7 @@ export const profileInfoSchema = z.object({
  * We gebruiken .extend() om de velden van het geïmporteerde schema te gebruiken
  * en ze te nesten onder een 'address' property, precies zoals ons formulier verwacht.
  */
-export const profileAddressSchema = z.object({
+export const profileaddressSchema = z.object({
   address: addressSchema,
 });
 

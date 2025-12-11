@@ -6,7 +6,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions, type SessionData } from './session';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { adminDb } from '@/lib/server/firebase-admin';
+import { adminDb, adminAuth } from '@/lib/server/firebase-admin';
 import type { UserProfile, SessionUser, AuthedUser } from '@/types/user';
 import { userProfileSchema } from '@/types/user';
 
@@ -116,6 +116,8 @@ export async function getManagedProfiles(managerId: string): Promise<(UserProfil
 /**
  * Creëer een nieuwe session na Firebase login
  * WORDT AANGEROEPEN: Na succesvolle Firebase authenticatie
+ * 
+ * ✅ UPDATED: Inclusief firstName & lastName voor SessionUser
  */
 export async function createSession(uid: string) {
   const userRef = adminDb.collection('users').doc(uid);
@@ -129,13 +131,16 @@ export async function createSession(uid: string) {
 
   const session = await getSession();
   
-  // Sla alleen essentiële data op in session (minimale payload)
+  // ✅ VOLLEDIG SESSIE OBJECT MET ALLE VEREISTE FIELDS
   session.user = {
     id: uid,
     isLoggedIn: true,
     email: userProfile.email,
     displayName: userProfile.displayName,
+    firstName: userProfile.firstName,     // ✅ TOEGEVOEGD
+    lastName: userProfile.lastName,       // ✅ TOEGEVOEGD
     photoURL: userProfile.photoURL || null,
+    username: userProfile.displayName?.toLowerCase().replace(/\s+/g, '-') || undefined, // ✅ OPTIONEEL
     isAdmin: userProfile.isAdmin || false,
     isPartner: userProfile.isPartner || false,
   } satisfies SessionUser;
@@ -199,4 +204,64 @@ export async function requireAdmin(): Promise<UserProfile & { id: string }> {
   }
   
   return user;
+}
+
+/**
+ * Register nieuwe gebruiker in Firestore
+ * WORDT AANGEROEPEN: Na Firebase Auth createUser success
+ */
+export async function registerAction(data: {
+  idToken: string;
+  firstName: string;
+  lastName: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Verify Firebase token
+    const decodedToken = await adminAuth.verifyIdToken(data.idToken);
+    const uid = decodedToken.uid;
+    const email = decodedToken.email;
+
+    if (!email) {
+      return { success: false, error: 'Email niet gevonden in token' };
+    }
+
+    // Create user profile in Firestore
+    const displayName = `${data.firstName} ${data.lastName}`;
+    
+    await adminDb.collection('users').doc(uid).set({
+      firstName: data.firstName,
+      lastName: data.lastName,
+      displayName,
+      email,
+      userId: uid,
+      id: uid,
+      photoURL: null,
+      isPublic: false,
+      isAdmin: false,
+      isPartner: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      address: null,
+      socials: null,
+    });
+
+    // Create session (zal nu automatisch firstName/lastName includen)
+    await createSession(uid);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Register action error:', error);
+    return { 
+      success: false, 
+      error: 'Fout bij het aanmaken van gebruikersprofiel' 
+    };
+  }
+}
+
+/**
+ * Destroy session helper
+ */
+export async function destroySession() {
+  const session = await getSession();
+  session.destroy();
 }
