@@ -1,53 +1,61 @@
-"use client";
+'use client';
 
-import { useDraggable } from "@dnd-kit/core";
-import { X } from "lucide-react";
+import React from 'react';
+import { UserAvatar } from '@/components/shared/user-avatar';
+import { cn } from '@/lib/utils';
 
-interface DraggableParticipantProps {
-  participant: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
-  isCurrentUser: boolean;
-  onRemove?: () => void;
+// FOUT OPGELOST: De props zijn nu "flat" en direct.
+export interface DraggableParticipantProps
+  extends React.HTMLAttributes<HTMLDivElement> {
+  id: string;
+  firstName: string;
+  lastName: string;
+  photoURL?: string | null;
+  isCurrentUser?: boolean;
 }
 
-export default function DraggableParticipant({
-  participant,
-  isCurrentUser,
-  onRemove,
-}: DraggableParticipantProps) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: participant.id,
-    data: participant,
-  });
+// BEST PRACTICE: Gebruik React.forwardRef om de ref van dnd-kit te ontvangen.
+const DraggableParticipant = React.forwardRef<
+  HTMLDivElement,
+  DraggableParticipantProps
+>(
+  (
+    {
+      id,
+      firstName,
+      lastName,
+      photoURL,
+      isCurrentUser,
+      className,
+      ...props
+    },
+    ref
+  ) => {
+    const name = `${firstName || ''} ${lastName || ''}`.trim();
 
-  return (
-    <div className="relative inline-flex">
-      <button
-        ref={setNodeRef}
-        {...attributes}
-        {...listeners}
-        className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-all cursor-grab active:cursor-grabbing
-          ${isDragging ? "opacity-50" : "opacity-100"}
-          ${isCurrentUser
-            ? "bg-warm-olive text-white hover:bg-cool-olive"
-            : "bg-gray-100 text-gray-600"
-          }`}
-        disabled={!isCurrentUser}
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          'inline-flex items-center gap-2 rounded-full py-1.5 pl-2 pr-3 text-sm font-medium transition-all cursor-grab active:cursor-grabbing shadow-sm',
+          isCurrentUser
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-muted text-muted-foreground',
+          className
+        )}
+        {...props}
       >
-        {participant.firstName} {participant.lastName}
-      </button>
+        <UserAvatar
+          src={photoURL}
+          name={name}
+          className="h-6 w-6 text-xs"
+        />
+        <span>{name}</span>
+      </div>
+    );
+  }
+);
 
-      {onRemove && isCurrentUser && (
-        <button
-          onClick={onRemove}
-          className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm hover:bg-gray-100"
-        >
-          <X className="h-3 w-3 text-gray-500" />
-        </button>
-      )}
-    </div>
-  );
-}
+DraggableParticipant.displayName = 'DraggableParticipant';
+
+export default DraggableParticipant;

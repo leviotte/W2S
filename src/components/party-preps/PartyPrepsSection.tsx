@@ -1,31 +1,23 @@
-/**
- * src/features/events/components/party-preps-section.tsx
- *
- * FINALE VERSIE: Gecorrigeerde dataflow, types, en JSX-syntax.
- */
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Plus, HelpCircle } from "lucide-react";
-import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
-import { restrictToWindowEdges } from "@dnd-kit/modifiers";
-import { toast } from "sonner";
+import { useState, useTransition } from 'react';
+import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor, DragOverlay } from '@dnd-kit/core';
+import { restrictToWindowEdges } from '@dnd-kit/modifiers';
+import { Plus, HelpCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { useAuthStore } from "@/lib/store/use-auth-store";
-import TaskList from "./TaskList";
-import ParticipantList from "../event/ParticipantList";
-import DraggableParticipant from "./DraggableParticipant";
-
-import type { Event, EventParticipant } from "@/types/event";
-import type { Task } from "@/types/task";
-import type { UserProfile } from "@/types/user";
+import { Button } from '@/components/ui/button';
+import TaskList from './TaskList';
+import ParticipantList from '../event/ParticipantList';
+import DraggableParticipant from './DraggableParticipant';
+import { updateEventAction } from '@/app/dashboard/event/[id]/actions';
+import type { Event, EventParticipant } from '@/types/event';
+import type { Task } from '@/types/task';
 
 interface PartyPrepsProps {
-  // We verwachten het volledige event object voor maximale performance en duidelijkheid
-  event: Event; 
+  event: Event;
   isOrganizer: boolean;
-  // We gebruiken hier een simpeler type, maar je kan dit verfijnen
-  participants: Array<{ id: string; firstName: string; lastName: string; }>;
+  participants: EventParticipant[];
   currentUserId: string;
 }
 
@@ -36,120 +28,102 @@ export function PartyPrepsSection({
   currentUserId,
 }: PartyPrepsProps) {
   const [showAddTask, setShowAddTask] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskTitle, setNewTaskTitle] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
-  // De updateEvent functie uit onze store.
-  const updateEvent = useAuthStore((state) => state.updateEvent);
   const tasks = event.tasks || [];
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
-  const handleAddTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTaskTitle.trim()) {
-      toast.error("Geef de taak een titel");
-      return;
-    }
-
-    try {
-      const newTask: Task = {
-        id: crypto.randomUUID(),
-        title: newTaskTitle,
-        completed: false,
-        assignedParticipants: [],
-      };
-
-      await updateEvent(event.id, { tasks: [...tasks, newTask] });
-      setNewTaskTitle("");
-      setShowAddTask(false);
-      toast.success("Taak succesvol toegevoegd!");
-    } catch (error) {
-      console.error("Failed to add task:", error);
-      toast.error("Taak toevoegen mislukt");
-    }
+  const handleUpdateTasks = (updatedTasks: Task[]) => {
+    startTransition(async () => {
+      const result = await updateEventAction(event.id, { tasks: updatedTasks });
+      if (!result.success) {
+        // FOUT 1 OPGELOST: Gebruik 'message' uit de server action
+        toast.error(result.message);
+      }
+    });
   };
 
-  const handleDragEnd = async (dragEvent: DragEndEvent) => {
+  const handleAddTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTaskTitle.trim()) return toast.error('Geef de taak een titel');
+    const newTask: Task = {
+      id: crypto.randomUUID(),
+      title: newTaskTitle,
+      completed: false,
+      assignedParticipants: [],
+    };
+    handleUpdateTasks([...tasks, newTask]);
+    toast.success('Taak succesvol toegevoegd!');
+    setNewTaskTitle('');
+    setShowAddTask(false);
+  };
+
+  const handleDragEnd = (dragEvent: DragEndEvent) => {
     setActiveId(null);
     const { active, over } = dragEvent;
-    if (!over) return;
+    if (!active || !over) return;
 
     const participantId = active.id as string;
     const taskId = over.id as string;
 
-    const taskToUpdate = tasks.find(t => t.id === taskId);
+    const taskToUpdate = tasks.find((t) => t.id === taskId);
     if (taskToUpdate?.assignedParticipants.includes(participantId)) {
-        toast.info("Je bent al toegewezen aan deze taak.");
-        return;
+      return toast.info('Je bent al toegewezen aan deze taak.');
     }
 
-    try {
-      const updatedTasks = tasks.map((task) => {
-        if (task.id === taskId) {
-          return {
-            ...task,
-            assignedParticipants: [...task.assignedParticipants, participantId],
-          };
-        }
-        return task;
-      });
-
-      await updateEvent(event.id, { tasks: updatedTasks });
-      toast.success("Taak aan jezelf toegewezen!");
-    } catch (error) {
-      console.error("Failed to assign task:", error);
-      toast.error("Taak toewijzen mislukt");
-    }
+    const updatedTasks = tasks.map((task) =>
+      task.id === taskId
+        ? { ...task, assignedParticipants: [...task.assignedParticipants, participantId] }
+        : task
+    );
+    handleUpdateTasks(updatedTasks);
+    toast.success('Taak aan jezelf toegewezen!');
   };
 
-  const handleToggleTask = async (taskId: string) => {
+  const handleToggleTask = (taskId: string) => {
     const updatedTasks = tasks.map((task) =>
       task.id === taskId ? { ...task, completed: !task.completed } : task
     );
-    await updateEvent(event.id, { tasks: updatedTasks }).catch(() => toast.error("Taak status wijzigen mislukt."));
+    handleUpdateTasks(updatedTasks);
   };
 
-  const handleDeleteTask = async (taskId: string) => {
+  const handleDeleteTask = (taskId: string) => {
     const updatedTasks = tasks.filter((task) => task.id !== taskId);
-    await updateEvent(event.id, { tasks: updatedTasks });
-    toast.success("Taak verwijderd");
+    handleUpdateTasks(updatedTasks);
+    toast.success('Taak verwijderd');
   };
 
-  const handleRemoveParticipant = async (taskId: string, participantId: string) => {
-    const updatedTasks = tasks.map((task) => {
-      if (task.id === taskId) {
-        return {
-          ...task,
-          assignedParticipants: task.assignedParticipants.filter((id) => id !== participantId),
-        };
-      }
-      return task;
-    });
-    await updateEvent(event.id, { tasks: updatedTasks });
+  const handleRemoveParticipant = (taskId: string, participantId: string) => {
+    const updatedTasks = tasks.map((task) =>
+      task.id === taskId
+        ? { ...task, assignedParticipants: task.assignedParticipants.filter((id) => id !== participantId) }
+        : task
+    );
+    handleUpdateTasks(updatedTasks);
   };
-  
+
   const activeParticipant = participants.find((p) => p.id === activeId);
 
   return (
-    <DndContext 
-        sensors={sensors} 
-        onDragStart={(e) => setActiveId(e.active.id as string)}
-        onDragEnd={handleDragEnd}
-        modifiers={[restrictToWindowEdges]}
+    <DndContext
+      sensors={sensors}
+      onDragStart={(e) => setActiveId(e.active.id as string)}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveId(null)}
+      modifiers={[restrictToWindowEdges]}
     >
       <div className="backdrop-blur-sm bg-white/40 rounded-lg p-5 shadow-lg">
         <div className="flex items-start justify-between mb-6">
-          <div>
-            <div className="flex items-center space-x-2">
-              <h2 className="text-xl font-semibold text-gray-900">PartyPreps</h2>
-              <button className="text-gray-500 hover:text-gray-700" title="Sleep je naam naar een taak om jezelf toe te wijzen.">
-                <HelpCircle className="h-5 w-5" />
-              </button>
-            </div>
-            <p className="text-sm text-gray-600 mt-1">Organiseer de voorbereidingen met je gasten.</p>
+          <div className="flex items-center space-x-2">
+            <h2 className="text-xl font-semibold text-gray-900">PartyPreps</h2>
+            <button className="text-gray-500 hover:text-gray-700" title="Sleep je naam naar een taak om jezelf toe te wijzen.">
+              <HelpCircle className="h-5 w-5" />
+            </button>
           </div>
         </div>
 
@@ -168,7 +142,7 @@ export function PartyPrepsSection({
                   <input
                     type="text"
                     value={newTaskTitle}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTaskTitle(e.target.value)}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
                     placeholder="Beschrijf de taak..."
                     className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-transparent p-2"
                     autoFocus
@@ -177,8 +151,8 @@ export function PartyPrepsSection({
                     <Button type="button" variant="ghost" onClick={() => setShowAddTask(false)}>
                       Annuleren
                     </Button>
-                    <Button type="submit">
-                      Voeg Toe
+                    <Button type="submit" disabled={isPending}>
+                      {isPending ? 'Toevoegen...' : 'Voeg Toe'}
                     </Button>
                   </div>
                 </form>
@@ -186,8 +160,9 @@ export function PartyPrepsSection({
             </div>
         )}
         
-        {/* We geven de functies nu door met duidelijke prop namen */}
         <TaskList
+          // FOUT 2 OPGELOST: eventId wordt nu doorgegeven
+          eventId={event.id}
           tasks={tasks}
           participants={participants}
           currentUserId={currentUserId}
@@ -198,17 +173,24 @@ export function PartyPrepsSection({
         />
 
         <h3 className="font-bold mt-6 mb-2">Deelnemers</h3>
-        <ParticipantList participants={participants} activeId={activeId} />
+        <ParticipantList
+          participants={participants}
+          // FOUT 3 OPGELOST: currentUserId wordt nu doorgegeven
+          currentUserId={currentUserId}
+        />
       </div>
 
-      {/* Visuele feedback voor de gebruiker tijdens het slepen */}
-      {activeId && activeParticipant && (
-          <DraggableParticipant 
-              id={activeId}
-              firstName={activeParticipant.firstName}
-              lastName={activeParticipant.lastName}
+      {/* FOUT 4 OPGELOST: Gebruik van DragOverlay voor de "Gold Standard" UX */}
+      <DragOverlay>
+        {activeId && activeParticipant ? (
+          <DraggableParticipant
+            id={activeId}
+            firstName={activeParticipant.firstName}
+            lastName={activeParticipant.lastName}
+            photoURL={activeParticipant.photoURL}
           />
-      )}
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }

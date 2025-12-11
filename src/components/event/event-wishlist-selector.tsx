@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 // Gebruik van alias-paden is robuuster!
-import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { LoadingSpinner } from '../ui/loading-spinner';
 
 interface EventWishlistSelectorProps {
   onWishlistSelect: (wishlistId: string) => void;

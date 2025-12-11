@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/use-auth-store';
 import { Event } from '@/types/event';
-import { UserProfile } from '@/lib/store/use-auth-store';
+import { UserProfile } from '@/types/user';
 
 export const useEventMessages = (event: Event | undefined, currentUser: UserProfile | null) => {
   const { updateEvent } = useAuthStore();
@@ -15,7 +15,7 @@ export const useEventMessages = (event: Event | undefined, currentUser: UserProf
         id: crypto.randomUUID(),
         text,
         userId: currentUser.id,
-        userName: isAnonymous ? `Anonymous ${event.name}-fan` : `${currentUser.profile.firstName} ${currentUser.profile.lastName}`,
+        userName: isAnonymous ? `Anonymous ${event.name}-fan` : `${currentUser.firstName} ${currentUser.lastName}`,
         timestamp: new Date().toISOString(),
         isAnonymous,
         gifUrl

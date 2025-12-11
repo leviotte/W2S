@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache';
 
 export async function deleteEventAction(eventId: string): Promise<{ success: boolean; message: string }> {
   const currentUser = await getCurrentUser();
-  if (!currentUser?.profile.id) {
+  if (!currentUser?.id) {
     return { success: false, message: 'Niet geautoriseerd' };
   }
 

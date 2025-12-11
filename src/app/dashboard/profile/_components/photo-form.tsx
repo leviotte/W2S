@@ -1,7 +1,6 @@
-// src/app/dashboard/profile/_components/photo-form.tsx
 'use client';
 
-import { useState, useRef, useTransition } from 'react';
+import { useState, useRef, useTransition, FormEvent } from 'react';
 import { toast } from 'sonner';
 import { Upload } from 'lucide-react';
 
@@ -27,13 +26,15 @@ export default function PhotoForm({ profile }: PhotoFormProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      if (previewUrl) URL.revokeObjectURL(previewUrl); // Ruim oude preview op
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
       setFile(selectedFile);
       setPreviewUrl(URL.createObjectURL(selectedFile));
     }
   };
 
-  const handleSubmit = () => {
+  // FIX 1: We gebruiken onSubmit en e.preventDefault() voor client-side logica
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault(); 
     if (!file) {
       toast.error('Selecteer eerst een bestand.');
       return;
@@ -41,19 +42,19 @@ export default function PhotoForm({ profile }: PhotoFormProps) {
 
     startTransition(async () => {
       try {
-        // 1. Upload het bestand vanaf de CLIENT naar Firebase Storage
         const photoURL = await uploadFile(file, `profile-pictures/${profile.id}/${file.name}`);
-
-        // 2. Roep de SERVER action aan met de resulterende URL
         const result = await updatePhotoURL(photoURL);
 
+        // FIX 2: Correcte afhandeling van het Server Action resultaat
         if (result.success) {
-          toast.success(result.message);
+          // De server action geeft geen 'message', dus tonen we een eigen bericht.
+          toast.success("Profielfoto succesvol bijgewerkt!"); 
           setFile(null);
           setPreviewUrl(null);
           if (fileInputRef.current) fileInputRef.current.value = '';
         } else {
-          toast.error(result.message);
+          // Het error object bevat de 'error' property, niet 'message'.
+          toast.error(result.error); 
         }
       } catch (error) {
         toast.error('Upload mislukt. Probeer het opnieuw.');
@@ -63,15 +64,21 @@ export default function PhotoForm({ profile }: PhotoFormProps) {
   };
 
   return (
-    // We gebruiken nu een form met een action die onze transition-wrapped handler aanroept
-    <form action={handleSubmit}>
+    // We gebruiken nu onSubmit omdat onze handler client-side logica bevat
+    <form onSubmit={handleSubmit}>
       <Card>
         <CardHeader>
           <CardTitle>Profielfoto</CardTitle>
           <CardDescription>Een duidelijke foto helpt anderen je te herkennen.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-4">
-          <UserAvatar user={profile} src={previewUrl ?? profile.photoURL} className="h-32 w-32" />
+          {/* FIX 3: Correcte props doorgeven aan UserAvatar */}
+          <UserAvatar 
+            src={previewUrl ?? profile.photoURL} 
+            name={profile.displayName}
+            className="h-32 w-32" 
+          />
+          {/* FIX 4: Correcte JSX syntax voor event handlers */}
           <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
             <Upload className="mr-2 h-4 w-4" /> Wijzig Foto
           </Button>
@@ -86,9 +93,10 @@ export default function PhotoForm({ profile }: PhotoFormProps) {
           {file && <p className="text-xs text-muted-foreground">{file.name}</p>}
         </CardContent>
         <CardFooter className="flex justify-end">
-          <SubmitButton pendingText="Uploaden..." disabled={!file}>
-    Upload Foto
-</SubmitButton>
+          {/* We gebruiken een gewone SubmitButton. De form's onSubmit vangt dit af. */}
+          <SubmitButton pending={isPending} pendingText="Uploaden..." disabled={!file}>
+            Upload Foto
+          </SubmitButton>
         </CardFooter>
       </Card>
     </form>

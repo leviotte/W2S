@@ -1,13 +1,12 @@
-// src/app/dashboard/add-profile/actions.ts
 "use server";
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from '@/lib/auth/actions';
 import { adminDb } from "@/lib/server/firebase-admin";
-import { UserProfileSchema, type UserProfile } from "@/types/user";
+import { subProfileSchema, type SubProfile } from "@/types/user";
 
-const addProfileSchema = z.object({
+const addProfileFormSchema = z.object({
   firstName: z.string().min(2, "Voornaam moet minstens 2 karakters hebben."),
   lastName: z.string().min(2, "Achternaam moet minstens 2 karakters hebben."),
 });
@@ -31,7 +30,7 @@ export async function addProfile(
     return { success: false, message: "Authenticatie mislukt. Log opnieuw in." };
   }
 
-  const validatedFields = addProfileSchema.safeParse({
+  const validatedFields = addProfileFormSchema.safeParse({
     firstName: formData.get("firstName"),
     lastName: formData.get("lastName"),
   });
@@ -46,41 +45,53 @@ export async function addProfile(
 
   const { firstName, lastName } = validatedFields.data;
 
-  // Bouw het nieuwe sub-profiel object
-  const newProfile: Omit<UserProfile, "id"> = {
-      // Gebruik een unieke, maar herkenbare placeholder. Sub-profielen hebben geen eigen login.
-      email: `${user.id}+subprofile_${Date.now()}@wish2share.com`,
+  // BEST PRACTICE: Bouw het nieuwe sub-profiel object
+  // SubProfile heeft GEEN email/isAdmin/isPartner - die zijn exclusief voor UserProfile
+  const newSubProfile: Omit<SubProfile, "id"> = {
+      userId: user.id, // De eigenaar (Firebase UID van het hoofdaccount)
       firstName,
       lastName,
       displayName: `${firstName} ${lastName}`,
       photoURL: null,
-      isPublic: false,
-      isAdmin: false,
-      isPartner: false,
-      ownerId: user.id, // Link naar het hoofdaccount
-      managers: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      socials: {}, // DE FIX: Moet een leeg object zijn, geen 'undefined'
+      birthdate: null,
+      gender: null,
+      parentId: user.id, // Optionele extra link (kan handig zijn voor queries)
   };
 
   try {
-    const finalValidation = UserProfileSchema.omit({ id: true }).safeParse(newProfile);
-    if(!finalValidation.success){
-        console.error("Final profile validation failed:", finalValidation.error.flatten());
-        return { success: false, message: "Interne data is inconsistent. Probeer opnieuw." };
+    // Valideer tegen het SubProfile schema (zonder 'id')
+    const finalValidation = subProfileSchema.omit({ id: true }).safeParse(newSubProfile);
+    
+    if (!finalValidation.success) {
+        console.error("SubProfile validation failed:", finalValidation.error.flatten());
+        return { 
+          success: false, 
+          message: "Interne validatie mislukt. Controleer de ingevoerde gegevens.",
+          errors: { _form: ["Data validatie fout"] }
+        };
     }
 
-    await adminDb.collection("users").add(finalValidation.data);
+    // BEST PRACTICE: SubProfiles gaan in een aparte collectie 'profiles'
+    // Zo blijft 'users' collection schoon met enkel hoofdaccounts
+    const docRef = await adminDb.collection("profiles").add(finalValidation.data);
 
-    // Vertel Next.js welke data opnieuw moet worden opgehaald.
-    // De layout toont de team switcher, dus die moet ververst worden.
+    console.log(`✅ SubProfile created with ID: ${docRef.id}`);
+
+    // Revalideer alle dashboard layouts (voor TeamSwitcher)
+    revalidatePath('/dashboard', 'layout');
     revalidatePath('/', 'layout');
 
-    return { success: true, message: `Profiel voor ${firstName} is aangemaakt.` };
+    return { 
+      success: true, 
+      message: `Profiel voor ${firstName} is succesvol aangemaakt!` 
+    };
 
   } catch (error) {
     console.error("Fout bij aanmaken van sub-profiel:", error);
-    return { success: false, message: "Een serverfout is opgetreden." };
+    return { 
+      success: false, 
+      message: "Een serverfout is opgetreden. Probeer het opnieuw.",
+      errors: { _form: ["Database fout"] }
+    };
   }
 }

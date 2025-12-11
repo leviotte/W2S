@@ -13,7 +13,7 @@ import Link from 'next/link';
 export default async function UpcomingEventsPage() {
   const currentUser = await getCurrentUser();
 
-  if (!currentUser?.profile.id) {
+  if (!currentUser?.id) {
     redirect('/?auth=login');
   }
 

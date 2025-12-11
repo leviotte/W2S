@@ -14,7 +14,7 @@ import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import type { ChatMessage } from '@/types';
 import { shouldShowDate, formatChatDate } from '@/lib/utils/chat';
 import { ChatMessage as ChatMessageComponent } from '@/components/chat/ChatMessage';
-import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { LoadingSpinner } from '../ui/loading-spinner';
 
 interface VirtualizedMessageListProps {
   messages: ChatMessage[];

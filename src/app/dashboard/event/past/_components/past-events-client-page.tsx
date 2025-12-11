@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import { useAuthStore } from "@/lib/store/use-auth-store";
-import { Event } from "@/types/event";
+import type { Event } from "@/types/event";
 import {
   Card,
   CardContent,
@@ -23,7 +25,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Trash2, Loader2 } from "lucide-react";
 
 interface PastEventsClientPageProps {
   initialEvents: Event[];
@@ -32,6 +34,7 @@ interface PastEventsClientPageProps {
 export function PastEventsClientPage({ initialEvents }: PastEventsClientPageProps) {
   const router = useRouter();
   const { deleteEvent, currentUser } = useAuthStore();
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const formatDate = (dateString: string | Date) => {
     const date = new Date(dateString);
@@ -39,12 +42,18 @@ export function PastEventsClientPage({ initialEvents }: PastEventsClientPageProp
   };
 
   const handleDelete = async (eventId: string) => {
-    try {
-      await deleteEvent(eventId);
-      // Toon een toast of refresh de data
-    } catch (error) {
-      // Toon een fout-toast
+    setIsDeleting(eventId);
+    const result = await deleteEvent(eventId);
+    
+    if (result.success) {
+      toast.success("Evenement succesvol verwijderd!");
+      // De server action heeft revalidatePath() al aangeroepen.
+      // Een router.refresh() zorgt ervoor dat de UI de nieuwe data toont.
+      router.refresh();
+    } else {
+      toast.error(result.error || "Kon het evenement niet verwijderen.");
     }
+    setIsDeleting(null);
   };
 
   return (
@@ -72,8 +81,12 @@ export function PastEventsClientPage({ initialEvents }: PastEventsClientPageProp
                 {currentUser?.id === event.organizerId && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                      <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()} disabled={isDeleting === event.id}>
+                        {isDeleting === event.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        )}
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent onClick={(e) => e.stopPropagation()}>

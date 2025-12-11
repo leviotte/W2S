@@ -1,3 +1,4 @@
+// src/components/products/affiliate-product-search-dialog.tsx
 "use client";
 
 import { useState, useTransition, useEffect } from 'react';
@@ -18,14 +19,14 @@ import { toast } from 'sonner';
 // CORRECTIE: Props aangepast voor duidelijkheid en consistentie.
 interface AffiliateProductSearchDialogProps {
   isOpen: boolean;
-  onClose: () => void;
-  onProductSelect: (product: Product) => void;
+  onOpenChange: (open: boolean) => void;
+  onProductSelected: (product: Product) => void;
 }
 
 export function AffiliateProductSearchDialog({
   isOpen,
-  onClose, // Hernoemd van onOpenChange
-  onProductSelect, // Hernoemd van onProductSelected
+  onOpenChange,
+  onProductSelected,
 }: AffiliateProductSearchDialogProps) {
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -65,10 +66,10 @@ export function AffiliateProductSearchDialog({
   }, [debouncedSearchTerm]);
 
   const handleSelectProduct = (product: Product) => {
-    onProductSelect(product);
-    onClose(); // CORRECTIE: Roep de onClose callback aan om de dialoog te sluiten.
-    toast.success(`"${product.title}" toegevoegd!`);
-  };
+  onProductSelected(product);
+  onOpenChange(false); // sluit dialog
+  toast.success(`"${product.title}" toegevoegd!`);
+};
 
   // Reset de state wanneer de dialoog sluit.
   useEffect(() => {
@@ -85,7 +86,7 @@ export function AffiliateProductSearchDialog({
 
   return (
     // CORRECTIE: onOpenChange van de Dialog component wordt gekoppeld aan onze onClose prop.
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px] h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Zoek een Product</DialogTitle>

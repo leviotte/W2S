@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const ReactQuill = dynamic(() => import("react-quill-new"), { 
   ssr: false, 
@@ -247,8 +247,8 @@ export default function UpdatePostPage() {
 
       <AffiliateProductSearchDialog
         isOpen={isSearchDialogOpen}
-        onOpenChange={setIsSearchDialogOpen}
-        onProductSelected={handleProductSelected}
+        onClose={() => setIsSearchDialogOpen(false)}
+        onProductSelect={handleProductSelected}
       />
     </>
   );

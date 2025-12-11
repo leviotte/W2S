@@ -11,11 +11,11 @@ import Image from "next/image";
 
 import { useAuthStore } from "@/lib/store/use-auth-store";
 import { eventSchema, type Event, type EventParticipant } from "@/types/event";
-import type { SubProfile, UserProfile } from "@/types";
+import type { SubProfile, UserProfile } from "@/types/user";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Separator } from "@/components/ui/separator";
 

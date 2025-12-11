@@ -6,26 +6,37 @@ import { getWishlistStatsForUser } from '@/lib/server/data/wishlists'; // Nieuwe
 import DashboardClientWrapper from '@/components/dashboard/dashboard-client-wrapper';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EventStats } from '@/components/dashboard/dash-event-cards';
 
-// Dit is nu een ASYNCHRONE Server Component!
+// Dit is een ASYNCHRONE Server Component!
 export default async function DashboardInfoPage() {
-  // 1. Haal de gebruiker op de server op. Redirect als hij niet is ingelogd.
+  // 1. Haal de gebruiker op de server op.
   const user = await getCurrentUser();
   if (!user) {
-    // In een echte app zou je hier redirecten, maar voor nu is een error prima.
+    // In een echte app zou je hier redirecten. Voor nu is een error prima.
+    // redirect('/login'); 
     throw new Error('Not authenticated');
   }
 
-  // OPMERKING: We moeten hier nog de logica voor actieve subprofielen implementeren.
-  // Voor nu focussen we op de hoofdgebruiker om de dataflow te fixen.
+  // OPMERKING: Logica voor subprofielen komt later. We focussen op de hoofdgebruiker.
   const userId = user.id;
 
-  // 2. Haal ALLE initiële data parallel op met Promise.all
-  const [initialFollows, initialEvents, initialWishlists] = await Promise.all([
+  // 2. Haal ALLE initiële data parallel op.
+  const [initialFollows, rawEventCounts, initialWishlists] = await Promise.all([
     getFollowCounts(userId),
     getEventCountsForUser(userId),
     getWishlistStatsForUser(userId),
   ]);
+
+  // 3. [DE FIX] Transformeer de ruwe data naar de structuur die de client verwacht.
+  const initialEvents: EventStats = {
+    upcoming: rawEventCounts.upcoming,
+    past: rawEventCounts.past,
+    // Placeholder voor 'ongoing'. Als dit relevant is, kunnen we de query later uitbreiden.
+    onGoing: 0, 
+    // Afgeleide waarde: 'all' is de som van de anderen.
+    all: rawEventCounts.upcoming + rawEventCounts.past,
+  };
 
   return (
     <main className="p-2 sm:p-4">
@@ -34,16 +45,15 @@ export default async function DashboardInfoPage() {
       </h1>
 
       {/* 
-        3. De Client Wrapper ontvangt alle initiële data als props.
-           Hij zorgt voor de weergave en start de realtime listeners.
-           De Suspense is een best practice voor als de data-fetching traag is.
+        4. De Client Wrapper ontvangt nu de correcte 'initialEvents' prop.
+           De Suspense is een 'gold standard' best practice.
       */}
       <Suspense fallback={<DashboardSkeleton />}>
         <DashboardClientWrapper
           userId={userId}
           isProfile={false} // Vereenvoudigd voor nu
           initialFollows={initialFollows}
-          initialEvents={initialEvents}
+          initialEvents={initialEvents} // <-- ✅ Type komt nu overeen!
           initialWishlists={initialWishlists}
         />
       </Suspense>
@@ -51,7 +61,7 @@ export default async function DashboardInfoPage() {
   );
 }
 
-// Een Skeleton loader is een 'gold standard' UX-verbetering.
+// Een Skeleton loader is een uitstekende UX-verbetering. Behoud dit zeker.
 function DashboardSkeleton() {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

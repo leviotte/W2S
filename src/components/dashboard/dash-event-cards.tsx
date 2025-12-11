@@ -1,85 +1,101 @@
-// src/components/dashboard/dash-event-cards.tsx
 "use client";
 
-import { motion } from "framer-motion";
-import { CalendarCheck, Lock, Globe, ListTodo, GalleryHorizontalEnd, PanelTopClose, LucideProps } from "lucide-react";
-import { ForwardRefExoticComponent, RefAttributes, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+    CalendarCheck,
+    GalleryHorizontalEnd,
+    Globe,
+    ListTodo,
+    Lock,
+    PanelTopClose,
+    LucideProps
+} from "lucide-react";
+import { ForwardRefExoticComponent, RefAttributes } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
-// Exporteer dit type zodat de wrapper het kan gebruiken
+// --- DE FIX: Type definitie gesynchroniseerd met de server component ---
+// We exporteren dit zodat DashboardInfoPage en DashboardClientWrapper het kunnen importeren.
 export type EventStats = {
-  onGoing: number;
-  all: number;
-  past: number;
+    upcoming: number;
+    past: number;
+    onGoing: number; // We behouden deze voor toekomstig gebruik
+    all: number;
 };
 
-// We voegen WishlistStats hier ook toe voor consistentie
-import type { WishlistStats } from "@/lib/data/wishlists";
+// We definiëren WishlistStats hier ook voor de duidelijkheid.
+// Dit type moet overeenkomen met wat getWishlistStatsForUser teruggeeft.
+export type WishlistStats = {
+    total: number;
+    public: number;
+    private: number;
+};
 
-interface Props {
-  organizedEvents: EventStats;
-  wishlists: WishlistStats;
+interface DashEventCardsProps {
+    events: EventStats;
+    wishlists: WishlistStats;
 }
 
+// Een interne type voor de kaart-statistieken
 type CardStat = {
-  icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>;
-  label: string;
-  value: number;
-  color: string;
+    icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>;
+    label: string;
+    value: number;
+    color: string;
 };
 
-export default function DashEventCards({ organizedEvents, wishlists }: Props) {
-  const router = useRouter();
+// Een herbruikbare component voor een enkele statistiek-kaart
+function StatCard({ title, href, stats }: { title: string; href: string; stats: CardStat[] }) {
+    return (
+        <Link href={href} legacyBehavior>
+            <a className="block group">
+                <Card className="h-full transition-all duration-300 ease-in-out group-hover:shadow-lg group-hover:shadow-lime-700/40 group-hover:-translate-y-1">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-lg font-semibold text-card-foreground">
+                            {title}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-2">
+                        {stats.map((stat) => (
+                            <div key={stat.label} className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <stat.icon className={cn("h-5 w-5", stat.color)} />
+                                <span className="flex-1">{stat.label}</span>
+                                <span className="text-base font-bold text-card-foreground">{stat.value}</span>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+            </a>
+        </Link>
+    );
+}
 
-  const cards = [
-    {
-      id: 1,
-      label: "Mijn Events",
-      // DE FIX: onClick is een property, geen spread
-      onClick: () => router.push("/dashboard/upcoming"),
-      stats: [
-        { icon: GalleryHorizontalEnd, label: "Totaal", value: organizedEvents.all, color: "text-blue-600 dark:text-blue-400" },
-        { icon: PanelTopClose, label: "Aankomend", value: organizedEvents.onGoing, color: "text-emerald-600 dark:text-emerald-400" },
-        { icon: CalendarCheck, label: "Verleden", value: organizedEvents.past, color: "text-amber-600 dark:text-amber-400" },
-      ] as CardStat[],
-    },
-    {
-      id: 2,
-      label: "Mijn Wishlists",
-      // DE FIX: onClick is een property, geen spread
-      onClick: () => router.push("/dashboard/wishlists"),
-      stats: [
-        { icon: ListTodo, label: "Totaal", value: wishlists?.total || 0, color: "text-blue-600 dark:text-blue-400" },
-        { icon: Globe, label: "Openbaar", value: wishlists?.public || 0, color: "text-green-600 dark:text-green-400" },
-        { icon: Lock, label: "Privé", value: wishlists?.private || 0, color: "text-amber-600 dark:text-amber-400" },
-      ] as CardStat[],
-    },
-  ];
+export default function DashEventCards({ events, wishlists }: DashEventCardsProps) {
+    const eventCardStats: CardStat[] = [
+        { icon: GalleryHorizontalEnd, label: "Totaal", value: events.all, color: "text-blue-500" },
+        // --- DE FIX: Gebruik van `events.upcoming` ---
+        { icon: PanelTopClose, label: "Aankomend", value: events.upcoming, color: "text-emerald-500" },
+        { icon: CalendarCheck, label: "Verleden", value: events.past, color: "text-amber-500" },
+    ];
 
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-2 sm:p-4">
-      {cards.map((card) => (
-        <motion.div
-          key={card.id}
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          // DE FIX: Correcte onClick syntax
-          onClick={card.onClick}
-          className="bg-card dark:bg-green-900/20 cursor-pointer shadow-md rounded-xl p-6 flex flex-col gap-4 transition-shadow duration-300 hover:shadow-lg hover:shadow-lime-700/50"
-        >
-          <h3 className="text-lg font-semibold text-card-foreground dark:text-white mb-1">{card.label}</h3>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-muted-foreground dark:text-gray-300">
-            {card.stats.map((stat) => (
-              <div key={stat.label} className="flex items-center gap-2">
-                <stat.icon className={`h-5 w-5 ${stat.color}`} />
-                <span className="text-sm">{stat.label}</span>
-                <span className="text-lg font-bold text-card-foreground dark:text-white">{stat.value}</span>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      ))}
-    </div>
-  );
+    const wishlistCardStats: CardStat[] = [
+        { icon: ListTodo, label: "Totaal", value: wishlists?.total || 0, color: "text-blue-500" },
+        { icon: Globe, label: "Openbaar", value: wishlists?.public || 0, color: "text-green-500" },
+        { icon: Lock, label: "Privé", value: wishlists?.private || 0, color: "text-red-500" },
+    ];
+
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <StatCard 
+                title="Mijn Events" 
+                href="/dashboard/events/upcoming" // Link naar de specifieke pagina
+                stats={eventCardStats} 
+            />
+            <StatCard 
+                title="Mijn Wishlists" 
+                href="/dashboard/wishlists" 
+                stats={wishlistCardStats} 
+            />
+        </div>
+    );
 }

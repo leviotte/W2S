@@ -1,37 +1,26 @@
+'use client';
+
+import { HashLoader } from 'react-spinners';
+
 /**
- * src/components/layout/auth-spinner.tsx
+ * MENTOR'S OPMERKING: De "Gold Standard" Spinner
  *
- * GOLD STANDARD VERSIE: Gekoppeld aan de Zustand store voor globale loading state.
+ * Dit is nu een puur presentatie-component. Het toont enkel een spinner,
+ * gecentreerd op het scherm. De logica WANNEER deze getoond wordt, zit
+ * volledig in de <AuthProvider>. Deze kijkt naar de 'isInitialized' state.
+ *
+ * Dit houdt onze componenten simpel, gefocust en herbruikbaar. Het heeft
+ * geen 'children' of interne state meer nodig.
  */
-"use client";
-
-import React from "react";
-import { useAuthStore } from "@/lib/store/use-auth-store";
-import { HashLoader } from "react-spinners";
-
-interface AuthSpinnerProps {
-  children: React.ReactNode;
+export function AuthSpinner() {
+  return (
+    <div className="flex h-screen w-full items-center justify-center bg-background">
+      {/* De kleur is prima, maar voor consistentie kan je later een
+          kleur uit je tailwind.config.js gebruiken, bv. `colors.primary`. */}
+      <HashLoader color="#4d7c0f" loading size={50} />
+    </div>
+  );
 }
 
-export function AuthSpinner({ children }: AuthSpinnerProps) {
-  // VERBETERING: Haal de loading state en initialisatie-status rechtstreeks uit de store.
-  // We gebruiken 'isInitialized' om te weten of de eerste authenticatie-check (bv. bij een page refresh) is afgerond.
-  const { loading, isInitialized } = useAuthStore((state) => ({
-    loading: state.loading,
-    isInitialized: state.isInitialized,
-  }));
-
-  // Toon de spinner ALLEEN als we nog aan het laden zijn EN de store nog niet geïnitialiseerd is.
-  // Dit voorkomt dat de spinner onnodig verschijnt bij andere laad-acties (zoals een wachtwoord wijzigen).
-  if (loading && !isInitialized) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        {/* De kleur heb ik overgenomen, maar je kan hier een kleur uit je Tailwind config gebruiken indien gewenst */}
-        <HashLoader color="#4d7c0f" loading size={50} />
-      </div>
-    );
-  }
-
-  // Zodra de state geïnitialiseerd is, tonen we de content.
-  return <>{children}</>;
-}
+// We exporteren het als named export voor consistentie met de rest van de codebase.
+export default AuthSpinner;

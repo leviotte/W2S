@@ -4,7 +4,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useModalStore } from '@/lib/store/use-auth-modal';
+import { useAuthStore } from '@/lib/store/use-auth-store';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 // Jouw formulieren worden hier geïmporteerd
@@ -17,7 +17,7 @@ type AuthView = 'login' | 'register' | 'forgot_password';
 
 export default function AuthModal() {
   // We gebruiken de specifieke Modal-store
-  const { isLoginModalOpen, hideLoginModal, onSuccessCallback } = useModalStore();
+  const { isLoginModalOpen, hideLoginModal, onSuccessCallback } = useAuthStore();
 
   // De 'view' is nu LOKALE state van dit component.
   const [view, setView] = useState<AuthView>('login');

@@ -8,7 +8,7 @@
  * - `shouldShowDate` logica verbeterd om te tonen na een pauze (bv. 30min), niet enkel op een nieuwe dag.
  * - `getUnreadMessageCount` gecorrigeerd om `senderId` te gebruiken i.p.v. het verouderde `userId`.
  */
-import type { ChatMessage } from '@/types';
+import type { ChatMessage } from "@/types/chat";
 
 /**
  * Bepaalt of de datum getoond moet worden boven een bericht.

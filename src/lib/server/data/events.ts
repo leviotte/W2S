@@ -1,18 +1,11 @@
-// src/lib/server/data/events.ts
 import 'server-only';
 import { adminDb } from '@/lib/server/firebase-admin';
-import { eventSchema, type Event } from '@/types/event'; // Importeer schema en type
+import { eventSchema, type Event } from '@/types/event';
 import { unstable_cache as cache } from 'next/cache';
 import admin from 'firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 
-/**
- * Serialiseert een Firestore document met Timestamps naar een object met ISO strings.
- * Dit is essentieel om data door te geven van Server Components (met Date objecten)
- * naar Client Components (die alleen serialiseerbare data zoals strings accepteren).
- * @param doc De Firestore DocumentSnapshot.
- * @returns Een serialiseerbaar object.
- */
+// Deze utility is perfect, die behouden we!
 function serializeDoc(doc: admin.firestore.DocumentSnapshot): Record<string, any> | null {
     const data = doc.data();
     if (!data) return null;
@@ -33,18 +26,12 @@ function serializeDoc(doc: admin.firestore.DocumentSnapshot): Record<string, any
     return { id: doc.id, ...serializedData };
 }
 
-
-/**
- * Haalt een specifiek event op basis van zijn ID uit Firestore.
- * @param eventId Het ID van het event.
- * @returns Een promise die resulteert in het event object of null als het niet gevonden of ongeldig is.
- */
+// Deze functies zijn prima en herbruikbaar, die blijven.
 export async function getEventById(eventId: string): Promise<Event | null> {
   try {
     const eventDoc = await adminDb.collection('events').doc(eventId).get();
     if (!eventDoc.exists) return null;
     
-    // Serialiseer en valideer met Zod voor ultieme typeveiligheid
     const serialized = serializeDoc(eventDoc);
     const parsedEvent = eventSchema.safeParse(serialized);
 
@@ -59,11 +46,6 @@ export async function getEventById(eventId: string): Promise<Event | null> {
   }
 }
 
-/**
- * Haalt alle events op waar een gebruiker aan deelneemt.
- * @param userId De ID van de gebruiker.
- * @returns Een promise die resulteert in een array van gevalideerde events.
- */
 export async function getEventsForUser(userId: string): Promise<Event[]> {
   if (!userId) return [];
   try {
@@ -75,7 +57,6 @@ export async function getEventsForUser(userId: string): Promise<Event[]> {
 
     if (snapshot.empty) return [];
     
-    // Map, serialize, validate, en filter ongeldige events uit.
     return snapshot.docs
       .map(doc => {
           const serialized = serializeDoc(doc);
@@ -94,39 +75,47 @@ export async function getEventsForUser(userId: string): Promise<Event[]> {
   }
 }
 
-/**
- * Haalt event-tellingen (actueel, verleden, totaal) op voor een specifieke gebruiker.
- * @param userId De ID van de gebruiker (organisator).
- * @returns Een object met tellingen voor onGoing, past, en all events.
- */
-export const getEventCountsForUser = cache(
-  async (userId: string) => {
-    try {
-      if (!userId) return { onGoing: 0, past: 0, all: 0 };
-      const eventsRef = adminDb.collection('events');
-      const now = Timestamp.now();
-      
-      const allQuery = eventsRef.where('organizerId', '==', userId);
-      // *** DE FIX ZIT HIER: 'onGoingQuery =' ontbrak ***
-      const onGoingQuery = eventsRef.where('organizerId', '==', userId).where('date', '>=', now);
-      const pastQuery = eventsRef.where('organizerId', '==', userId).where('date', '<', now);
-      
-      const [allSnap, onGoingSnap, pastSnap] = await Promise.all([
-        allQuery.count().get(),
-        onGoingQuery.count().get(),
-        pastQuery.count().get(),
-      ]);
+// [FINALE, GECORRIGEERDE VERSIE]
+// Telt 'upcoming' en 'past' events. Deze wrapper-functie lost het TypeScript-probleem op
+// en zorgt voor correcte, dynamische caching per gebruiker.
+export const getEventCountsForUser = (userId: string) => cache(
+    async () => {
+      if (!userId) {
+        return { upcoming: 0, past: 0 };
+      }
 
-      return {
-        all: allSnap.data().count,
-        onGoing: onGoingSnap.data().count,
-        past: pastSnap.data().count,
-      };
-    } catch (error) {
-      console.error("❌ Error fetching event counts:", error);
-      return { onGoing: 0, past: 0, all: 0 };
+      try {
+        const eventsRef = adminDb.collection('events');
+        const now = Timestamp.now();
+
+        // Query voor komende evenementen (als deelnemer)
+        const upcomingQuery = eventsRef
+          .where(`participants.${userId}.id`, '==', userId)
+          .where('date', '>=', now);
+        
+        // Query voor afgelopen evenementen (als deelnemer)
+        const pastQuery = eventsRef
+          .where(`participants.${userId}.id`, '==', userId)
+          .where('date', '<', now);
+        
+        const [upcomingSnapshot, pastSnapshot] = await Promise.all([
+          upcomingQuery.count().get(),
+          pastQuery.count().get(),
+        ]);
+
+        return {
+          upcoming: upcomingSnapshot.data().count,
+          past: pastSnapshot.data().count,
+        };
+
+      } catch (error) {
+        console.error(`Error fetching event counts for user ${userId}:`, error);
+        return { upcoming: 0, past: 0 };
+      }
+    },
+    ['event-counts-for-user', userId], // Belangrijk: De userId is deel van de cache key!
+    { 
+      tags: [`user-events:${userId}`], // De tag is nu een correcte string array.
+      revalidate: 300 
     }
-  },
-  ['event-counts-for-user'],
-  { revalidate: 3600, tags: ['events-count'] }
-);
+)();

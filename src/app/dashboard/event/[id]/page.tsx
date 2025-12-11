@@ -8,7 +8,7 @@ import { WishlistSchema } from "@/types/wishlist";
 import type { AuthedUser, UserProfile } from "@/types/user"; // Importeer UserProfile ook
 import { SessionUserSchema } from "@/types/user";
 import EventDashboardClient from "./_components/event-dashboard-client";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 async function getEventData(eventId: string): Promise<Event | null> {
   const eventRef = adminDb.collection("events").doc(eventId);

@@ -1,4 +1,3 @@
-// src/app/layout.tsx
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
@@ -13,12 +12,24 @@ import Footer from '@/components/layout/Footer';
 
 const inter = Inter({ subsets: ['latin'] });
 
+// Je metadata blijft perfect zoals het is.
 export const metadata: Metadata = {
   title: 'Wish2Share - Jouw Wensen, Gedeeld',
   description: 'Deel eenvoudig je wenslijsten voor elke gelegenheid.',
-  // ... je metadata blijft hetzelfde ...
+  // Voeg hier eventuele andere metadata toe zoals openGraph, icons, etc.
 };
 
+/*
+ * MENTOR'S OPMERKING: De structuur van deze RootLayout is de "gold standard".
+ *
+ * 1. ThemeProvider (buitenste): Omvat alles om themawissels correct te beheren.
+ * 2. AuthProvider (binnenste): Omvat alle visuele componenten. Hij luistert naar de Firebase-auth
+ *    en houdt onze Zustand-store up-to-date. Hij heeft geen props nodig.
+ * 3. Sticky Footer Div: Je `flex min-h-screen flex-col` is de correcte manier om te zorgen
+ *    dat je footer altijd onderaan staat, zelfs op korte pagina's.
+ * 4. Globale Componenten (`Toaster`, `AuthModal`): Deze staan op het root-niveau binnen de providers
+ *    zodat ze overal in de app aangeroepen kunnen worden. Perfect.
+*/
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -33,8 +44,6 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {/* AuthProvider is de nieuwe wrapper voor alles. 
-              Hij regelt zelf de state, geen props nodig! */}
           <AuthProvider>
             <div className="relative flex min-h-screen flex-col bg-background">
               <SiteHeader />

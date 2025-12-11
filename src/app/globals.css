@@ -307,3 +307,12 @@
     @apply bg-background text-foreground;
   }
 }
+/* Hide scrollbar maar behoud scroll functionaliteit */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

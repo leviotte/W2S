@@ -1,4 +1,3 @@
-// src/lib/server/data/users.ts
 import 'server-only';
 import { adminDb } from '@/lib/server/firebase-admin';
 import { UserProfileSchema, type UserProfile } from '@/types/user';
@@ -118,3 +117,61 @@ export async function getProfileManagers(managerIds: string[]): Promise<UserProf
     return [];
   }
 }
+
+/**
+ * Haalt alle user profielen op uit Firestore. Gecached.
+ * GEBRUIK VOORZICHTIG: Kan performance-intensief zijn bij veel gebruikers.
+ * Ideaal voor admin-dashboards.
+ */
+export const getUsers = cache(
+    async (): Promise<UserProfile[]> => {
+        try {
+            const snapshot = await adminDb.collection('users').get();
+            if (snapshot.empty) return [];
+
+            // Hergebruik onze bestaande, gevalideerde processor voor elke gebruiker!
+            return snapshot.docs
+                .map(doc => processAndValidateDoc(doc, 'getUsers'))
+                .filter((p): p is UserProfile => p !== null); // Filter eventuele validatie-fouten eruit
+        } catch (error) {
+            console.error("Error fetching all users:", error);
+            return [];
+        }
+    },
+    ['all-users'], // Een unieke cache-sleutel
+    { tags: ['users'], revalidate: 600 } // Cache voor 10 minuten, perfect voor een admin-dashboard
+);
+/**
+ * Haalt het aantal volgers en volgend op voor een gebruiker. Gecached.
+ * Deze functie gaat ervan uit dat 'followers' en 'following' arrays van ID's zijn in het user document.
+ */
+export const getFollowCounts = cache(
+    async (userId: string): Promise<{ followers: number; following: number }> => {
+        if (!userId) {
+            return { followers: 0, following: 0 };
+        }
+        try {
+            const userDoc = await adminDb.collection('users').doc(userId).get();
+            if (!userDoc.exists) {
+                return { followers: 0, following: 0 };
+            }
+            
+            const userData = userDoc.data();
+            const followersCount = Array.isArray(userData?.followers) ? userData.followers.length : 0;
+            const followingCount = Array.isArray(userData?.following) ? userData.following.length : 0;
+
+            return { followers: followersCount, following: followingCount };
+
+        } catch (error) {
+            console.error(`Error fetching follow counts for user ${userId}:`, error);
+            return { followers: 0, following: 0 };
+        }
+    },
+    ['follow-counts'],
+    // DE FIX: De `tags` functie is correct gedefinieerd om de userId te ontvangen.
+    // De vorige syntax was de oorzaak van de typefout.
+    { 
+        tags: ['users-follow-counts'], // Generieke tag
+        revalidate: 300 
+    }
+);
