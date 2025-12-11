@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getCachedBlogPost, getCachedBlogPosts } from '@/lib/server/data/blog';
-import { getCurrentUser } from '@/lib/auth/session';
+import { getCurrentUser } from '@/lib/auth/actions';
 import { incrementPostViews } from '@/lib/server/actions/blog';
 import { PostContent } from './_components/post-content';
 

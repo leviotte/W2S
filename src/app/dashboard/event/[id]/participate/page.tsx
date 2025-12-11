@@ -13,7 +13,7 @@ import Image from "next/image";
 
 import { useAuthStore } from "@/lib/store/use-auth-store";
 import { eventSchema, type Event, type EventParticipant } from "@/types/event";
-import type { UserProfile, SubProfile } from "@/types/user"; // Nu correct geïmporteerd
+import type { UserProfile, SubProfile } from "@/types/user";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +45,7 @@ export default function EventParticipationPage() {
       setLoading(true);
       if (!currentUser) {
         toast.info("Je moet ingelogd zijn om deel te nemen.");
-        openModal("login"); // Deze functie bestaat nu
+        openModal("login");
         setLoading(false);
         return;
       }
@@ -115,7 +115,8 @@ export default function EventParticipationPage() {
         lastName: profileToRegister.lastName,
         email: 'email' in profileToRegister ? profileToRegister.email : currentUser.email,
         confirmed: true,
-        wishlistId: undefined, // Nog geen wishlist gekoppeld bij deelname
+        wishlistId: undefined,
+        photoURL: profileToRegister.photoURL || null,
       };
 
       await updateDoc(eventRef, {
@@ -135,15 +136,35 @@ export default function EventParticipationPage() {
   };
 
   if (loading) {
-    return <LoadingSpinner text="Evenement wordt geladen..." />;
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <LoadingSpinner text="Evenement wordt geladen..." size="lg" />
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="text-center text-red-500">{error}</div>;
+    return (
+      <div className="container mx-auto max-w-2xl py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-destructive">Fout</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-center text-muted-foreground">{error}</p>
+          </CardContent>
+          <CardFooter>
+            <Button onClick={() => router.push('/dashboard')} variant="outline" className="w-full">
+              Terug naar Dashboard
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
   }
 
   if (!event) {
-    return null; // Of een andere fallback UI
+    return null;
   }
 
   return (
@@ -152,21 +173,30 @@ export default function EventParticipationPage() {
         <CardHeader>
           <CardTitle className="text-2xl">Deelnemen aan: {event.name}</CardTitle>
           <CardDescription>
-            Georganiseerd door {event.organizerName} op {format(event.date.toDate(), "d MMMM yyyy", { locale: nlBE })}
+            Georganiseerd door {event.organizerName} op {format(event.date, "d MMMM yyyy", { locale: nlBE })}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {event.imageUrl && (
             <div className="relative h-48 w-full overflow-hidden rounded-md">
-              <Image src={event.imageUrl} alt={event.name} layout="fill" objectFit="cover" />
+              <Image 
+                src={event.imageUrl} 
+                alt={event.name} 
+                fill
+                className="object-cover"
+              />
             </div>
           )}
-          <p>{event.description}</p>
+          {event.description && <p>{event.description}</p>}
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
           {!showProfileSelect ? (
-            <Button onClick={() => setShowProfileSelect(true)} disabled={isJoining} className="w-full">
-              {isJoining ? <LoadingSpinner size={20} /> : "Nu Deelnemen"}
+            <Button 
+              onClick={() => setShowProfileSelect(true)} 
+              disabled={isJoining} 
+              className="w-full"
+            >
+              Nu Deelnemen
             </Button>
           ) : (
             <div className="w-full space-y-4">

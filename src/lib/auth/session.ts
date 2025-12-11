@@ -1,31 +1,35 @@
-'use server';
+// src/lib/auth/session.ts
+import type { SessionOptions } from 'iron-session';
+import type { SessionUser } from '@/types/user';
 
-import 'server-only';
-import type { SessionOptions } from 'iron-session'; 
-import type { UserProfile } from '@/types/user';
-
-// Dit is nu de ENIGE bron van waarheid voor de structuur van onze sessie.
-declare module 'iron-session' {
-  interface IronSessionData {
-    user?: {
-      id: string; // Firebase UID
-      isLoggedIn: true;
-    } & UserProfile; // Voegt alle velden van UserProfile toe
-  }
+/**
+ * Iron Session configuratie
+ * BEST PRACTICE: Session data wordt encrypted opgeslagen in cookie
+ */
+export interface SessionData {
+  user?: SessionUser;
 }
 
-// *** DE DEFINITIEVE FIX ***
-// Correcte naam 'SessionOptions' en het '=' teken.
+/**
+ * Session opties voor iron-session
+ */
 export const sessionOptions: SessionOptions = {
-  password: process.env.SECRET_COOKIE_PASSWORD as string,
-  cookieName: 'wish2share-session',
+  password: process.env.SESSION_SECRET!,
+  cookieName: 'wish2share_session',
   cookieOptions: {
     secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
     sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 7, // 7 dagen
+    path: '/',
   },
 };
 
-// Een robuuste check om opstartfouten te voorkomen.
-if (!sessionOptions.password) {
-  throw new Error('SECRET_COOKIE_PASSWORD environment variable is not set. Please add it to your .env.local file.');
+// Type guard check voor runtime
+if (!process.env.SESSION_SECRET) {
+  throw new Error('SESSION_SECRET environment variable is not set');
+}
+
+if (process.env.SESSION_SECRET.length < 32) {
+  throw new Error('SESSION_SECRET must be at least 32 characters long');
 }
