@@ -25,12 +25,15 @@ export default function MessageList({
     <div className="px-4 py-2 space-y-2">
       {messages.map((message, index) => {
         const showDate = shouldShowDate(messages, index);
-        // ✅ FIXED: Use senderId with fallback to userId
         const senderId = message.senderId || message.userId;
         const senderName = message.senderName || message.userName;
         const isOwnMessage = senderId === currentUserId;
 
-        // ✅ FIXED: Transform message to match ChatMessage component props
+        // ✅ FIXED: Convert timestamp string to Date
+        const timestamp = typeof message.timestamp === 'string' 
+          ? new Date(message.timestamp)
+          : message.timestamp;
+
         const transformedMessage = {
           id: message.id,
           text: message.text,
@@ -38,7 +41,7 @@ export default function MessageList({
           senderId: senderId,
           senderName: senderName,
           senderPhotoURL: message.senderAvatar,
-          timestamp: message.timestamp,
+          timestamp: timestamp, // ✅ Now a Date object
           isGif: !!message.gifUrl,
         };
 

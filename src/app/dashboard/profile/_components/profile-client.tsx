@@ -4,17 +4,26 @@ import { useState } from 'react';
 import { UserProfile } from '@/types/user';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PersonalInfoForm } from './personal-info-form';
-import { AddressForm } from './address-form';
-import { PhotoForm } from './photo-form';
-import { PublicStatusForm } from './public-status-form';
-import { ShareProfileForm } from './share-profile-form';
+import PersonalInfoForm from './personal-info-form';
+import AddressForm from './address-form';
+import PhotoForm from './photo-form';
+import PublicStatusForm from './public-status-form';
+import ShareProfileForm from './share-profile-form';
+
+interface ProfileManager {
+  userId: string;
+  email: string;
+  displayName?: string;
+  grantedAt: Date;
+  grantedBy: string;
+}
 
 interface ProfileClientProps {
   profile: UserProfile & { id: string };
+  managers: ProfileManager[];
 }
 
-export function ProfileClient({ profile }: ProfileClientProps) {
+export function ProfileClient({ profile, managers }: ProfileClientProps) {
   const [activeTab, setActiveTab] = useState('personal');
 
   return (
@@ -75,14 +84,7 @@ export function ProfileClient({ profile }: ProfileClientProps) {
         </TabsContent>
 
         <TabsContent value="sharing">
-          <Card>
-            <CardHeader>
-              <CardTitle>Profiel Delen</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ShareProfileForm profile={profile} />
-            </CardContent>
-          </Card>
+          <ShareProfileForm profile={profile} managers={managers} />
         </TabsContent>
       </Tabs>
     </div>

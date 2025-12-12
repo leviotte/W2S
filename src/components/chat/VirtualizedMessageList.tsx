@@ -81,7 +81,11 @@ export function VirtualizedMessageList({
         const senderName = message.senderName || message.userName;
         const isOwnMessage = senderId === currentUserId;
 
-        // ✅ FIXED: Transform message to match ChatMessage component props
+        // ✅ FIXED: Convert timestamp string to Date
+        const timestamp = typeof message.timestamp === 'string' 
+          ? new Date(message.timestamp)
+          : message.timestamp;
+
         const transformedMessage = {
           id: message.id,
           text: message.text,
@@ -89,7 +93,7 @@ export function VirtualizedMessageList({
           senderId: senderId,
           senderName: senderName,
           senderPhotoURL: message.senderAvatar,
-          timestamp: message.timestamp,
+          timestamp: timestamp, // ✅ Now a Date object
           isGif: !!message.gifUrl,
         };
 

@@ -1,20 +1,27 @@
 import { redirect } from 'next/navigation';
-import { getCurrentUser } from '@/lib/auth/actions';
-import { getUserProfileAction } from '@/lib/server/actions/user-actions';
-import { ProfileClient } from './_components/profile-client'; // ✅ FIXED: Kleine letters
+import { getServerSession } from '@/lib/auth/get-server-session';
+import { getUserProfile, getProfileManagers } from '@/lib/firebase/server/profiles';
+import { ProfileClient } from './_components/profile-client';
+
+export const metadata = {
+  title: 'Profiel | Wish2Share',
+  description: 'Beheer je profiel instellingen',
+};
 
 export default async function ProfilePage() {
-  const currentUser = await getCurrentUser();
+  const session = await getServerSession();
 
-  if (!currentUser) {
-    redirect('/?modal=login&callbackUrl=/dashboard/profile');
+  if (!session.user) {
+    redirect('/auth/login?redirect=/dashboard/profile');
   }
 
-  const fullProfile = await getUserProfileAction(currentUser.id);
+  const profile = await getUserProfile(session.user.uid);
 
-  if (!fullProfile) {
-    redirect('/');
+  if (!profile) {
+    redirect('/dashboard/profile/create');
   }
 
-  return <ProfileClient profile={fullProfile} />;
+  const managers = await getProfileManagers(session.user.uid);
+
+  return <ProfileClient profile={profile} managers={managers} />;
 }
