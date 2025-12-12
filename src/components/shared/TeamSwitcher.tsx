@@ -1,3 +1,4 @@
+// src/components/shared/TeamSwitcher.tsx
 'use client';
 
 import * as React from 'react';
@@ -5,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronsUpDown, LogOut, PlusCircle, Settings, User as UserIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useTransition } from 'react';
+import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -19,11 +21,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { UserAvatar } from './user-avatar';
 import type { UserProfile, SubProfile } from '@/types/user';
-import { destroySession } from '@/lib/auth/actions';
+import { logoutAction } from '@/lib/server/actions/auth'
 
 type TeamSwitcherProps = {
   user: UserProfile & { id: string };
-  profiles: (SubProfile & { id: string })[]; // ✅ FIXED: Accept SubProfile[]
+  profiles: (SubProfile & { id: string })[];
   className?: string;
 };
 
@@ -34,13 +36,21 @@ export default function TeamSwitcher({ user, profiles, className }: TeamSwitcher
   const [activeProfileId, setActiveProfileId] = React.useState(user.id);
   const [showMenu, setShowMenu] = React.useState(false);
 
-  // ✅ FIXED: Combine user + subProfiles
+  // ✅ Combine user + subProfiles
   const allProfiles = [user, ...profiles];
   const selectedProfile = allProfiles.find(p => p.id === activeProfileId) ?? user;
 
   const handleLogout = () => {
-    startTransition(() => {
-      destroySession();
+    startTransition(async () => {
+      const result = await logoutAction();
+      
+      if (result.success) {
+        toast.success('Succesvol uitgelogd');
+        router.push('/');
+        router.refresh();
+      } else {
+        toast.error(result.error || 'Uitloggen mislukt');
+      }
     });
   };
 
@@ -100,8 +110,18 @@ export default function TeamSwitcher({ user, profiles, className }: TeamSwitcher
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <Link href="/dashboard" passHref><DropdownMenuItem><UserIcon className="mr-2 h-4 w-4" /><span>Dashboard</span></DropdownMenuItem></Link>
-            <Link href="/dashboard/settings" passHref><DropdownMenuItem><Settings className="mr-2 h-4 w-4" /><span>Instellingen</span></DropdownMenuItem></Link>
+            <Link href="/dashboard" passHref>
+              <DropdownMenuItem>
+                <UserIcon className="mr-2 h-4 w-4" />
+                <span>Dashboard</span>
+              </DropdownMenuItem>
+            </Link>
+            <Link href="/dashboard/settings" passHref>
+              <DropdownMenuItem>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Instellingen</span>
+              </DropdownMenuItem>
+            </Link>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout} disabled={isPending}>

@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { getClientAuth } from '@/lib/client/firebase';
-import { completeRegistrationAction } from '@/lib/auth/actions';
+import { completeRegistrationAction } from '@/lib/server/actions/auth';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';

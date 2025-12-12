@@ -1,30 +1,35 @@
 // src/app/dashboard/event/[id]/invites/page.tsx
 import 'server-only';
-import { notFound, useSearchParams } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/actions';
 import { getEventById } from '@/lib/server/data/events';
 import EventInvitesClient from './_components/invites-client';
 
-interface InvitesPageProps {
-  params: { id: string };
-  searchParams: { [key: string]: string | string[] | undefined };
+interface PageProps {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>; // ✅ Server Component manier
 }
 
-export default async function EventInvitesPage({ params, searchParams }: InvitesPageProps) {
+export default async function EventInvitesPage({ params, searchParams }: PageProps) {
   const user = await getCurrentUser();
-  // Deze check gebeurt nu veilig op de server.
   if (!user) {
-    return notFound();
+    notFound();
   }
 
-  const event = await getEventById(params.id);
-  // Ook deze check is nu server-side.
-  if (!event || event.organizerId !== user.id) {
-    return notFound();
-  }
-  
-  const type = typeof searchParams.type === 'string' ? searchParams.type : 'invitation';
+  const { id } = await params;
+  const search = await searchParams;
 
-  // We geven de benodigde data als prop door aan de client component.
-  return <EventInvitesClient event={event} user={user} type={type} />;
+  const event = await getEventById(id);
+
+  if (!event) {
+    notFound();
+  }
+
+  // Check if user is organizer
+  if (event.organizerId !== user.id) {
+    notFound();
+  }
+
+  // ✅ Pass searchParams to client component if needed
+  return <EventInvitesClient event={event} searchParams={search} />;
 }

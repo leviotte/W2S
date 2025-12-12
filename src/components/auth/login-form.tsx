@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { getClientAuth } from '@/lib/client/firebase';
-import { completeLoginAction } from '@/lib/auth/actions';
+import { completeLoginAction } from '@/lib/server/actions/auth';
 
 const loginFormSchema = z.object({
   email: z.string().email('Ongeldig e-mailadres.'),
