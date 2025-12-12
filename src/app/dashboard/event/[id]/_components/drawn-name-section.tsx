@@ -20,8 +20,8 @@ interface DrawnNameSectionProps {
   drawnName?: string;
   drawnParticipantId?: string;
   participants: EventParticipant[];
-  participantsToDraw: EventParticipant[]; // FIX: Naam gecorrigeerd
-  onDraw: (name: string) => void;         // FIX: Naam gecorrigeerd
+  participantsToDraw: EventParticipant[];
+  onDraw: (name: string) => void;
 }
 
 export default function DrawnNameSection({
@@ -29,8 +29,8 @@ export default function DrawnNameSection({
   drawnName,
   drawnParticipantId,
   participants,
-  onDraw, // FIX: Naam gecorrigeerd
-  participantsToDraw, // FIX: Naam gecorrigeerd
+  onDraw,
+  participantsToDraw,
 }: DrawnNameSectionProps) {
   const router = useRouter();
   const [wishlist, setWishlist] = useState<Wishlist | null>(null);
@@ -61,7 +61,6 @@ export default function DrawnNameSection({
   const handleWishlistAction = useCallback(() => {
     if (!drawnParticipant) return;
     if (drawnParticipant.wishlistId && wishlist) {
-      // Aanname: de slug is onderdeel van het wishlist object
       router.push(`/dashboard/wishlist/${wishlist.slug || wishlist.id}`);
     } else {
       toast.info(`${drawnParticipant.firstName} heeft nog geen wenslijst gedeeld.`);
@@ -69,24 +68,22 @@ export default function DrawnNameSection({
   }, [wishlist, router, drawnParticipant]);
 
   const handleDraw = (name: string) => {
-    onDraw(name); // Gebruik de correcte prop
+    onDraw(name);
     setShowDrawingModal(false);
   };
 
-  // Logica om te bepalen of er getrokken mag worden
   const allowToDraw = event.allowDrawingNames && !drawnName;
 
   return (
     <>
+      {/* ✅ FIX: isOpen + onOpenChange props */}
       {showDrawingModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-          <NameDrawingAnimation
-            isOpen={showDrawingModal}
-            onClose={() => setShowDrawingModal(false)} // FIX: Correcte prop naam
-            names={participantsToDraw.map((p) => `${p.firstName} ${p.lastName}`)}
-            onDraw={handleDraw} // FIX: Correcte prop naam
-          />
-        </div>
+        <NameDrawingAnimation
+          isOpen={showDrawingModal}
+          onOpenChange={setShowDrawingModal}
+          names={participantsToDraw.map((p) => `${p.firstName} ${p.lastName}`)}
+          onDraw={handleDraw}
+        />
       )}
 
       <Card>

@@ -195,6 +195,7 @@ export function CreatePostForm() {
 
       if (result.success) {
         toast.success('Post succesvol aangemaakt! 🎉');
+      if (result.data?.id)
         router.push(`/post/${result.data.id}`);
       } else {
         toast.error(result.error);

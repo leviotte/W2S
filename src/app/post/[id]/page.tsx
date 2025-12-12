@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: post.headDescription,
       images: [{ url: post.headImage }],
       type: 'article',
-      publishedTime: post.createdAt.toISOString(),
+      publishedTime: post.createdAt.toString(),
       authors: [post.author?.name || 'Wish2Share'],
     },
     twitter: {
@@ -92,8 +92,8 @@ export default async function PostPage({ params }: Props) {
             '@type': 'BlogPosting',
             headline: post.headTitle,
             image: post.headImage,
-            datePublished: post.createdAt.toISOString(),
-            dateModified: post.updatedAt?.toISOString() || post.createdAt.toISOString(),
+            datePublished: post.createdAt.toString(),
+            dateModified: post.updatedAt?.toString() || post.createdAt.toString(),
             author: {
               '@type': 'Person',
               name: post.author?.name || 'Wish2Share',

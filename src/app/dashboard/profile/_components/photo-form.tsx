@@ -1,3 +1,4 @@
+// src/app/dashboard/profile/_components/photo-form.tsx
 'use client';
 
 import { useState, useRef, useTransition, FormEvent } from 'react';

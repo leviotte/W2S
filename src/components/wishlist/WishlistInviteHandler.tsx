@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { UserPlus } from "lucide-react";
-import ShareWishlistModal from "./SearchWishlistModal";
+import ShareWishlistModal from "./ShareWishlistModal";
 
 interface WishlistInviteHandlerProps {
   recipientFirstName?: string;
@@ -28,7 +28,7 @@ export default function WishlistInviteHandler({
       <UserPlus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
 
       <p className="text-gray-600 mb-4">
-        Couldn't find who you’re looking for? Invite them using the button below.
+        Couldn't find who you're looking for? Invite them using the button below.
       </p>
 
       <button
@@ -39,6 +39,7 @@ export default function WishlistInviteHandler({
         Invite Person
       </button>
 
+      {/* ✅ FIX: isOpen prop */}
       {showShareModal && (
         <ShareWishlistModal
           isOpen={showShareModal}

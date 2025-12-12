@@ -98,8 +98,8 @@ export default function EventInviteModal({
   const handleCopyLink = useCallback(() => {
     navigator.clipboard.writeText(messageBody);
     toast.success("Message copied to clipboard", {
-      onClose: () => {
-        toast.info("You can now send the link", { autoClose: 3000 });
+      onDismiss: () => {
+        toast.info("You can now send the link", { duration: 3000 });
       },
     });
     onClose();

@@ -8,6 +8,7 @@ import { ArrowLeft, Eye, Calendar, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { BlogPost } from '@/types/blog';
 import type { UserProfile } from '@/types/user';
+import { toDate } from '@/types/blog';
 
 type Props = {
   post: BlogPost;
@@ -28,7 +29,7 @@ export function PostContent({ post, isAdmin, currentUser }: Props) {
     }
   };
 
-  const formattedDate = format(post.createdAt, 'd MMMM yyyy', { locale: nl });
+  const formattedDate = format(toDate(post.createdAt), 'd MMMM yyyy', { locale: nl });
 
   return (
     <article className="min-h-screen bg-white">
@@ -53,7 +54,7 @@ export function PostContent({ post, isAdmin, currentUser }: Props) {
           <div className="flex flex-wrap items-center gap-4 text-gray-600 text-sm">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              <time dateTime={post.createdAt.toISOString()}>
+              <time dateTime={toDate(post.createdAt).toISOString()}>
                 {formattedDate}
               </time>
             </div>

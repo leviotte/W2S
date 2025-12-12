@@ -1,120 +1,79 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { db } from "@/lib/client/firebase";
-import { getDocs, collection, getDoc, doc } from "firebase/firestore";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { useAuthStore } from "@/lib/store/use-auth-store";
+import { notFound } from 'next/navigation';
+import { getCurrentUser } from '@/lib/auth/actions';
+import { getFollowersAction, getFollowingAction } from '@/lib/server/actions/follow-actions';
+import { UserAvatar } from '@/components/shared/user-avatar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import Link from 'next/link';
 
 interface Props {
   params: { profileId: string };
+  searchParams: { subTab?: string };
 }
 
-export default function FollowersFollowingList({ params }: Props) {
+export default async function FollowersFollowingPage({ params, searchParams }: Props) {
   const { profileId } = params;
-  const searchParams = useSearchParams();
-  const subTab = searchParams.get("subTab");
-  const isFollowers = subTab === "followers";
-  const router = useRouter();
+  const isFollowers = searchParams.subTab === 'followers';
 
-  const { currentUser } = useAuthStore();
-  const activeProfileId = localStorage.getItem("activeProfile");
-  const currentUserId =
-    activeProfileId !== "main-account" ? activeProfileId : currentUser?.id;
+  const currentUser = await getCurrentUser();
+  if (!currentUser) notFound();
 
-  const [list, setList] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        if (!currentUserId) return;
-
-        const isProfile = activeProfileId !== "main-account";
-        const collectionPath = `${
-          isProfile ? "profiles" : "users"
-        }/${currentUserId}/${isFollowers ? "followers" : "following"}`;
-
-        const snapshot = await getDocs(collection(db, collectionPath));
-
-        const data = await Promise.all(
-          snapshot.docs.map(async (snapshotDoc) => {
-            const { type: entityType } = snapshotDoc.data();
-            const entityDocRef = doc(db, entityType, snapshotDoc.id);
-            const entityDoc = await getDoc(entityDocRef);
-            if (entityDoc.exists()) {
-              return {
-                id: snapshotDoc.id,
-                type: entityType,
-                ...entityDoc.data(),
-              };
-            }
-            return null;
-          })
-        );
-
-        setList(data.filter((item) => !!item));
-      } catch (error) {
-        console.error("Fout bij ophalen volgers/volgend gegevens:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [currentUserId, activeProfileId, isFollowers]);
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <LoadingSpinner />
-      </div>
-    );
+  // Check if user has access to this profile
+  const isOwnProfile = currentUser.id === profileId;
+  if (!isOwnProfile) {
+    // TODO: Check if currentUser is a manager of this profile
+    notFound();
   }
 
+  const result = isFollowers 
+    ? await getFollowersAction(profileId)
+    : await getFollowingAction(profileId);
+
+  if (!result.success) {
+    return <div>Error: {result.error}</div>;
+  }
+
+  const list = result.data;
+
   return (
-    <div className="max-w-xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-green-900 mb-6">
-        {isFollowers ? "Followers" : "Following"}
-      </h1>
-      <div className="space-y-4">
-        {list.map((item) => (
-          <div
-            key={item.id}
-            onClick={() =>
-              router.push(
-                `/dashboard/profiles/${
-                  item.type === "users" ? "account" : "profile"
-                }/${item.id}?tab=users&subTab=profile`
-              )
-            }
-            className="flex items-center cursor-pointer gap-4 p-4 bg-white rounded-lg shadow hover:shadow-md transition hover:bg-gray-50"
-          >
-            <img
-              src={
-                item.type === "users"
-                  ? item.photoURL || "/default-avatar.png"
-                  : item.avatarURL || "/default-avatar.png"
-              }
-              alt={`${item.firstName || item.name}'s avatar`}
-              className="w-12 h-12 rounded-full"
-            />
-            <div className="flex-1">
-              <h3 className="text-lg font-medium">
-                {item.firstName || item.name}
-              </h3>
-              <p className="text-gray-500 text-sm">{item?.address?.city}</p>
+    <div className="container max-w-2xl mx-auto p-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            {isFollowers ? 'Volgers' : 'Volgend'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {list.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              Geen {isFollowers ? 'volgers' : 'volgend'} gevonden.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {list.map((item) => (
+                <Link
+                  key={item.id}
+                  href={`/profile/${item.username || item.id}`}
+                  className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted transition-colors"
+                >
+                  <UserAvatar
+                    src={item.photoURL}
+                    name={item.displayName}
+                    className="h-12 w-12"
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium">{item.displayName}</p>
+                    {item.address?.city && (
+                      <p className="text-sm text-muted-foreground">
+                        {item.address.city}
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              ))}
             </div>
-          </div>
-        ))}
-        {list.length === 0 && (
-          <p className="text-center text-gray-500">
-            Niet {isFollowers ? "followers" : "following"} gevonden.
-          </p>
-        )}
-      </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

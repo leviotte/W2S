@@ -22,6 +22,7 @@ import {
 import { Button } from '@/components/ui/button';
 import type { BlogPost } from '@/types/blog';
 import { deletePostAction } from '@/lib/server/actions/blog';
+import { toDate } from '@/types/blog';
 
 type Props = {
   post: BlogPost;
@@ -49,7 +50,7 @@ export function BlogPostCard({ post, isAdmin }: Props) {
     });
   };
 
-  const formattedDate = format(post.createdAt, 'd MMMM yyyy', { locale: nl });
+  const formattedDate = format(toDate(post.createdAt), 'd MMMM yyyy', { locale: nl });
 
   return (
     <article className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 flex flex-col h-full">

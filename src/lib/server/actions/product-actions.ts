@@ -37,7 +37,7 @@ export async function searchAffiliateProducts(
   
   const validation = SearchSchema.safeParse({ keyword, page });
   if (!validation.success) {
-    return { products: [], hasMore: false, error: validation.error.errors[0].message };
+    return { products: [], hasMore: false, error: validation.error.issues[0].message };
   }
 
   console.log(`Server Action: Searching for '${keyword}' on page ${page}...`);

@@ -6,7 +6,7 @@ import { setupRealtimeListener } from "@/lib/utils/followActions";
 import { getOrganizedEventCount } from "@/lib/utils/eventUpdates";
 import DashEventCards, { type EventStats } from "@/components/dashboard/dash-event-cards";
 import FollowersFollowingCards, { type FollowStats } from "@/components/followers/followers-following-cards";
-import type { WishlistStats } from "@/lib/data/wishlists";
+import type { WishlistStats } from "@/components/dashboard/dash-event-cards";
 
 interface DashboardClientWrapperProps {
   userId: string;

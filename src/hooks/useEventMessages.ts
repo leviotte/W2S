@@ -15,7 +15,8 @@ export function useEventMessages(initialMessages: ChatMessage[] = []) {
         userName: userName,
         timestamp: new Date().toISOString(),
         isAnonymous: anonymousMode,
-        edited: false, // ✅ TOEGEVOEGD
+        edited: false,
+        read: false,
         gifUrl: gifUrl,
       };
 

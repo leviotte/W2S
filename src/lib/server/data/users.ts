@@ -1,7 +1,7 @@
 'use server';
 
 import 'server-only';
-import { unstable_cache, revalidateTag } from 'next/cache';
+import { unstable_cache, revalidatePath } from 'next/cache';
 import { adminDb } from '@/lib/server/firebase-admin';
 import type { UserProfile, SubProfile } from '@/types/user';
 import { userProfileSchema, subProfileSchema } from '@/types/user';
@@ -10,10 +10,6 @@ import { userProfileSchema, subProfileSchema } from '@/types/user';
 // GET USER PROFILE BY ID
 // ============================================================================
 
-/**
- * ✅ FIXED: Haal een user profile op via user ID
- * Cached met unstable_cache
- */
 export async function getUserProfileById(userId: string): Promise<(UserProfile & { id: string }) | null> {
   return unstable_cache(
     async () => {
@@ -26,7 +22,6 @@ export async function getUserProfileById(userId: string): Promise<(UserProfile &
 
         const userData = userDoc.data();
 
-        // Valideer tegen schema
         const validation = userProfileSchema.safeParse({
           ...userData,
           id: userId,
@@ -43,10 +38,10 @@ export async function getUserProfileById(userId: string): Promise<(UserProfile &
         return null;
       }
     },
-    [`user-profile-${userId}`], // ✅ Cache key
+    [`user-profile-${userId}`],
     {
-      tags: ['users', `user-${userId}`], // ✅ DIRECT ARRAY (geen functie!)
-      revalidate: 3600, // 1 uur
+      tags: ['users', `user-${userId}`],
+      revalidate: 3600,
     }
   )();
 }
@@ -100,9 +95,6 @@ export async function getUserProfileByUsername(username: string): Promise<(UserP
 // GET MANAGED PROFILES
 // ============================================================================
 
-/**
- * ✅ FIXED: Haal alle sub-profielen op die beheerd worden door een manager
- */
 export async function getManagedProfiles(managerId: string): Promise<(SubProfile & { id: string })[]> {
   return unstable_cache(
     async () => {
@@ -139,20 +131,17 @@ export async function getManagedProfiles(managerId: string): Promise<(SubProfile
     },
     [`managed-profiles-${managerId}`],
     {
-      tags: ['users', 'profiles', `user-${managerId}-profiles`], // ✅ DIRECT ARRAY
+      tags: ['users', 'profiles', `user-${managerId}-profiles`],
       revalidate: 3600,
     }
   )();
 }
 
 // ============================================================================
-// GET PROFILE MANAGERS
+// GET PROFILE MANAGERS (✅ UPDATED)
 // ============================================================================
 
-/**
- * Haal de managers op van een lijst van manager IDs
- */
-export async function getProfileManagers(managerIds: string[]): Promise<(UserProfile & { id: string })[]> {
+export async function getProfileManagers(managerIds?: string[]): Promise<(UserProfile & { id: string })[]> {
   if (!managerIds || managerIds.length === 0) return [];
 
   try {
@@ -168,12 +157,28 @@ export async function getProfileManagers(managerIds: string[]): Promise<(UserPro
 }
 
 // ============================================================================
+// GET USER PROFILES BY IDS (✅ NIEUWE HELPER)
+// ============================================================================
+
+export async function getUserProfilesAction(userIds: string[]): Promise<(UserProfile & { id: string })[]> {
+  if (!userIds || userIds.length === 0) return [];
+
+  try {
+    const profiles = await Promise.all(
+      userIds.map((id) => getUserProfileById(id))
+    );
+
+    return profiles.filter((profile): profile is UserProfile & { id: string } => profile !== null);
+  } catch (error) {
+    console.error('Error fetching user profiles:', error);
+    return [];
+  }
+}
+
+// ============================================================================
 // GET FOLLOW DATA
 // ============================================================================
 
-/**
- * ✅ FIXED: Haal follow data op (followers/following counts)
- */
 export async function getFollowData(userId: string): Promise<{
   followersCount: number;
   followingCount: number;
@@ -200,21 +205,23 @@ export async function getFollowData(userId: string): Promise<{
     },
     [`follow-data-${userId}`],
     {
-      tags: ['users', `user-${userId}-follows`], // ✅ DIRECT ARRAY
-      revalidate: 300, // 5 minuten
+      tags: ['users', `user-${userId}-follows`],
+      revalidate: 300,
     }
   )();
 }
 
 // ============================================================================
-// REVALIDATE HELPERS
+// REVALIDATE HELPERS (✅ FIXED - gebruik revalidatePath)
 // ============================================================================
 
 export async function revalidateUserProfile(userId: string) {
-  revalidateTag(`user-${userId}`);
-  revalidateTag('users');
+  revalidatePath('/dashboard/profile');
+  revalidatePath('/search');
+  revalidatePath('/profile');
 }
 
 export async function revalidateUserFollows(userId: string) {
-  revalidateTag(`user-${userId}-follows`);
+  revalidatePath('/dashboard');
+  revalidatePath('/profile');
 }

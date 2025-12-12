@@ -15,7 +15,7 @@ export function ProductCard({ product }: ProductCardProps) {
     : (product.price || 'Prijs op aanvraag');
 
   // Fallback voor de afbeelding als 'imageUrl' ontbreekt maar 'ImageURL' wel bestaat
-  const imageUrl = product.imageUrl || product.ImageURL || '/placeholder-image.png'; // Zorg dat je een placeholder hebt
+  const imageUrl = product.imageUrl || '/placeholder-image.png';
 
   return (
     <Card className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-lg">

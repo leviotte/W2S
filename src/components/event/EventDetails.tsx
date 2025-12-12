@@ -1,4 +1,3 @@
-// src/components/event/EventDetails.tsx
 "use client";
 
 import { useState, useCallback, memo } from "react";
@@ -18,7 +17,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 // --- Props Definitie ---
-// GOLD STANDARD: Veel eenvoudiger. We geven het event object door.
 interface EventDetailsProps {
   event: Event;
   participants: EventParticipant[];
@@ -26,7 +24,7 @@ interface EventDetailsProps {
   updateEvent: (data: Partial<Event>) => void;
 }
 
-// Sub-component voor de bevestigingsmodal
+// ✅ FIX: isOpen in plaats van open
 const ConfirmationModal = memo(function ConfirmationModal({
   isOpen,
   onClose,
@@ -108,11 +106,11 @@ export default function EventDetails({ event, isOrganizer, updateEvent }: EventD
     return (
       <Card className="backdrop-blur-sm bg-white/40 shadow-lg">
         <CardContent className="p-5">
-            <EventDetailsForm
+          <EventDetailsForm
             initialData={event}
             onSave={handleSave}
             onCancel={() => setIsEditing(false)}
-            />
+          />
         </CardContent>
       </Card>
     );
@@ -120,6 +118,7 @@ export default function EventDetails({ event, isOrganizer, updateEvent }: EventD
 
   return (
     <>
+      {/* ✅ FIX: isOpen prop */}
       <ConfirmationModal
         isOpen={showConfirmation}
         onClose={() => setShowConfirmation(false)}
@@ -129,50 +128,50 @@ export default function EventDetails({ event, isOrganizer, updateEvent }: EventD
 
       <Card className="rounded-xl p-5 backdrop-blur-md bg-white/20 shadow-lg">
         <CardHeader className="p-0 mb-2 flex-row items-start justify-between">
-            <CardTitle className="text-xl font-bold text-gray-900">{event.name}</CardTitle>
-            <div className="flex items-center gap-2">
-                {isOrganizer && (
-                    <Button title="Deel evenement" onClick={handleCopyToClipboard} variant="ghost" size="icon">
-                        <Share2 className="h-5 w-5" />
-                    </Button>
-                )}
-                {isOrganizer && (
-                    <Button title="Bewerk evenement" onClick={() => setIsEditing(true)} variant="ghost" size="icon">
-                        <Edit2 className="h-5 w-5" />
-                    </Button>
-                )}
-            </div>
+          <CardTitle className="text-xl font-bold text-gray-900">{event.name}</CardTitle>
+          <div className="flex items-center gap-2">
+            {isOrganizer && (
+              <Button title="Deel evenement" onClick={handleCopyToClipboard} variant="ghost" size="icon">
+                <Share2 className="h-5 w-5" />
+              </Button>
+            )}
+            {isOrganizer && (
+              <Button title="Bewerk evenement" onClick={() => setIsEditing(true)} variant="ghost" size="icon">
+                <Edit2 className="h-5 w-5" />
+              </Button>
+            )}
+          </div>
         </CardHeader>
         
         <CardContent className="p-0">
-            {event.date && <CountdownTimer targetDate={event.date} />}
-            
-            <div className="mt-3 space-y-1.5">
-                <div className="flex items-center">
-                    <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
-                    <span className="text-sm">
-                        {format(new Date(event.date), "EEEE d MMMM yyyy", { locale: nlBE })} om {event.time}
-                    </span>
-                </div>
-                {event.location && (
-                    <div className="flex items-center">
-                        <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
-                        <span className="text-sm">{event.location}</span>
-                    </div>
-                )}
+          {event.date && <CountdownTimer targetDate={event.date} />}
+          
+          <div className="mt-3 space-y-1.5">
+            <div className="flex items-center">
+              <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span className="text-sm">
+                {format(new Date(event.date), "EEEE d MMMM yyyy", { locale: nlBE })} om {event.time}
+              </span>
             </div>
-
-            {isOrganizer && event.allowSelfRegistration && event.isLootjesEvent && (
-              <div className="mt-4">
-                <Button
-                    disabled={isLoading || event.allowDrawingNames}
-                    onClick={() => setShowConfirmation(true)}
-                    className="w-full"
-                >
-                    {event.allowDrawingNames ? "Namen trekken is actief" : "Start Namen Trekken"}
-                </Button>
+            {event.location && (
+              <div className="flex items-center">
+                <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span className="text-sm">{event.location}</span>
               </div>
             )}
+          </div>
+
+          {isOrganizer && event.allowSelfRegistration && event.isLootjesEvent && (
+            <div className="mt-4">
+              <Button
+                disabled={isLoading || event.allowDrawingNames}
+                onClick={() => setShowConfirmation(true)}
+                className="w-full"
+              >
+                {event.allowDrawingNames ? "Namen trekken is actief" : "Start Namen Trekken"}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </>

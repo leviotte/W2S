@@ -2,10 +2,6 @@
 import { z } from "zod";
 import { addressSchema, type Address, type AddressNullable } from './address';
 
-// ============================================================================
-// HELPER SCHEMAS
-// ============================================================================
-
 const timestampSchema = z.preprocess((arg) => {
   if (arg && typeof arg === 'object' && 'toDate' in arg && typeof arg.toDate === 'function') {
     return arg.toDate();
@@ -17,19 +13,12 @@ const timestampSchema = z.preprocess((arg) => {
   return arg;
 }, z.date());
 
-/**
- * Social media links schema - alle velden optioneel
- */
 export const socialLinksSchema = z.object({
   website: z.string().url().or(z.literal('')).optional().nullable(),
   facebook: z.string().url().or(z.literal('')).optional().nullable(),
   instagram: z.string().url().or(z.literal('')).optional().nullable(),
   linkedin: z.string().url().or(z.literal('')).optional().nullable(),
 });
-
-// ============================================================================
-// PROFILE SCHEMAS
-// ============================================================================
 
 export const baseProfileSchema = z.object({
   id: z.string(),
@@ -50,6 +39,7 @@ export const userProfileSchema = baseProfileSchema.extend({
   isPublic: z.boolean().default(false),
   isAdmin: z.boolean().default(false),
   isPartner: z.boolean().default(false),
+  sharedWith: z.array(z.string()).optional().default([]), // ✅ FIX: Added sharedWith
   createdAt: timestampSchema.default(() => new Date()),
   updatedAt: timestampSchema.default(() => new Date()),
   socials: socialLinksSchema.nullable().optional(),
@@ -59,21 +49,12 @@ export const subProfileSchema = baseProfileSchema.extend({
   parentId: z.string().optional(),
 });
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
 export type UserProfile = z.infer<typeof userProfileSchema>;
 export type SubProfile = z.infer<typeof subProfileSchema>;
 export type AnyProfile = UserProfile | SubProfile;
 export type SocialLinks = z.infer<typeof socialLinksSchema>;
 
-// Re-export Address types
 export type { Address, AddressNullable };
-
-// ============================================================================
-// SESSION TYPES
-// ============================================================================
 
 export const sessionUserSchema = z.object({
   id: z.string(),
@@ -83,7 +64,7 @@ export const sessionUserSchema = z.object({
   photoURL: z.string().nullable().optional(),
   isAdmin: z.boolean().default(false),
   isPartner: z.boolean().default(false),
-  username: z.string().optional().nullable(), // ✅ ADDED for profile revalidation
+  username: z.string().optional().nullable(),
 });
 
 export type SessionUser = z.infer<typeof sessionUserSchema>;
@@ -101,10 +82,6 @@ export type GuestUser = {
 
 export type AnyUser = AuthedUser | GuestUser;
 
-// ============================================================================
-// TYPE GUARDS
-// ============================================================================
-
 export function isUserProfile(profile: AnyProfile): profile is UserProfile {
   return 'email' in profile;
 }
@@ -120,10 +97,6 @@ export function isAuthenticated(user: AnyUser): user is AuthedUser {
 export function isGuest(user: AnyUser): user is GuestUser {
   return user.isLoggedIn === false;
 }
-
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
 
 export function generateDisplayName(firstName: string, lastName: string): string {
   return `${firstName.trim()} ${lastName.trim()}`.trim();
@@ -146,10 +119,6 @@ export function getPhotoURL(profile: AnyProfile, fallback?: string): string {
   return profile.photoURL || fallback || '/default-avatar.png';
 }
 
-// ============================================================================
-// VALIDATION HELPERS
-// ============================================================================
-
 export function validateUserProfile(data: unknown): UserProfile {
   return userProfileSchema.parse(data);
 }
@@ -165,10 +134,6 @@ export function safeValidateUserProfile(data: unknown) {
 export function safeValidateSubProfile(data: unknown) {
   return subProfileSchema.safeParse(data);
 }
-
-// ============================================================================
-// FIRESTORE CONVERTERS
-// ============================================================================
 
 export const userProfileConverter = {
   toFirestore: (profile: UserProfile) => {
@@ -208,7 +173,4 @@ export const subProfileConverter = {
   },
 };
 
-// ============================================================================
-// RE-EXPORT addressSchema for convenience
-// ============================================================================
 export { addressSchema };

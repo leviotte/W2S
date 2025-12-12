@@ -1,9 +1,7 @@
-// src/app/dashboard/profile/page.tsx
 import { getCurrentUser } from '@/lib/auth/actions';
-import { getProfileManagers } from '@/lib/server/data/users';
+import { getUserProfilesAction } from '@/lib/server/data/users';
 import { notFound } from 'next/navigation';
 
-// Correcte imports voor default exports
 import PersonalInfoForm from './_components/personal-info-form';
 import PhotoForm from './_components/photo-form';
 import AddressForm from './_components/address-form';
@@ -15,7 +13,11 @@ export default async function ProfilePage() {
     notFound();
   }
 
-  const managers = await getProfileManagers(profileData.managers);
+  // ✅ FIX: gebruik sharedWith in plaats van managers
+  const managerIds = profileData.sharedWith || [];
+  const managers = managerIds.length > 0 
+    ? await getUserProfilesAction(managerIds)
+    : [];
 
   return (
     <div className="space-y-6">

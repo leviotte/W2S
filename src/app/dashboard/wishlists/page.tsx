@@ -1,6 +1,7 @@
-// src/app/dashboard/wishlists/page.tsx 
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { Gift } from 'lucide-react';
 
 import { getSession } from '@/lib/auth/actions';
 import { adminDb } from '@/lib/server/firebase-admin';
@@ -10,8 +11,6 @@ import PageTitle from '@/components/layout/page-title';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { WishlistGrid } from './_components/wishlist-grid';
-import Link from 'next/link';
-import { Gift } from 'lucide-react';
 
 async function loadWishlists(userId: string): Promise<Wishlist[]> {
   try {
@@ -25,7 +24,6 @@ async function loadWishlists(userId: string): Promise<Wishlist[]> {
     return snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      // Zorg ervoor dat timestamps omgezet worden naar een serializeerbaar formaat
       createdAt: doc.data().createdAt?.toDate().toISOString() || new Date().toISOString(),
       updatedAt: doc.data().updatedAt?.toDate().toISOString() || new Date().toISOString(),
     })) as Wishlist[];
@@ -41,7 +39,6 @@ export default async function WishlistsDashboardPage() {
     redirect('/login');
   }
 
-  // Data wordt hier op de server geladen! Geen client-side useEffect meer.
   const wishlists = await loadWishlists(session.user.id);
 
   return (
@@ -57,7 +54,7 @@ export default async function WishlistsDashboardPage() {
       </div>
 
       <Suspense fallback={<div className="flex justify-center mt-8"><LoadingSpinner size="lg" /></div>}>
-        <WishlistGrid initialWishlists={wishlists} />
+        <WishlistGrid wishlists={wishlists} />
       </Suspense>
     </div>
   );

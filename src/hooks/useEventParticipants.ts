@@ -1,18 +1,30 @@
 import { useState, useEffect } from 'react';
-import { Event, Participant } from '@/types/event';
+import type { Event, EventParticipant } from '@/types/event';
 
 export const useEventParticipants = (event?: Event) => {
-  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [participants, setParticipants] = useState<EventParticipant[]>([]);
 
   useEffect(() => {
-    if (!event) return;
+    if (!event || !event.participants) {
+      setParticipants([]);
+      return;
+    }
 
-    const participantArray = Object.entries(event.participants || {})
-      .map(([id, data]) => ({ id, ...data }))
+    // ✅ FIXED: Convert Record naar Array met correcte typing
+    const participantArray = Object.entries(event.participants)
+      .map(([participantId, data]) => ({
+        ...data,
+        id: participantId,
+      }))
       .sort((a, b) => {
+        // Organisator eerst
         if (a.id === event.organizerId) return -1;
         if (b.id === event.organizerId) return 1;
-        return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+        
+        // Daarna alfabetisch op naam
+        const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+        const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+        return nameA.localeCompare(nameB);
       });
 
     setParticipants(participantArray);

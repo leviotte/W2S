@@ -42,7 +42,6 @@ export function PartyPrepsSection({
     startTransition(async () => {
       const result = await updateEventAction(event.id, { tasks: updatedTasks });
       if (!result.success) {
-        // FOUT 1 OPGELOST: Gebruik 'message' uit de server action
         toast.error(result.message);
       }
     });
@@ -51,12 +50,16 @@ export function PartyPrepsSection({
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return toast.error('Geef de taak een titel');
+    
+    // ✅ FIX: createdAt toegevoegd
     const newTask: Task = {
       id: crypto.randomUUID(),
       title: newTaskTitle,
       completed: false,
       assignedParticipants: [],
+      createdAt: new Date(),
     };
+    
     handleUpdateTasks([...tasks, newTask]);
     toast.success('Taak succesvol toegevoegd!');
     setNewTaskTitle('');
@@ -128,59 +131,57 @@ export function PartyPrepsSection({
         </div>
 
         {isOrganizer && (
-            <div className="mb-4">
-              {!showAddTask ? (
-                <button
-                  onClick={() => setShowAddTask(true)}
-                  className="w-full flex items-center justify-center space-x-2 p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-colors"
-                >
-                  <Plus className="h-5 w-5 text-gray-500" />
-                  <span className="font-medium text-gray-700">Voeg Taak Toe</span>
-                </button>
-              ) : (
-                <form onSubmit={handleAddTask} className="space-y-3 p-4 bg-white/60 rounded-lg">
-                  <input
-                    type="text"
-                    value={newTaskTitle}
-                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                    placeholder="Beschrijf de taak..."
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-transparent p-2"
-                    autoFocus
-                  />
-                  <div className="flex justify-end space-x-2">
-                    <Button type="button" variant="ghost" onClick={() => setShowAddTask(false)}>
-                      Annuleren
-                    </Button>
-                    <Button type="submit" disabled={isPending}>
-                      {isPending ? 'Toevoegen...' : 'Voeg Toe'}
-                    </Button>
-                  </div>
-                </form>
-              )}
-            </div>
+          <div className="mb-4">
+            {!showAddTask ? (
+              <button
+                onClick={() => setShowAddTask(true)}
+                className="w-full flex items-center justify-center space-x-2 p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-colors"
+              >
+                <Plus className="h-5 w-5 text-gray-500" />
+                <span className="font-medium text-gray-700">Voeg Taak Toe</span>
+              </button>
+            ) : (
+              <form onSubmit={handleAddTask} className="space-y-3 p-4 bg-white/60 rounded-lg">
+                <input
+                  type="text"
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  placeholder="Beschrijf de taak..."
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-transparent p-2"
+                  autoFocus
+                />
+                <div className="flex justify-end space-x-2">
+                  <Button type="button" variant="ghost" onClick={() => setShowAddTask(false)}>
+                    Annuleren
+                  </Button>
+                  <Button type="submit" disabled={isPending}>
+                    {isPending ? 'Toevoegen...' : 'Voeg Toe'}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
         )}
         
+        {/* ✅ FIX: onToggle prop naam */}
         <TaskList
-          // FOUT 2 OPGELOST: eventId wordt nu doorgegeven
           eventId={event.id}
           tasks={tasks}
           participants={participants}
           currentUserId={currentUserId}
           isOrganizer={isOrganizer}
-          onToggleTask={handleToggleTask}
-          onDeleteTask={isOrganizer ? handleDeleteTask : undefined}
+          onToggle={handleToggleTask}
+          onDelete={isOrganizer ? handleDeleteTask : undefined}
           onRemoveParticipant={handleRemoveParticipant}
         />
 
         <h3 className="font-bold mt-6 mb-2">Deelnemers</h3>
         <ParticipantList
           participants={participants}
-          // FOUT 3 OPGELOST: currentUserId wordt nu doorgegeven
           currentUserId={currentUserId}
         />
       </div>
 
-      {/* FOUT 4 OPGELOST: Gebruik van DragOverlay voor de "Gold Standard" UX */}
       <DragOverlay>
         {activeId && activeParticipant ? (
           <DraggableParticipant

@@ -1,11 +1,16 @@
+import { z } from 'zod';
+
 export type BackgroundType = 'wishlist' | 'event' | 'web';
 
-export type BackgroundCategory = {
-  id: string;
-  name: string;
-  type: BackgroundType;
-  createdAt?: Date;
-};
+// ✅ ZOD SCHEMA EXPORT
+export const backgroundCategorySchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, 'Naam is verplicht'),
+  type: z.enum(['wishlist', 'event', 'web']),
+  createdAt: z.date().optional(),
+});
+
+export type BackgroundCategory = z.infer<typeof backgroundCategorySchema>;
 
 export type BackgroundImage = {
   id: string;

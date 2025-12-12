@@ -3,26 +3,41 @@
 import { useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import { app } from '@/lib/client/firebase';
-import { registerAction } from '@/lib/auth/actions';
-import { registerSchema, RegisterInput } from '@/lib/validators/auth';
+import { z } from 'zod';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
+import { getClientAuth } from '@/lib/client/firebase';
+import { completeRegistrationAction } from '@/lib/auth/actions';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+
+const registerSchema = z.object({
+  firstName: z.string().min(1, 'Voornaam is verplicht'),
+  lastName: z.string().min(1, 'Achternaam is verplicht'),
+  email: z.string().email('Ongeldig e-mailadres'),
+  password: z.string().min(6, 'Wachtwoord moet minimaal 6 karakters bevatten'),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Wachtwoorden komen niet overeen",
+  path: ["confirmPassword"],
+});
+
+type RegisterFormValues = z.infer<typeof registerSchema>;
 
 interface RegisterFormProps {
-  onSuccess: () => void;
-  onSwitchToLogin: () => void;
+  onSuccess?: () => void;
+  onSwitchToLogin?: () => void;
 }
 
 export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) {
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
-  const form = useForm<RegisterInput>({
+  const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       firstName: '',
@@ -33,33 +48,56 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
     },
   });
 
-  const onSubmit = (data: RegisterInput) => {
+  const onSubmit = (data: RegisterFormValues) => {
     startTransition(async () => {
       try {
-        const auth = getAuth(app);
-        const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+        // 1. Client-side Firebase registration
+        const auth = getClientAuth();
+        const userCredential = await createUserWithEmailAndPassword(
+          auth, 
+          data.email, 
+          data.password
+        );
+        
         const idToken = await userCredential.user.getIdToken();
 
-        const result = await registerAction({
+        // 2. Server-side user profile creation
+        const result = await completeRegistrationAction({
           idToken,
           firstName: data.firstName,
           lastName: data.lastName,
         });
 
         if (result.success) {
-          toast.success('Account succesvol aangemaakt!');
-          onSuccess();
+          toast.success('Account succesvol aangemaakt!', {
+            description: 'Je wordt doorgestuurd naar je dashboard...'
+          });
+          
+          if (onSuccess) {
+            onSuccess();
+          }
+          
+          router.push('/dashboard');
+          router.refresh();
         } else {
-          toast.error(result.error || 'Serverfout bij het finaliseren van de registratie.');
+          toast.error('Registratie mislukt', { 
+            description: result.error || 'Er ging iets mis bij het aanmaken van je profiel.' 
+          });
         }
 
       } catch (error: any) {
+        console.error('Firebase registration error:', error);
+        
         let friendlyMessage = 'Er is een onbekende fout opgetreden.';
+        
         if (error.code === 'auth/email-already-in-use') {
           friendlyMessage = 'Dit e-mailadres is al in gebruik.';
-        } else {
-          console.error('Firebase client-side registratie error:', error);
+        } else if (error.code === 'auth/weak-password') {
+          friendlyMessage = 'Wachtwoord is te zwak. Kies een sterker wachtwoord.';
+        } else if (error.code === 'auth/invalid-email') {
+          friendlyMessage = 'Ongeldig e-mailadres.';
         }
+        
         toast.error('Registratie mislukt', { description: friendlyMessage });
       }
     });
@@ -76,7 +114,7 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-4">
             <FormField
-              control={form.control} // CORRECTIE
+              control={form.control}
               name="firstName"
               render={({ field }) => (
                 <FormItem>
@@ -87,7 +125,7 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
               )}
             />
             <FormField
-              control={form.control} // CORRECTIE
+              control={form.control}
               name="lastName"
               render={({ field }) => (
                 <FormItem>
@@ -100,36 +138,36 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
           </div>
 
           <FormField
-            control={form.control} // CORRECTIE
+            control={form.control}
             name="email"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>E-mail</FormLabel>
-                <FormControl><Input placeholder="naam@voorbeeld.be" {...field} /></FormControl>
+                <FormControl><Input type="email" placeholder="naam@voorbeeld.be" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
           <FormField
-            control={form.control} // CORRECTIE
+            control={form.control}
             name="password"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Wachtwoord</FormLabel>
-                <FormControl><Input type="password" {...field} /></FormControl>
+                <FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
           <FormField
-            control={form.control} // CORRECTIE
+            control={form.control}
             name="confirmPassword"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Bevestig Wachtwoord</FormLabel>
-                <FormControl><Input type="password" {...field} /></FormControl>
+                <FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -142,15 +180,18 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
         </form>
       </Form>
       
-      <div className="text-center text-sm">
-        Al een account?{' '}
-        <button onClick={onSwitchToLogin} className="underline underline-offset-2 hover:text-primary">
-          Log in
-        </button>
-      </div>
-       <div className="text-balance text-center text-xs text-muted-foreground">
+      {onSwitchToLogin && (
+        <div className="text-center text-sm">
+          Al een account?{' '}
+          <button onClick={onSwitchToLogin} className="underline underline-offset-2 hover:text-primary">
+            Log in
+          </button>
+        </div>
+      )}
+      
+      <div className="text-balance text-center text-xs text-muted-foreground">
         Door te registreren ga je akkoord met onze{' '}
-        <a href="/terms-and-conditions" className="underline underline-offset-2 hover:text-primary">
+        <a href="/terms" className="underline underline-offset-2 hover:text-primary">
           gebruiksvoorwaarden
         </a>
       </div>

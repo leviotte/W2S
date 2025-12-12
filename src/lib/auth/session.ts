@@ -1,22 +1,18 @@
 // src/lib/auth/session.ts
 import 'server-only';
-import { cookies } from 'next/headers';
 import { getIronSession, IronSession } from 'iron-session';
+import { cookies } from 'next/headers';
 
 // ============================================================================
-// SESSION USER INTERFACE (✅ VOLLEDIG MET ALLE VEREISTE FIELDS)
+// SESSION USER INTERFACE
 // ============================================================================
 
 export interface SessionUser {
   id: string;
   email: string;
   displayName: string;
-  
-  // ✅ VEREISTE FIELDS (voor TypeScript errors te voorkomen)
   firstName: string;
   lastName: string;
-  
-  // ✅ OPTIONELE FIELDS
   photoURL?: string | null;
   username?: string | null;
   isLoggedIn: boolean;
@@ -34,7 +30,7 @@ export interface SessionData {
 }
 
 // ============================================================================
-// SESSION OPTIONS (✅ NU GEËXPORTEERD)
+// SESSION OPTIONS
 // ============================================================================
 
 export const sessionOptions = {
@@ -50,11 +46,12 @@ export const sessionOptions = {
 };
 
 // ============================================================================
-// SESSION HELPERS
+// CORE SESSION FUNCTIONS
 // ============================================================================
 
 /**
  * Get the current session
+ * ✅ ENIGE PLEK waar getIronSession wordt aangeroepen
  */
 export async function getSession(): Promise<IronSession<SessionData>> {
   const cookieStore = await cookies();
@@ -63,6 +60,7 @@ export async function getSession(): Promise<IronSession<SessionData>> {
 
 /**
  * Create a new session with user data
+ * ✅ AANGEROEPEN: Na succesvolle Firebase login/register
  */
 export async function createSession(user: Omit<SessionUser, 'isLoggedIn'>) {
   const session = await getSession();
@@ -76,6 +74,7 @@ export async function createSession(user: Omit<SessionUser, 'isLoggedIn'>) {
 
 /**
  * Destroy the current session
+ * ✅ AANGEROEPEN: Bij logout
  */
 export async function destroySession() {
   const session = await getSession();
@@ -84,6 +83,7 @@ export async function destroySession() {
 
 /**
  * Update session user data
+ * ✅ GEBRUIK: Voor profile updates zonder re-login
  */
 export async function updateSessionUser(userData: Partial<SessionUser>) {
   const session = await getSession();
@@ -100,10 +100,14 @@ export async function updateSessionUser(userData: Partial<SessionUser>) {
   await session.save();
 }
 
+// ============================================================================
+// HELPER FUNCTIONS (voor convenience)
+// ============================================================================
+
 /**
  * Get current authenticated user or null
  */
-export async function getCurrentUser(): Promise<SessionUser | null> {
+export async function getCurrentSessionUser(): Promise<SessionUser | null> {
   const session = await getSession();
   return session.user && session.isLoggedIn ? session.user : null;
 }

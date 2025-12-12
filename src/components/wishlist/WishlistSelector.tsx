@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/store/use-auth-store";
+import type { Wishlist } from "@/types/wishlist";
 
 export default function WishlistSelector({
   selectedWishlistId,
@@ -15,7 +16,7 @@ export default function WishlistSelector({
   onSelect: (wishlistId: string) => void;
   onCreateNew: () => void;
 }) {
-  const { wishlists } = useAuthStore();
+  const wishlists = useAuthStore((state) => state.wishlists);
   const [showAll, setShowAll] = useState(false);
 
   const displayedWishlists = showAll ? wishlists : wishlists.slice(0, 3);
@@ -27,7 +28,7 @@ export default function WishlistSelector({
       </h3>
 
       <div className="grid grid-cols-1 gap-4">
-        {displayedWishlists.map((wishlist) => {
+        {displayedWishlists.map((wishlist: Wishlist) => {
           const selected = selectedWishlistId === wishlist.id;
 
           return (
@@ -50,7 +51,7 @@ export default function WishlistSelector({
                   {wishlist.name}
                 </h4>
                 <p className="text-sm text-gray-500">
-                  {wishlist.items.length} items
+                  {wishlist.items?.length || 0} items
                 </p>
               </div>
 

@@ -8,14 +8,14 @@ import { z } from 'zod';
 import { productSchema } from '@/types/product';
 
 // ============================================================================
-// ZOD SCHEMAS - JOUW SPECIFIEKE STRUCTUUR
+// ZOD SCHEMAS
 // ============================================================================
 
 const postSectionSchema = z.object({
   id: z.string(),
   subTitle: z.string(),
   content: z.string(),
-  items: z.array(productSchema), // ✅ Jouw product schema
+  items: z.array(productSchema),
 });
 
 export type PostSection = z.infer<typeof postSectionSchema>;
@@ -26,17 +26,33 @@ const createPostSchema = z.object({
   headImage: z.string().url('Een geldige afbeeldings-URL is vereist'),
   subDescription: z.string().optional(),
   sections: z.array(postSectionSchema),
-  published: z.boolean().default(false), // ✅ TOEGEVOEGD
-  featured: z.boolean().default(false), // ✅ TOEGEVOEGD
-  tags: z.array(z.string()).default([]), // ✅ TOEGEVOEGD
+  published: z.boolean().default(false),
+  featured: z.boolean().default(false),
+  tags: z.array(z.string()).default([]),
 });
 
-const updatePostSchema = createPostSchema.extend({
+const updatePostSchema = createPostSchema.partial().extend({
   id: z.string().min(1, 'Post ID is verplicht'),
 });
 
 export type CreatePostData = z.infer<typeof createPostSchema>;
 export type UpdatePostData = z.infer<typeof updatePostSchema>;
+
+// ============================================================================
+// FORM STATE TYPE (voor useFormState)
+// ============================================================================
+
+export type CreatePostFormState = {
+  success: boolean;
+  message: string;
+  errors?: {
+    headTitle?: string[];
+    headDescription?: string[];
+    headImage?: string[];
+    sections?: string[];
+    [key: string]: string[] | undefined;
+  };
+};
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -97,7 +113,6 @@ export async function getAllPostsAction(options?: {
   try {
     let query = adminDb.collection('posts') as any;
 
-    // Filters
     if (options?.published !== undefined) {
       query = query.where('published', '==', options.published);
     }
@@ -108,10 +123,8 @@ export async function getAllPostsAction(options?: {
       query = query.where('authorId', '==', options.authorId);
     }
 
-    // Order by creation date (newest first)
     query = query.orderBy('createdAt', 'desc');
 
-    // Limit
     if (options?.limit) {
       query = query.limit(options.limit);
     }
@@ -141,29 +154,19 @@ export async function getAllPostsAction(options?: {
 }
 
 // ============================================================================
-// CREATE POST ACTION - ✅ VERBETERD
+// CREATE POST ACTION
 // ============================================================================
 
 export async function createPostAction(data: unknown) {
   try {
-    // ✅ Auth check
     const session = await getSession();
     if (!session.isLoggedIn || !session.user) {
       return { success: false, error: 'Authenticatie vereist' };
     }
 
-    // ✅ Optional: Admin check (uncomment als alleen admins posts mogen maken)
-    // if (!session.user.isAdmin) {
-    //   return { success: false, error: 'Geen toestemming' };
-    // }
-
-    // ✅ Validatie
     const validationResult = createPostSchema.safeParse(data);
     if (!validationResult.success) {
-      console.error(
-        'Validatiefout bij aanmaken:',
-        validationResult.error.flatten().fieldErrors
-      );
+      console.error('Validatiefout:', validationResult.error.flatten().fieldErrors);
       return {
         success: false,
         error: 'De aangeleverde data is ongeldig',
@@ -171,7 +174,6 @@ export async function createPostAction(data: unknown) {
       };
     }
 
-    // ✅ Create post met metadata
     const userName =
       session.user.displayName ||
       `${session.user.firstName} ${session.user.lastName}`;
@@ -180,9 +182,9 @@ export async function createPostAction(data: unknown) {
       ...validationResult.data,
       authorId: session.user.id,
       authorName: userName,
-      views: 0, // ✅ View counter
-      likes: [], // ✅ Like tracking
-      comments: [], // ✅ Comments array
+      views: 0,
+      likes: [],
+      comments: [],
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
       publishedAt: validationResult.data.published
@@ -192,49 +194,42 @@ export async function createPostAction(data: unknown) {
 
     const docRef = await adminDb.collection('posts').add(newPost);
 
-    // ✅ Revalidate
     revalidateTag('posts');
     revalidatePath('/blog');
 
-    return { success: true, postId: docRef.id };
+    return { success: true, data: { id: docRef.id } };
   } catch (error) {
-    console.error('Firestore fout bij aanmaken:', error);
+    console.error('Firestore fout:', error);
     return {
       success: false,
-      error: 'Post kon niet worden opgeslagen in de database',
+      error: 'Post kon niet worden opgeslagen',
     };
   }
 }
 
 // ============================================================================
-// UPDATE POST ACTION - ✅ VERBETERD
+// UPDATE POST ACTION - ✅ FIXED SIGNATURE
 // ============================================================================
 
 export async function updatePostAction(data: unknown) {
   try {
-    // ✅ Auth check
     const session = await getSession();
     if (!session.isLoggedIn || !session.user) {
       return { success: false, error: 'Authenticatie vereist' };
     }
 
-    // ✅ Validatie
     const validationResult = updatePostSchema.safeParse(data);
     if (!validationResult.success) {
-      console.error(
-        'Validatiefout bij updaten:',
-        validationResult.error.flatten().fieldErrors
-      );
+      console.error('Validatiefout:', validationResult.error.flatten().fieldErrors);
       return {
         success: false,
-        error: 'De aangeleverde data voor de update is ongeldig',
+        error: 'De aangeleverde data is ongeldig',
         details: validationResult.error.flatten().fieldErrors,
       };
     }
 
     const { id, ...postData } = validationResult.data;
 
-    // ✅ Check ownership (of admin)
     const postRef = adminDb.collection('posts').doc(id);
     const postDoc = await postRef.get();
 
@@ -247,40 +242,37 @@ export async function updatePostAction(data: unknown) {
     const isAdmin = session.user.isAdmin === true;
 
     if (!isAuthor && !isAdmin) {
-      return { success: false, error: 'Geen toestemming om deze post te bewerken' };
+      return { success: false, error: 'Geen toestemming' };
     }
 
-    // ✅ Update met publishedAt check
     const updateData: any = {
       ...postData,
       updatedAt: FieldValue.serverTimestamp(),
     };
 
-    // Als de post nu gepubliceerd wordt (en dat nog niet was)
     if (postData.published && !existingData?.published) {
       updateData.publishedAt = FieldValue.serverTimestamp();
     }
 
     await postRef.update(updateData);
 
-    // ✅ Revalidate
     revalidateTag('posts');
     revalidateTag(`post-${id}`);
     revalidatePath('/blog');
     revalidatePath(`/blog/${id}`);
 
-    return { success: true };
+    return { success: true, data: undefined };
   } catch (error) {
-    console.error(`Firestore fout bij bijwerken:`, error);
+    console.error('Firestore fout:', error);
     return {
       success: false,
-      error: 'Post kon niet worden bijgewerkt in de database',
+      error: 'Post kon niet worden bijgewerkt',
     };
   }
 }
 
 // ============================================================================
-// DELETE POST ACTION - ✅ VERBETERD
+// DELETE POST ACTION
 // ============================================================================
 
 export async function deletePostAction(postId: string) {
@@ -289,13 +281,11 @@ export async function deletePostAction(postId: string) {
       return { success: false, error: 'Post ID ontbreekt' };
     }
 
-    // ✅ Auth check
     const session = await getSession();
     if (!session.isLoggedIn || !session.user) {
       return { success: false, error: 'Authenticatie vereist' };
     }
 
-    // ✅ Check ownership
     const postRef = adminDb.collection('posts').doc(postId);
     const postDoc = await postRef.get();
 
@@ -308,26 +298,25 @@ export async function deletePostAction(postId: string) {
     const isAdmin = session.user.isAdmin === true;
 
     if (!isAuthor && !isAdmin) {
-      return { success: false, error: 'Geen toestemming om deze post te verwijderen' };
+      return { success: false, error: 'Geen toestemming' };
     }
 
     await postRef.delete();
 
-    // ✅ Revalidate
     revalidateTag('posts');
     revalidateTag(`post-${postId}`);
     revalidatePath('/blog');
     revalidatePath(`/blog/${postId}`);
 
-    return { success: true };
+    return { success: true, data: undefined };
   } catch (error) {
-    console.error('Firestore fout bij verwijderen:', error);
+    console.error('Firestore fout:', error);
     return { success: false, error: 'Post kon niet worden verwijderd' };
   }
 }
 
 // ============================================================================
-// INCREMENT VIEW COUNT - ✅ NIEUW
+// INCREMENT VIEW COUNT
 // ============================================================================
 
 export async function incrementViewCountAction(postId: string) {
@@ -345,7 +334,7 @@ export async function incrementViewCountAction(postId: string) {
 }
 
 // ============================================================================
-// TOGGLE LIKE - ✅ NIEUW
+// TOGGLE LIKE
 // ============================================================================
 
 export async function toggleLikeAction(postId: string) {
@@ -386,7 +375,7 @@ export async function toggleLikeAction(postId: string) {
 }
 
 // ============================================================================
-// ADD COMMENT - ✅ NIEUW
+// ADD COMMENT
 // ============================================================================
 
 export async function addCommentAction(postId: string, content: string) {

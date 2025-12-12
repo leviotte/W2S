@@ -1,3 +1,4 @@
+// src/app/dashboard/wishlists/create/actions.ts
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -13,18 +14,15 @@ import { wishlistItemSchema } from '@/types/wishlist';
 const CreateWishlistFormSchema = z.object({
   wishlistName: z.string().min(3, 'De naam moet minstens 3 tekens lang zijn.'),
   backgroundImage: z.string().url().or(z.literal('')),
-  // We ontvangen de items als een JSON-string vanuit een hidden input
   items: z.string().transform((str, ctx) => {
     try {
       const parsed = JSON.parse(str);
-      // Valideer dat de geparste data een array van WishlistItems is
       return z.array(wishlistItemSchema).parse(parsed);
     } catch (e) {
       ctx.addIssue({ code: 'custom', message: 'Ongeldig itemformaat.' });
       return z.NEVER;
     }
   }),
-  // Optionele velden voor als we vanuit een event komen
   eventId: z.string().optional(),
   participantId: z.string().optional(),
 });
@@ -40,7 +38,11 @@ export interface CreateWishlistFormState {
   };
 }
 
-export async function createWishlistAction(
+/**
+ * ✅ FORM ACTION - Gebruikt met useFormState
+ * Hernoemt van createWishlistAction → createWishlistFormAction
+ */
+export async function createWishlistFormAction(
   prevState: CreateWishlistFormState,
   formData: FormData
 ): Promise<CreateWishlistFormState> {
@@ -72,12 +74,20 @@ export async function createWishlistAction(
     const newWishlistRef = await adminDb.collection('wishlists').add({
       name: wishlistName,
       items: items,
-      isPublic: false, // Standaard privé
+      isPublic: false,
       ownerId: session.user.id,
+      ownerName: session.user.displayName || `${session.user.firstName} ${session.user.lastName}`,
       participantIds: [session.user.id],
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
       backgroundImage: backgroundImage || 'https://firebasestorage.googleapis.com/v0/b/wish2share4u.firebasestorage.app/o/public%2FWebBackgrounds%2FStandaard%20achtergrond%20Event.jpg?alt=media',
+      description: null,
+      slug: null,
+      eventDate: null,
+      category: undefined,
+      tags: [],
+      sharedWith: [],
+      profileId: null,
     });
 
     const newWishlistId = newWishlistRef.id;
@@ -95,21 +105,17 @@ export async function createWishlistAction(
         );
 
         if (participantKey) {
-          // Update de wishlistId voor de specifieke deelnemer
           const updateField = `participants.${participantKey}.wishlistId`;
           await eventRef.update({ [updateField]: newWishlistId });
           
-          // Revalideer de event pagina en de wishlists pagina
-          revalidatePath(`/dashboard/events/${eventId}`);
+          revalidatePath(`/dashboard/event/${eventId}`);
           revalidatePath('/dashboard/wishlists');
           
-          // Stuur de gebruiker terug naar de event pagina
-          redirect(`/dashboard/events/${eventId}`);
+          redirect(`/dashboard/event/${eventId}`);
         }
       }
     }
 
-    // Revalideer de algemene wishlists pagina
     revalidatePath('/dashboard/wishlists');
   } catch (error) {
     console.error('Fout bij aanmaken wishlist:', error);
@@ -119,6 +125,8 @@ export async function createWishlistAction(
     };
   }
 
-  // Als alles goed ging en er was geen redirect, stuur naar de wishlists pagina
   redirect('/dashboard/wishlists');
 }
+
+// ✅ BACKWARDS COMPATIBILITY: Alias voor oude code
+export const createWishlistAction = createWishlistFormAction;

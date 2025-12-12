@@ -53,11 +53,6 @@ export default function Features() {
                     <h3 className="text-lg font-medium text-gray-900 group-hover:text-warm-olive transition-colors">
                       {feature.name}
                     </h3>
-                    {feature.description && (
-                      <p className="mt-2 text-base text-gray-500">
-                        {feature.description}
-                      </p>
-                    )}
                   </div>
                 </div>
               </button>

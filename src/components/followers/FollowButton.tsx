@@ -1,73 +1,82 @@
-// src/components/followers/FollowButton.tsx
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import {
-  followUserOrProfile,
-  unfollowUserOrProfile,
-  setupRealtimeListener,
-} from "@/lib/utils/followActions";
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { followUserAction, unfollowUserAction, isFollowingAction } from '@/lib/server/actions/follow-actions';
+import { toast } from 'sonner';
+import { UserPlus, UserMinus } from 'lucide-react';
 
 interface FollowButtonProps {
   currentUserId: string;
   targetId: string;
-  isTargetProfile: boolean;
-  isCurrentUserProfile: boolean;
 }
 
-export default function FollowButton({
-  currentUserId,
-  targetId,
-  isTargetProfile,
-  isCurrentUserProfile,
-}: FollowButtonProps) {
+export default function FollowButton({ currentUserId, targetId }: FollowButtonProps) {
   const [isFollowing, setIsFollowing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = setupRealtimeListener(
-      currentUserId,
-      isCurrentUserProfile,
-      "following",
-      (followings: any[]) => {
-        const followingUserIds = followings.map((f) => f.id);
-        setIsFollowing(followingUserIds.includes(targetId));
+    async function checkFollowStatus() {
+      try {
+        const result = await isFollowingAction(currentUserId, targetId);
+        if (result.success) {
+          setIsFollowing(result.data);
+        }
+      } catch (error) {
+        console.error('Error checking follow status:', error);
+      } finally {
+        setLoading(false);
       }
-    );
-    return () => unsubscribe();
-  }, [currentUserId, targetId, isCurrentUserProfile]);
+    }
+    checkFollowStatus();
+  }, [currentUserId, targetId]);
 
-  const handleFollow = async () => {
+  const handleToggleFollow = async () => {
+    setLoading(true);
     try {
-      if (isFollowing) {
-        await unfollowUserOrProfile(
-          currentUserId,
-          targetId,
-          isTargetProfile,
-          isCurrentUserProfile
-        );
+      const result = isFollowing
+        ? await unfollowUserAction(currentUserId, targetId)
+        : await followUserAction(currentUserId, targetId);
+
+      if (result.success) {
+        setIsFollowing(!isFollowing);
+        toast.success(isFollowing ? 'Niet meer gevolgd' : 'Aan het volgen!');
       } else {
-        await followUserOrProfile(
-          currentUserId,
-          targetId,
-          isTargetProfile,
-          isCurrentUserProfile
-        );
+        toast.error(result.error || 'Er is iets misgegaan');
       }
     } catch (error) {
-      console.error("Error updating follow status:", error);
+      console.error('Error toggling follow:', error);
+      toast.error('Er is een fout opgetreden');
+    } finally {
+      setLoading(false);
     }
   };
 
+  if (loading) {
+    return (
+      <Button variant="outline" disabled>
+        Laden...
+      </Button>
+    );
+  }
+
   return (
-    <button
-      onClick={handleFollow}
-      className={`px-4 py-2 rounded-lg font-semibold transition ${
-        isFollowing
-          ? "bg-[#b34c4c] text-white hover:bg-[#b34c4c]/80"
-          : "bg-warm-olive text-white hover:bg-cool-olive"
-      }`}
+    <Button
+      onClick={handleToggleFollow}
+      variant={isFollowing ? 'outline' : 'default'}
+      disabled={loading}
     >
-      {isFollowing ? "Unfollow" : "Follow"}
-    </button>
+      {isFollowing ? (
+        <>
+          <UserMinus className="h-4 w-4 mr-2" />
+          Ontvolgeen
+        </>
+      ) : (
+        <>
+          <UserPlus className="h-4 w-4 mr-2" />
+          Volgen
+        </>
+      )}
+    </Button>
   );
 }

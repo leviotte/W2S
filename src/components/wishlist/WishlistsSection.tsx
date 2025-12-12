@@ -1,61 +1,109 @@
-// src/components/wishlist/WishlistsSection.tsx
 'use client';
 
 import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Gift } from 'lucide-react';
+import { Gift, Eye, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
-import type { Event, EventParticipant } from '@/types/event';
 import type { Wishlist } from '@/types/wishlist';
-import type { AuthedUser } from '@/types';
 
-import { UserAvatar } from '../shared/user-avatar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 interface WishlistsSectionProps {
-  event: Event;
-  participants: EventParticipant[];
   wishlists: Record<string, Wishlist>;
-  currentUser: AuthedUser | null;
-  currentUserId: string;
+  isOwnProfile?: boolean;
 }
 
-export default function WishlistsSection({ event, participants, wishlists, currentUserId }: WishlistsSectionProps) {
+export default function WishlistsSection({ wishlists, isOwnProfile = false }: WishlistsSectionProps) {
   const router = useRouter();
 
-  const participantsWithWishlists = useMemo(() => {
-    return participants.map(p => ({
-      ...p,
-      wishlist: p.wishlistId ? wishlists[p.wishlistId] : undefined,
-    }));
-  }, [participants, wishlists]);
+  const wishlistArray = useMemo(() => {
+    return Object.values(wishlists);
+  }, [wishlists]);
 
-  // ... (handleWishlistAction blijft hetzelfde) ...
+  const publicWishlists = useMemo(() => {
+    return wishlistArray.filter(w => w.isPublic);
+  }, [wishlistArray]);
+
+  const displayWishlists = isOwnProfile ? wishlistArray : publicWishlists;
+
+  const handleViewWishlist = (wishlistId: string) => {
+    router.push(`/wishlist/${wishlistId}`);
+  };
+
+  const handleCreateWishlist = () => {
+    router.push('/dashboard/wishlists/create');
+  };
+
+  if (displayWishlists.length === 0 && !isOwnProfile) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <Gift className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">
+            Deze gebruiker heeft nog geen publieke wishlists.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <div className="backdrop-blur-sm bg-white/40 rounded-lg shadow-sm p-6 space-y-4">
-      <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-        <Gift className="w-6 h-6" /> Deelnemers & Wenslijsten
-      </h2>
-      <div className="grid gap-3">
-        {participantsWithWishlists.map((p) => (
-          <div key={p.id} /* ... */>
-            <div className="flex items-center gap-3">
-              {/* 
-                GOLD STANDARD FIX: We gebruiken nu de correcte props 'name' en 'src' 
-                zoals gedefinieerd in het UserAvatar component zelf.
-              */}
-              <UserAvatar
-                name={`${p.firstName} ${p.lastName}`}
-                src={p.photoURL} // Gebruikt de photoURL die we in event.ts hebben toegevoegd
-              />
-              <div>
-                {/* ... */}
-              </div>
-            </div>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="flex items-center gap-2">
+          <Gift className="h-5 w-5" />
+          Wishlists {!isOwnProfile && '(Publiek)'}
+        </CardTitle>
+        {isOwnProfile && (
+          <Button onClick={handleCreateWishlist} size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Nieuwe Wishlist
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent>
+        {displayWishlists.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground mb-4">Je hebt nog geen wishlists.</p>
+            <Button onClick={handleCreateWishlist}>
+              <Plus className="h-4 w-4 mr-2" />
+              Maak je eerste wishlist
+            </Button>
           </div>
-        ))}
-      </div>
-    </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {displayWishlists.map((wishlist) => (
+              <div
+                key={wishlist.id}
+                className="border rounded-lg p-4 hover:bg-accent/5 transition-colors cursor-pointer"
+                onClick={() => handleViewWishlist(wishlist.id)}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h3 className="font-semibold mb-1">{wishlist.name}</h3>
+                    {wishlist.description && (
+                      <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+                        {wishlist.description}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <span>{wishlist.items.length} items</span>
+                      {wishlist.isPublic && (
+                        <span className="flex items-center gap-1 text-green-600">
+                          <Eye className="h-3 w-3" />
+                          Publiek
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

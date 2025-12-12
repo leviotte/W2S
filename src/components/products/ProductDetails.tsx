@@ -7,10 +7,6 @@ import { db } from "@/lib/client/firebase";
 import { X } from "lucide-react";
 import { Button } from '@/components/ui/button';
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
 interface Platform {
   URL: string;
   Price: number;
@@ -19,18 +15,18 @@ interface Platform {
 
 interface Product {
   id?: string;
-  ID?: string; // Backward compatibility
+  ID?: string;
   title: string;
   description?: string;
   imageUrl?: string;
-  ImageURL?: string; // Backward compatibility
+  ImageURL?: string;
   ean?: string;
   url?: string;
-  URL?: string; // Backward compatibility
+  URL?: string;
   price?: number;
-  Price?: number; // Backward compatibility
+  Price?: number;
   source?: string;
-  Source?: string; // Backward compatibility
+  Source?: string;
   platforms?: Record<string, Platform>;
   isIncluded?: boolean;
 }
@@ -44,15 +40,7 @@ interface ProductDetailCardProps {
   handleDeleteItem?: (id: string) => void;
 }
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
 const CHARACTER_LIMIT = 150;
-
-// ============================================================================
-// COMPONENT
-// ============================================================================
 
 export default function ProductDetailCard({
   product,
@@ -62,19 +50,11 @@ export default function ProductDetailCard({
   addItemToWishlist,
   handleDeleteItem,
 }: ProductDetailCardProps) {
-  // ============================================================================
-  // STATE
-  // ============================================================================
-  
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState(
     product.platforms ? Object.keys(product.platforms)[0] : null
   );
 
-  // ============================================================================
-  // NORMALIZED DATA ACCESS
-  // ============================================================================
-  
   const title = product.title;
   const imageUrl = product.imageUrl || product.ImageURL;
   const description = product.description || "";
@@ -82,10 +62,6 @@ export default function ProductDetailCard({
   const url = product.url || product.URL;
   const source = product.source || product.Source;
 
-  // ============================================================================
-  // PLATFORM DATA
-  // ============================================================================
-  
   const platforms = product.platforms ? Object.keys(product.platforms) : [];
   const hasMultiplePlatforms = platforms.length > 1;
 
@@ -100,10 +76,6 @@ export default function ProductDetailCard({
     };
   }, [product, selectedPlatform, url, price, source]);
 
-  // ============================================================================
-  // HANDLERS
-  // ============================================================================
-  
   const toggleDescription = () => setShowFullDescription((prev) => !prev);
 
   const onDeleteClick = useCallback(() => {
@@ -139,10 +111,6 @@ export default function ProductDetailCard({
     [product]
   );
 
-  // ============================================================================
-  // RENDER
-  // ============================================================================
-  
   return (
     <div
       onClick={() => setModal(false)}
@@ -152,7 +120,6 @@ export default function ProductDetailCard({
         onClick={(e) => e.stopPropagation()}
         className="bg-white relative rounded-lg shadow-xl flex flex-col md:flex-row w-full max-w-4xl max-h-[90vh] overflow-hidden"
       >
-        {/* Close Button */}
         <button
           onClick={() => setModal(false)}
           className="absolute top-2 right-2 z-20 text-gray-400 hover:text-gray-600 transition-colors"
@@ -161,7 +128,6 @@ export default function ProductDetailCard({
           <X size={28} />
         </button>
 
-        {/* Image Section */}
         <div className="md:w-1/2 p-8 flex items-center justify-center bg-gray-100">
           {imageUrl ? (
             <img
@@ -176,17 +142,13 @@ export default function ProductDetailCard({
           )}
         </div>
 
-        {/* Details Section */}
         <div className="md:w-1/2 p-6 flex flex-col overflow-y-auto">
-          {/* Title */}
           <h1 className="text-2xl font-bold text-gray-900 mb-2">{title}</h1>
 
-          {/* EAN */}
           {product.ean && (
             <p className="text-xs text-gray-500 mb-4">EAN: {product.ean}</p>
           )}
 
-          {/* Platform Selector */}
           {hasMultiplePlatforms && (
             <div className="mb-4">
               <p className="text-sm font-medium mb-2 text-gray-600">
@@ -210,7 +172,6 @@ export default function ProductDetailCard({
             </div>
           )}
 
-          {/* Price Card */}
           <a
             href={currentPlatform.URL}
             target="_blank"
@@ -232,7 +193,6 @@ export default function ProductDetailCard({
             </div>
           </a>
 
-          {/* Description */}
           {description && (
             <div className="prose prose-sm max-w-none text-gray-600 mb-4">
               {description.length > CHARACTER_LIMIT && !showFullDescription ? (
@@ -265,7 +225,6 @@ export default function ProductDetailCard({
             </div>
           )}
 
-          {/* Action Button */}
           <div className="mt-auto pt-4">
             <Button
               onClick={() => {

@@ -11,6 +11,7 @@ export const chatMessageSchema = z.object({
   timestamp: z.string(),
   isAnonymous: z.boolean(),
   edited: z.boolean().optional().default(false),
+  read: z.boolean().optional().default(false),
   text: z.string().optional(),
   gifUrl: z.string().optional(),
   senderId: z.string().optional(),
@@ -18,7 +19,6 @@ export const chatMessageSchema = z.object({
   senderAvatar: z.string().nullable().optional(),
   gif: z.string().optional(),
   eventId: z.string().optional(),
-  read: z.boolean().optional().default(false),
   replyTo: z.string().optional(),
 });
 
@@ -41,7 +41,7 @@ export interface ChatMessageInput {
 }
 
 /**
- * ✅ FIXED: Convert input to ChatMessage format
+ * ✅ Convert input to ChatMessage format
  */
 export function toChatMessage(input: ChatMessageInput): Omit<ChatMessage, 'id' | 'timestamp'> {
   return {
@@ -50,7 +50,8 @@ export function toChatMessage(input: ChatMessageInput): Omit<ChatMessage, 'id' |
     text: input.text,
     gifUrl: input.gifUrl,
     isAnonymous: input.isAnonymous,
-    edited: false, // ✅ TOEGEVOEGD
+    edited: false,
+    read: false,
     senderId: input.senderId,
     senderName: input.senderName,
     senderAvatar: input.senderAvatar,

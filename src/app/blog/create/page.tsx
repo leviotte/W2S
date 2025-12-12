@@ -1,237 +1,263 @@
-"use client";
+'use client';
 
-import React, { useState, useTransition } from "react";
-import dynamic from "next/dynamic";
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useFormState } from 'react-dom';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
-import { Plus, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { app } from "@/lib/client/firebase";
+import { Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { type Product } from "@/types/product";
-import { createPostAction } from "@/lib/server/actions/blog";
-import { AffiliateProductSearchDialog } from "@/components/products/affiliate-product-search-dialog";
+import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { createPostAction } from '@/lib/server/actions/blog';
+import type { Product } from '@/types/product';
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
-import { SubmitButton } from "@/components/ui/submit-button";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AffiliateProductSearchDialog } from '@/components/products/affiliate-product-search-dialog';
+import PageTitle from '@/components/layout/page-title';
+import { SubmitButton } from '@/components/ui/submit-button';
 
-// Dynamisch importeren van ReactQuill om SSR te vermijden.
-const ReactQuill = dynamic(() => import("react-quill-new"), {
-  ssr: false,
-  loading: () => <div className="w-full h-32 bg-gray-100 rounded-md animate-pulse" />
-});
-import "react-quill-new/dist/quill.snow.css";
+const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
+import 'react-quill-new/dist/quill.snow.css';
 
-// Type definitie voor een sectie in de blogpost.
-interface Section {
-  id: string;
-  subTitle: string;
-  content: string;
-  items: Product[];
-}
-
-export default function CreatePostPage() {
+export default function CreateBlogPostPage() {
   const router = useRouter();
-  // useTransition voor een non-blocking UI tijdens de server action.
-  const [isPending, startTransition] = useTransition();
+  useRequireAuth();
 
-  // State voor de hoofd-velden van de post.
-  const [headTitle, setHeadTitle] = useState("");
-  const [headDescription, setHeadDescription] = useState("");
-  const [headImageFile, setHeadImageFile] = useState<File | null>(null);
-  const [headImageUrl, setHeadImageUrl] = useState<string>("");
-  const [subDescription, setSubDescription] = useState("");
-
-  // State voor de dynamische secties.
-  const [sections, setSections] = useState<Section[]>([
-    { id: crypto.randomUUID(), subTitle: "", content: "", items: [] },
+  const [headImage, setHeadImage] = useState('');
+  const [sections, setSections] = useState<Array<{ title: string; content: string }>>([
+    { title: '', content: '' },
   ]);
-
-  // State voor de product zoek-dialog.
+  const [products, setProducts] = useState<Product[]>([]);
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
-  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
 
-  // State voor de upload progress.
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  // ✅ CORRECTE INITIAL STATE (matched met server action return type)
+  const initialState = { 
+    success: false, 
+    error: '', 
+    details: undefined,
+    data: undefined 
+  };
+  
+  const [formState, formAction] = useFormState(createPostAction, initialState);
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setHeadImageFile(file);
-      setHeadImageUrl(URL.createObjectURL(file));
+  // ✅ REDIRECT BIJ SUCCESS
+  useEffect(() => {
+    if (formState.success && formState.data?.id) {
+      toast.success('Blog post aangemaakt!');
+      router.push(`/post/${formState.data.id}`);
     }
+  }, [formState.success, formState.data, router]);
+
+  // ✅ ERROR TOAST
+  useEffect(() => {
+    if (!formState.success && formState.error) {
+      toast.error(formState.error);
+    }
+  }, [formState.success, formState.error]);
+
+  const handleAddSection = () => {
+    setSections([...sections, { title: '', content: '' }]);
   };
 
-  // --- Sectie Beheer ---
-  const addSection = () => {
-    setSections([...sections, { id: crypto.randomUUID(), subTitle: "", content: "", items: [] }]);
+  const handleRemoveSection = (index: number) => {
+    setSections(sections.filter((_, i) => i !== index));
   };
 
-  const removeSection = (id: string) => {
-    setSections(sections.filter((section) => section.id !== id));
-  };
-
-  const updateSectionField = (id: string, field: 'subTitle' | 'content', value: string) => {
-    setSections(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
-  };
-
-  const removeItemFromSection = (sectionId: string, itemId: string | number) => {
-    setSections(prev => prev.map(s => s.id === sectionId ? { ...s, items: s.items.filter(item => item.id !== itemId) } : s));
-  };
-
-  // --- Product Dialog Beheer ---
-  const handleOpenSearchDialog = (sectionId: string) => {
-    setActiveSectionId(sectionId);
-    setIsSearchDialogOpen(true);
+  const handleSectionChange = (index: number, field: 'title' | 'content', value: string) => {
+    const updated = [...sections];
+    updated[index][field] = value;
+    setSections(updated);
   };
 
   const handleProductSelected = (product: Product) => {
-    if (!activeSectionId) return;
-
-    setSections(prev => prev.map(s => {
-      if (s.id === activeSectionId) {
-        if (s.items.some(item => item.id === product.id)) {
-          toast.info("Dit product is al toegevoegd aan deze sectie.");
-          return s;
-        }
-        return { ...s, items: [...s.items, product] };
-      }
-      return s;
-    }));
+    if (!products.some(p => p.id === product.id)) {
+      setProducts([...products, product]);
+      toast.success(`${product.title} toegevoegd!`);
+    } else {
+      toast.info('Dit product staat al in de lijst.');
+    }
+    setIsSearchDialogOpen(false);
   };
 
-  // --- Formulier Submission ---
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); // Voorkom standaard form-submit.
-    if (!headTitle.trim()) return toast.error("Titel is verplicht.");
-    if (!headImageFile) return toast.error("Een hoofdafbeelding is verplicht.");
-
-    startTransition(async () => {
-      let uploadedImageUrl = headImageUrl;
-      
-      // Enkel uploaden als er een nieuw bestand is geselecteerd.
-      if (headImageFile) {
-        const promise = new Promise<string>((resolve, reject) => {
-            const storage = getStorage(app);
-            const fileName = `public/posts/${Date.now()}-${headImageFile.name}`;
-            const storageRef = ref(storage, fileName);
-            const uploadTask = uploadBytesResumable(storageRef, headImageFile);
-
-            uploadTask.on(
-                "state_changed",
-                (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-                (error) => {
-                    console.error("Upload error:", error);
-                    toast.error("Afbeelding uploaden mislukt.");
-                    setUploadProgress(null);
-                    reject(error);
-                },
-                async () => {
-                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                    setUploadProgress(null);
-                    resolve(downloadURL);
-                }
-            );
-        });
-
-        try {
-            uploadedImageUrl = await promise;
-        } catch {
-            toast.error("De afbeelding kon niet worden geüpload. Probeer het opnieuw.");
-            return; // Stop de executie.
-        }
-      }
-
-      // Roep de server action aan met alle data.
-      const result = await createPostAction({
-          headTitle,
-          headDescription,
-          headImage: uploadedImageUrl,
-          subDescription,
-          sections,
-      });
-
-      if (result.success) {
-          toast.success("Post succesvol aangemaakt!");
-          router.push("/blog");
-      } else {
-          toast.error(result.error || "Er is iets misgegaan bij het aanmaken van de post.");
-      }
-    });
+  const removeProduct = (productId: string | number) => {
+    setProducts(products.filter(p => p.id !== productId));
+    toast.warning('Product verwijderd.');
   };
 
   return (
     <>
-      <div className="container mx-auto max-w-4xl py-12">
-        <Card>
-          <CardContent className="p-8">
-            <h1 className="text-3xl font-bold text-center mb-8">Nieuw Blogbericht Maken</h1>
-            {/* CORRECTIE: Gebruik onSubmit voor client-side logica VOOR de server action */}
-            <form onSubmit={handleSubmit} className="space-y-8">
-              <div className="space-y-4">
-                {/* CORRECTIE: Gebruik onChange voor input handling */}
-                <Input placeholder="Titel van je blog..." value={headTitle} onChange={(e) => setHeadTitle(e.target.value)} required className="text-lg" />
-                <Textarea placeholder="Korte inleiding..." value={headDescription} onChange={(e) => setHeadDescription(e.target.value)} />
+      <div className="container mx-auto max-w-4xl py-8">
+        <PageTitle title="Nieuwe Blog Post Maken" description="Deel je verhaal met de community" />
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-2">Hoofdafbeelding</label>
-                  <Input type="file" accept="image/*" onChange={handleImageSelect} required />
-                  {uploadProgress !== null && <p className="text-sm text-gray-500 mt-2">Uploaden: {Math.round(uploadProgress)}%</p>}
-                  {headImageUrl && <div className="mt-4"><Image src={headImageUrl} alt="Preview" width={800} height={400} className="rounded-md object-cover w-full" /></div>}
-                </div>
-
-                <Textarea placeholder="Extra beschrijving onder de afbeelding..." value={subDescription} onChange={(e) => setSubDescription(e.target.value)} />
+        <form action={formAction} className="space-y-8 mt-8">
+          <Card>
+            <CardHeader><CardTitle>Hoofdgegevens</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="headTitle">Titel</Label>
+                <Input 
+                  id="headTitle" 
+                  name="headTitle" 
+                  placeholder="Bv: De beste cadeautips voor 2025" 
+                  required 
+                />
+                {/* ✅ CORRECTE ERROR HANDLING: details in plaats van errors */}
+                {formState.details?.headTitle && (
+                  <p className="text-sm text-destructive mt-1">{formState.details.headTitle[0]}</p>
+                )}
               </div>
 
+              <div>
+                <Label htmlFor="headDescription">Korte Beschrijving</Label>
+                <Textarea
+                  id="headDescription"
+                  name="headDescription"
+                  placeholder="Vat je post samen in een paar zinnen..."
+                  rows={3}
+                />
+                {formState.details?.headDescription && (
+                  <p className="text-sm text-destructive mt-1">{formState.details.headDescription[0]}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="headImage">Header Afbeelding URL</Label>
+                <Input
+                  id="headImage"
+                  name="headImage"
+                  type="url"
+                  placeholder="https://example.com/image.jpg"
+                  value={headImage}
+                  onChange={(e) => setHeadImage(e.target.value)}
+                />
+                {headImage && (
+                  <div className="mt-2 relative w-full h-48 rounded-lg overflow-hidden">
+                    <Image src={headImage} alt="Preview" fill className="object-cover" />
+                  </div>
+                )}
+                {formState.details?.headImage && (
+                  <p className="text-sm text-destructive mt-1">{formState.details.headImage[0]}</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Secties</CardTitle>
+              <Button type="button" onClick={handleAddSection} size="sm">
+                <Plus className="h-4 w-4 mr-2" /> Sectie Toevoegen
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-6">
               {sections.map((section, index) => (
-                <div key={section.id} className="space-y-4 p-4 border rounded-lg relative">
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-xl font-semibold">Sectie {index + 1}</h2>
-                    {sections.length > 1 && <Button type="button" variant="ghost" size="icon" onClick={() => removeSection(section.id)}><Trash2 className="h-5 w-5 text-destructive" /></Button>}
-                  </div>
-                  <Input placeholder="Subtitel..." value={section.subTitle} onChange={(e) => updateSectionField(section.id, "subTitle", e.target.value)} />
-                  <ReactQuill theme="snow" value={section.content} onChange={(value) => updateSectionField(section.id, "content", value)} />
-
-                  <div className="space-y-2">
-                    {section.items.map(item => (
-                      <div key={item.id} className="flex items-center gap-4 p-2 border rounded-md">
-                        <Image src={item.imageUrl} alt={item.title} width={48} height={48} className="w-12 h-12 object-cover rounded-md" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">{item.title}</p>
-                          <p className="text-xs text-gray-600">€{typeof item.price === 'number' ? item.price.toFixed(2) : item.price}</p>
-                        </div>
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeItemFromSection(section.id, item.id)}><Trash2 className="h-5 w-5 text-destructive" /></Button>
-                      </div>
-                    ))}
+                <div key={index} className="border rounded-lg p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label>Sectie {index + 1}</Label>
+                    {sections.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveSection(index)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
                   </div>
 
-                  <Button type="button" variant="outline" className="w-full" onClick={() => handleOpenSearchDialog(section.id)}>
-                    <Plus className="mr-2 h-4 w-4" /> Product Toevoegen
-                  </Button>
+                  <div>
+                    <Label htmlFor={`section-title-${index}`}>Titel</Label>
+                    <Input
+                      id={`section-title-${index}`}
+                      value={section.title}
+                      onChange={(e) => handleSectionChange(index, 'title', e.target.value)}
+                      placeholder="Sectie titel..."
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor={`section-content-${index}`}>Inhoud</Label>
+                    <ReactQuill
+                      theme="snow"
+                      value={section.content}
+                      onChange={(value) => handleSectionChange(index, 'content', value)}
+                      className="bg-white"
+                    />
+                  </div>
                 </div>
               ))}
+              {formState.details?.sections && (
+                <p className="text-sm text-destructive">{formState.details.sections[0]}</p>
+              )}
+            </CardContent>
+          </Card>
 
-              <Button type="button" variant="outline" onClick={addSection} className="flex items-center gap-2">
-                <Plus className="h-4 w-4" /> Sectie Toevoegen
+          <Card>
+            <CardHeader><CardTitle>Affiliate Producten</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2 rounded-md border p-4 min-h-[100px]">
+                {products.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Nog geen producten toegevoegd.
+                  </p>
+                )}
+                {products.map((product) => (
+                  <div key={product.id} className="flex items-center gap-4 p-2 bg-background rounded-md">
+                    <Image
+                      src={product.imageUrl || '/default-avatar.png'}
+                      alt={product.title}
+                      width={40}
+                      height={40}
+                      className="w-10 h-10 object-cover rounded"
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium line-clamp-1">{product.title}</p>
+                      <p className="text-xs text-muted-foreground">€{product.price}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      type="button"
+                      onClick={() => removeProduct(product.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => setIsSearchDialogOpen(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" /> Product Toevoegen
               </Button>
-              
-              {/* CORRECTIE: 'isPending' prop verwijderd, 'pendingText' wordt gebruikt door de component zelf. */}
-              <SubmitButton pendingText="Publiceren..." className="w-full" disabled={isPending}>
-                Publiceer Post
-              </SubmitButton>
-            </form>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          {/* Hidden inputs voor server action */}
+          <input type="hidden" name="sections" value={JSON.stringify(sections)} />
+          <input type="hidden" name="products" value={JSON.stringify(products)} />
+
+          <div className="flex justify-end gap-4 pt-4">
+            <Button type="button" variant="ghost" onClick={() => router.back()}>
+              Annuleren
+            </Button>
+            <SubmitButton />
+          </div>
+        </form>
       </div>
 
-      {/* CORRECTIE: Props gecorrigeerd naar standaard React conventies */}
       <AffiliateProductSearchDialog
-        isOpen={isSearchDialogOpen}
-        onClose={() => setIsSearchDialogOpen(false)}
+        open={isSearchDialogOpen}
+        onOpenChange={setIsSearchDialogOpen}
         onProductSelect={handleProductSelected}
       />
     </>

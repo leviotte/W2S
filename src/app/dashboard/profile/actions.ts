@@ -72,7 +72,11 @@ export async function updatePersonalInfo(prevState: FormState, formData: FormDat
   const parsed = PersonalInfoUpdateSchema.safeParse(rawData);
   if (!parsed.success) {
     const { formErrors, fieldErrors } = parsed.error.flatten();
-    const allIssues = [...formErrors, ...Object.values(fieldErrors).flat()];
+    // ✅ FIX: Null check voor fieldErrors
+    const allIssues = [
+      ...formErrors, 
+      ...Object.values(fieldErrors || {}).flat()
+    ];
     return { message: 'Validatiefout.', issues: allIssues, success: false };
   }
   
@@ -103,7 +107,10 @@ export async function updateAddress(prevState: FormState, formData: FormData): P
 
     if (!parsed.success) {
         const { formErrors, fieldErrors } = parsed.error.flatten();
-        const allIssues = [...formErrors, ...Object.values(fieldErrors).flat()];
+        const allIssues = [
+          ...formErrors, 
+          ...Object.values(fieldErrors || {}).flat()
+        ];
         return { message: 'Validatiefout.', issues: allIssues, success: false };
     }
 
@@ -275,7 +282,7 @@ export async function addManagerAction(profileId: string, managerId: string): Pr
 
   try {
     await profileRef.update({
-      managers: FieldValue.arrayUnion(managerId),
+      sharedWith: FieldValue.arrayUnion(managerId),
     });
 
     revalidatePath('/dashboard/profile');
@@ -296,7 +303,7 @@ export async function removeManagerAction(profileId: string, managerId: string):
     
     try {
         await profileRef.update({
-            managers: FieldValue.arrayRemove(managerId),
+            sharedWith: FieldValue.arrayRemove(managerId),
         });
 
         revalidatePath('/dashboard/profile');

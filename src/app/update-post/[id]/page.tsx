@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { requireAdmin } from '@/lib/auth/actions';
 import { getCachedBlogPost } from '@/lib/server/data/blog';
-import { UpdatePostForm } from './_components/update-post-form';
+import { UpdatePostForm } from '@/app/dashboard/posts/[id]/edit/_components/update-post-form';
 
 export const metadata = {
   title: 'Post Bewerken | Wish2Share',

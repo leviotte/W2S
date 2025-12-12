@@ -1,4 +1,3 @@
-// src/components/auth/login-form.tsx
 'use client';
 
 import { useState, useTransition } from 'react';
@@ -8,17 +7,13 @@ import { z } from 'zod';
 import { toast } from 'sonner';
 import { Eye, EyeOff } from 'lucide-react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { getClientAuth } from '@/lib/client/firebase';
-import { createSession } from '@/lib/auth/actions';
-import { useAuthStore } from '@/lib/store/use-auth-store';
-
-// ============================================================================
-// SCHEMA & TYPES
-// ============================================================================
+import { completeLoginAction } from '@/lib/auth/actions';
 
 const loginFormSchema = z.object({
   email: z.string().email('Ongeldig e-mailadres.'),
@@ -27,28 +22,22 @@ const loginFormSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginFormSchema>;
 
-// ============================================================================
-// PROPS INTERFACE
-// ============================================================================
-
 interface LoginFormProps {
-  onSuccess: () => void;
-  onSwitchToRegister: () => void;
-  onSwitchToForgotPassword: () => void;
+  onSuccess?: () => void;
+  onSwitchToRegister?: () => void;
+  onSwitchToForgotPassword?: () => void;
+  returnUrl?: string;
 }
-
-// ============================================================================
-// COMPONENT
-// ============================================================================
 
 export function LoginForm({ 
   onSuccess, 
   onSwitchToRegister, 
-  onSwitchToForgotPassword 
+  onSwitchToForgotPassword,
+  returnUrl 
 }: LoginFormProps) {
   const [isPending, startTransition] = useTransition();
   const [showPassword, setShowPassword] = useState(false);
-  const { closeModal } = useAuthStore();
+  const router = useRouter();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -58,27 +47,49 @@ export function LoginForm({
   const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
     startTransition(async () => {
       try {
+        // 1. Client-side Firebase login
         const userCredential = await signInWithEmailAndPassword(
           getClientAuth(), 
           data.email, 
           data.password
         );
+        
         const user = userCredential.user;
         const idToken = await user.getIdToken();
 
-        await createSession(idToken);
+        // 2. Server-side session creation
+        const result = await completeLoginAction(idToken);
 
-        toast.success('Welkom terug!');
-        
-        // ✅ Roep onSuccess aan (voor modal sluiten etc.)
-        onSuccess();
-        closeModal();
+        if (result.success) {
+          toast.success('Welkom terug!');
+          
+          // Call onSuccess callback if provided
+          if (onSuccess) {
+            onSuccess();
+          }
+          
+          // Navigate to return URL or dashboard
+          const redirectTo = returnUrl || result.data?.redirectTo || '/dashboard';
+          router.push(redirectTo);
+          router.refresh();
+        } else {
+          toast.error(result.error || 'Login mislukt');
+        }
+
       } catch (error: any) {
         console.error("Firebase login error:", error);
-        const errorMessage = error.code === 'auth/invalid-credential' 
-          ? 'Ongeldige login-gegevens. Controleer je e-mail en wachtwoord.'
-          : 'Er is een onbekende fout opgetreden.';
-        toast.error(errorMessage);
+        
+        let errorMessage = 'Er is een onbekende fout opgetreden.';
+        
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+          errorMessage = 'Ongeldige login-gegevens. Controleer je e-mail en wachtwoord.';
+        } else if (error.code === 'auth/user-not-found') {
+          errorMessage = 'Geen account gevonden met dit e-mailadres.';
+        } else if (error.code === 'auth/too-many-requests') {
+          errorMessage = 'Te veel mislukte pogingen. Probeer het later opnieuw.';
+        }
+        
+        toast.error('Login mislukt', { description: errorMessage });
       }
     });
   };
@@ -86,7 +97,6 @@ export function LoginForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Email Field */}
         <FormField
           control={form.control}
           name="email"
@@ -106,7 +116,6 @@ export function LoginForm({
           )}
         />
 
-        {/* Password Field */}
         <FormField
           control={form.control}
           name="password"
@@ -142,33 +151,34 @@ export function LoginForm({
           )}
         />
 
-        {/* Forgot Password Link */}
         <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={onSwitchToForgotPassword}
-            className="text-sm text-primary hover:underline"
-          >
-            Wachtwoord vergeten?
-          </button>
+          {onSwitchToForgotPassword && (
+            <button
+              type="button"
+              onClick={onSwitchToForgotPassword}
+              className="text-sm text-primary hover:underline"
+            >
+              Wachtwoord vergeten?
+            </button>
+          )}
         </div>
 
-        {/* Submit Button */}
         <Button type="submit" className="w-full" disabled={isPending}>
           {isPending ? 'Inloggen...' : 'Log in'}
         </Button>
 
-        {/* Switch to Register */}
-        <div className="text-center text-sm text-muted-foreground">
-          Nog geen account?{' '}
-          <button
-            type="button"
-            onClick={onSwitchToRegister}
-            className="text-primary font-medium hover:underline"
-          >
-            Registreer hier
-          </button>
-        </div>
+        {onSwitchToRegister && (
+          <div className="text-center text-sm text-muted-foreground">
+            Nog geen account?{' '}
+            <button
+              type="button"
+              onClick={onSwitchToRegister}
+              className="text-primary font-medium hover:underline"
+            >
+              Registreer hier
+            </button>
+          </div>
+        )}
       </form>
     </Form>
   );

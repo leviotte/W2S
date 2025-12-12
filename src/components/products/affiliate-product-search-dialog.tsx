@@ -1,4 +1,3 @@
-// src/components/products/affiliate-product-search-dialog.tsx
 "use client";
 
 import { useState, useTransition, useEffect } from 'react';
@@ -16,17 +15,17 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 
-// CORRECTIE: Props aangepast voor duidelijkheid en consistentie.
+// ✅ RADIX UI STANDAARD NAMING
 interface AffiliateProductSearchDialogProps {
-  isOpen: boolean;
+  open: boolean;
   onOpenChange: (open: boolean) => void;
-  onProductSelected: (product: Product) => void;
+  onProductSelect: (product: Product) => void;
 }
 
 export function AffiliateProductSearchDialog({
-  isOpen,
+  open,
   onOpenChange,
-  onProductSelected,
+  onProductSelect,
 }: AffiliateProductSearchDialogProps) {
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -50,8 +49,8 @@ export function AffiliateProductSearchDialog({
       const { products: newProducts, hasMore: newHasMore, error } = await searchAffiliateProducts(term, targetPage);
 
       if (error) {
-          toast.error(error);
-          return;
+        toast.error(error);
+        return;
       }
 
       setResults(prev => loadMore ? [...prev, ...newProducts] : newProducts);
@@ -61,20 +60,17 @@ export function AffiliateProductSearchDialog({
   };
 
   useEffect(() => {
-    // We roepen handleSearch aan wanneer de gedebounced term verandert.
     handleSearch(debouncedSearchTerm, false);
   }, [debouncedSearchTerm]);
 
   const handleSelectProduct = (product: Product) => {
-  onProductSelected(product);
-  onOpenChange(false); // sluit dialog
-  toast.success(`"${product.title}" toegevoegd!`);
-};
+    onProductSelect(product);
+    onOpenChange(false);
+    toast.success(`"${product.title}" toegevoegd!`);
+  };
 
-  // Reset de state wanneer de dialoog sluit.
   useEffect(() => {
-    if (!isOpen) {
-      // Een kleine vertraging om te voorkomen dat de content "verdwijnt" voor de sluit-animatie.
+    if (!open) {
       setTimeout(() => {
         setSearchTerm('');
         setResults([]);
@@ -82,11 +78,10 @@ export function AffiliateProductSearchDialog({
         setPage(1);
       }, 300);
     }
-  }, [isOpen]);
+  }, [open]);
 
   return (
-    // CORRECTIE: onOpenChange van de Dialog component wordt gekoppeld aan onze onClose prop.
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px] h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Zoek een Product</DialogTitle>
@@ -101,7 +96,6 @@ export function AffiliateProductSearchDialog({
             type="search"
             placeholder="Zoek een product (bv. 'ontwaakt')..."
             value={searchTerm}
-            // CORRECTIE: Juiste JSX syntax voor onChange
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
@@ -114,9 +108,9 @@ export function AffiliateProductSearchDialog({
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             )}
-             {!isSearching && results.length === 0 && debouncedSearchTerm.length > 2 && (
+            {!isSearching && results.length === 0 && debouncedSearchTerm.length > 2 && (
               <div className="flex h-full min-h-64 items-center justify-center">
-                  <p className="text-sm text-muted-foreground">Geen resultaten gevonden.</p>
+                <p className="text-sm text-muted-foreground">Geen resultaten gevonden.</p>
               </div>
             )}
 
@@ -125,14 +119,23 @@ export function AffiliateProductSearchDialog({
                 <Card key={product.id} className="flex flex-col">
                   <CardContent className="p-4 flex-grow">
                     <div className="relative aspect-square w-full mb-4">
-                      <Image src={product.imageUrl} alt={product.title} fill sizes="33vw" className="rounded-md object-contain" />
+                      <Image 
+                        src={product.imageUrl} 
+                        alt={product.title} 
+                        fill 
+                        sizes="33vw" 
+                        className="rounded-md object-contain" 
+                      />
                     </div>
                     <p className="text-sm font-medium line-clamp-2">{product.title}</p>
                     <p className="text-lg font-bold">€{product.price.toFixed(2)}</p>
                   </CardContent>
                   <CardFooter className="p-2">
-                    {/* CORRECTIE: Juiste JSX syntax voor onClick */}
-                    <Button className="w-full" size="sm" onClick={() => handleSelectProduct(product)}>
+                    <Button 
+                      className="w-full" 
+                      size="sm" 
+                      onClick={() => handleSelectProduct(product)}
+                    >
                       Voeg toe
                     </Button>
                   </CardFooter>
@@ -142,8 +145,10 @@ export function AffiliateProductSearchDialog({
             
             {hasMore && !isSearching && (
               <div className="mt-4 flex justify-center">
-                {/* CORRECTIE: Juiste JSX syntax voor onClick */}
-                <Button onClick={() => handleSearch(debouncedSearchTerm, true)} variant="secondary">
+                <Button 
+                  onClick={() => handleSearch(debouncedSearchTerm, true)} 
+                  variant="secondary"
+                >
                   Meer laden
                 </Button>
               </div>

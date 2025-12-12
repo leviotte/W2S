@@ -1,4 +1,4 @@
-// src/components/ShareWishlistModal.tsx
+// src/components/wishlist/ShareWishlistModal.tsx
 "use client";
 
 import React, { useState } from "react";
@@ -10,6 +10,7 @@ interface ShareWishlistModalProps {
   onClose: () => void;
   recipientName: string;
   recipientFirstName: string;
+  recipientEmail?: string; // ✅ FIX: Added optional email prop
 }
 
 export default function ShareWishlistModal({
@@ -17,16 +18,16 @@ export default function ShareWishlistModal({
   onClose,
   recipientName,
   recipientFirstName,
+  recipientEmail,
 }: ShareWishlistModalProps) {
   const [senderInfo, setSenderInfo] = useState({
     firstName: "",
     lastName: "",
-    email: "",
+    email: recipientEmail || "", // ✅ Pre-fill if provided
   });
 
   if (!isOpen) return null;
 
-  // SSR-safe URL
   const createWishlistUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/create-wishlist`
@@ -51,7 +52,7 @@ ${senderInfo.firstName} & The Wish2Share Team`;
       toast.error("Please enter a valid email address");
       return;
     }
-    const mailtoLink = `mailto:?subject=Create your wishlist on Wish2Share!&body=${encodeURIComponent(
+    const mailtoLink = `mailto:${recipientEmail || ''}?subject=Create your wishlist on Wish2Share!&body=${encodeURIComponent(
       shareMessage
     )}`;
     window.location.href = mailtoLink;
@@ -68,11 +69,7 @@ ${senderInfo.firstName} & The Wish2Share Team`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareMessage);
-    toast.success("Message copied to clipboard", {
-      onClose: () => {
-        toast.info("You can now send the link", { autoClose: 3000 });
-      },
-    });
+    toast.success("Message copied to clipboard");
     onClose();
   };
 
@@ -106,7 +103,6 @@ ${senderInfo.firstName} & The Wish2Share Team`;
 
         <div className="relative w-full max-w-md bg-white rounded-lg shadow-xl">
           <div className="p-6">
-            {/* Header */}
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-gray-900">
                 Vraag WishList
@@ -120,7 +116,6 @@ ${senderInfo.firstName} & The Wish2Share Team`;
               </button>
             </div>
 
-            {/* Form Inputs */}
             <div className="space-y-6">
               {["firstName", "lastName", "email"].map((field) => (
                 <div key={field}>
@@ -162,7 +157,6 @@ ${senderInfo.firstName} & The Wish2Share Team`;
                 </div>
               ))}
 
-              {/* Share Options */}
               {senderInfo.firstName && senderInfo.lastName && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium text-gray-900">
@@ -185,7 +179,6 @@ ${senderInfo.firstName} & The Wish2Share Team`;
                 </div>
               )}
 
-              {/* Close Button */}
               <div className="flex justify-end">
                 <button
                   onClick={onClose}

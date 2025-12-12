@@ -6,7 +6,6 @@ import './globals.css';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { SiteHeader } from '@/components/layout/site-header';
-import AuthModal from '@/components/auth/auth-modal';
 import { Toaster } from 'sonner';
 import Footer from '@/components/layout/Footer';
 
@@ -52,7 +51,6 @@ export default function RootLayout({
             </div>
             {/* Globale componenten die overal beschikbaar moeten zijn */}
             <Toaster richColors position="top-center" />
-            <AuthModal />
           </AuthProvider>
         </ThemeProvider>
       </body>

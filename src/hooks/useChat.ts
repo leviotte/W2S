@@ -21,7 +21,8 @@ export function useChat(initialMessages: ChatMessage[] = []): UseChatReturn {
         userName: userName,
         timestamp: new Date().toISOString(),
         isAnonymous: anonymousMode,
-        edited: false, // ✅ TOEGEVOEGD
+        edited: false,
+        read: false,
         gifUrl: gifUrl,
       };
 

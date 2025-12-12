@@ -3,13 +3,11 @@ import Link from "next/link";
 import { MainNav } from "./main-nav";
 import TeamSwitcher from "../shared/TeamSwitcher";
 import { Button } from "@/components/ui/button";
-
 import { getCurrentUser } from '@/lib/auth/actions';
-import { getManagedProfiles } from "@/lib/server/data/users"; // Straks fixen we deze
-import AuthModal from "../auth/auth-modal";
+import { getManagedProfiles } from "@/lib/server/data/users";
 
 export async function SiteHeader() {
-  // 1. Haal de data op de server op. Geen client-side loading state meer!
+  // Server-side data fetching - geen loading states nodig!
   const user = await getCurrentUser();
   const profiles = user ? await getManagedProfiles(user.id) : [];
 
@@ -21,11 +19,19 @@ export async function SiteHeader() {
           <nav className="flex items-center space-x-2">
             {user ? (
               <>
-                {/* 2. Geef de server-data door als props aan de client component */}
+                {/* Server data direct als props doorgeven */}
                 <TeamSwitcher user={user} profiles={profiles} />
               </>
             ) : (
-              <AuthModal />
+              <>
+                {/* ✅ NIEUWE LOGIN/REGISTER BUTTONS (zonder modal) */}
+                <Button variant="ghost" asChild>
+                  <Link href="/login">Inloggen</Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/register">Registreren</Link>
+                </Button>
+              </>
             )}
           </nav>
         </div>

@@ -2,74 +2,50 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import type { UserProfile, SubProfile } from '@/types/user';
 
-export interface UserAvatarProps {
-  // Optie 1: Losse props
+interface UserAvatarProps {
+  profile?: {
+    photoURL?: string | null;
+    displayName?: string;
+    firstName?: string;
+    lastName?: string;
+  };
   src?: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
-  name?: string | null;
-  
-  // ✅ NIEUWE PROP VOOR BACKWARD COMPATIBILITY
+  name?: string;
+  firstName?: string;
+  lastName?: string;
   photoURL?: string | null;
-  
-  // Optie 2: Een profile object
-  profile?: (UserProfile | SubProfile) & { id?: string };
-  
   className?: string;
-  
-  // ✅ SIZE PROP (optioneel, niet gebruikt maar voorkomt errors)
   size?: string;
 }
 
-/**
- * Helper functie om initialen te genereren
- */
-function getInitials(
-  firstName?: string | null,
-  lastName?: string | null,
-  name?: string | null
-): string {
-  if (firstName && lastName) {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-  }
-  
-  if (name) {
-    const parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
-  }
-  
-  return '?';
-}
-
 export function UserAvatar({ 
+  profile,
   src, 
-  firstName, 
-  lastName, 
   name,
-  photoURL, // ✅ NIEUWE PROP
-  profile, 
+  firstName,
+  lastName,
+  photoURL,
   className,
-  size // ✅ ACCEPTEER MAAR NEGEER
+  size = 'h-10 w-10'
 }: UserAvatarProps) {
-  // Als profile is meegegeven, gebruik die data
-  const avatarSrc = profile?.photoURL || photoURL || src; // ✅ FALLBACK CHAIN
-  const avatarFirstName = profile?.firstName || firstName;
-  const avatarLastName = profile?.lastName || lastName;
-  const avatarName = name || (profile ? `${profile.firstName} ${profile.lastName}` : undefined);
-  
-  const initials = getInitials(avatarFirstName, avatarLastName, avatarName);
-  
+  const actualPhotoURL = src || photoURL || profile?.photoURL;
+  const actualName = name || profile?.displayName || 
+    (firstName && lastName ? `${firstName} ${lastName}` : '') ||
+    (profile?.firstName && profile?.lastName ? `${profile.firstName} ${profile.lastName}` : '');
+
+  const initials = actualName
+    ? actualName
+        .split(' ')
+        .map(n => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
+    : '??';
+
   return (
-    <Avatar className={cn('bg-muted text-muted-foreground', className)}>
-      <AvatarImage 
-        src={avatarSrc ?? undefined} 
-        alt={avatarName ?? 'User avatar'} 
-      />
+    <Avatar className={cn(size, className)}>
+      {actualPhotoURL && <AvatarImage src={actualPhotoURL} alt={actualName || 'User'} />}
       <AvatarFallback>{initials}</AvatarFallback>
     </Avatar>
   );

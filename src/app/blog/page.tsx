@@ -3,6 +3,9 @@ import { getCachedBlogPosts } from '@/lib/server/data/blog';
 import { getCurrentUser } from '@/lib/auth/actions';
 import { BlogGrid } from './_components/blog-grid';
 
+// ✅ Re-export het type voor backwards compatibility
+export type { PostSummary } from '@/types/blog';
+
 export const metadata: Metadata = {
   title: 'Blog - Inspiratie & Cadeau-ideeën | Wish2Share',
   description: 'De bron voor cadeau-ideeën en inspiratie voor je verlanglijst. Van trendy gadgets tot unieke items, hier vind je alles voor het perfecte cadeau en je ideale verlanglijst.',
