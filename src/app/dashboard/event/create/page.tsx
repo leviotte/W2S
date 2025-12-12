@@ -1,34 +1,23 @@
-// src/app/dashboard/event/create/page.tsx
-import 'server-only';
-import { getCurrentUser, getManagedProfiles } from "@/lib/auth/actions";
-import { redirect } from "next/navigation";
-import CreateEventForm from "./_components/CreateEventForm";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { redirect } from 'next/navigation';
+import { getCurrentUser } from '@/lib/auth/actions';
+import { getUserProfilesAction } from '@/lib/server/actions/profile-actions'; // ✅ FIXED IMPORT
+import CreateEventForm from './_components/CreateEventForm';
 
 export default async function CreateEventPage() {
   const currentUser = await getCurrentUser();
+
   if (!currentUser) {
-    // Stuur niet-ingelogde gebruikers naar de login-pagina
-    redirect("/login"); 
+    redirect('/?modal=login&callbackUrl=/dashboard/event/create');
   }
 
-  // Haal de profielen op die door de huidige gebruiker worden beheerd
-  const managedProfiles = await getManagedProfiles(currentUser.id);
-  // Combineer het hoofdprofiel met de beheerde profielen
-  const allProfiles = [currentUser, ...managedProfiles];
+  // Get all profiles for the current user
+  const profilesResult = await getUserProfilesAction(currentUser.id);
+  const allProfiles = profilesResult.success ? profilesResult.data || [] : [];
 
   return (
-    <div className="container mx-auto max-w-2xl p-4 sm:p-8">
-       <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Nieuw Evenement Aanmaken</CardTitle>
-          <CardDescription>Vul de details in om je nieuwe evenement op te zetten.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            {/* Geef de opgehaalde data door als props */}
-            <CreateEventForm currentUser={currentUser} profiles={allProfiles} />
-        </CardContent>
-      </Card>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-8">Nieuw Evenement Aanmaken</h1>
+      <CreateEventForm currentUser={currentUser} profiles={allProfiles} />
     </div>
   );
 }

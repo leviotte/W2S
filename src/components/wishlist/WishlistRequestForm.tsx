@@ -1,21 +1,27 @@
+'use client';
+
 import React, { useState } from 'react';
-import { Search, UserPlus } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/client/firebase';
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import WishlistInviteHandler from '@/components/wishlist/WishlistInviteHandler';
+import { WishlistInviteHandler } from '@/components/wishlist/WishlistInviteHandler';
 
 interface FormData {
   firstName: string;
   lastName: string;
 }
 
-export default function WishlistRequestPage() {
+export default function WishlistRequestForm() {
   const [formData, setFormData] = useState<FormData>({ firstName: '', lastName: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [suggestInvite, setSuggestInvite] = useState(false);
-  const [recipient, setRecipient] = useState<FormData>({ firstName: '', lastName: '' });
+  const [recipient, setRecipient] = useState<FormData & { email?: string }>({ 
+    firstName: '', 
+    lastName: '',
+    email: '' 
+  });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -42,7 +48,11 @@ export default function WishlistRequestPage() {
       const snap = await getDocs(q);
 
       if (snap.empty) {
-        setRecipient({ ...formData });
+        setRecipient({ 
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: '' 
+        });
         setSuggestInvite(true);
         return;
       }
@@ -122,12 +132,8 @@ export default function WishlistRequestPage() {
         </form>
       </div>
 
-      {suggestInvite && (
-        <WishlistInviteHandler
-          recipientFirstName={recipient.firstName}
-          recipientLastName={recipient.lastName}
-        />
-      )}
+      {/* ✅ FIXED: Component doesn't need props */}
+      {suggestInvite && <WishlistInviteHandler />}
     </div>
   );
 }

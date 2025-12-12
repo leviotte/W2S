@@ -67,7 +67,7 @@ export function WishlistLinkModal({
     try {
       const result = await getUserWishlistsAction(currentUser.id);
 
-      if (result.success) {
+      if (result.success && result.data) { // ✅ Add check for result.data
         setWishlists(result.data);
       } else {
         toast.error(result.error || "Kon wishlists niet laden");

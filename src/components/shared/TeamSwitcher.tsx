@@ -1,4 +1,3 @@
-// src/components/shared/TeamSwitcher.tsx
 'use client';
 
 import * as React from 'react';
@@ -19,12 +18,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { UserAvatar } from './user-avatar';
-import type { UserProfile } from '@/types/user';
+import type { UserProfile, SubProfile } from '@/types/user';
 import { destroySession } from '@/lib/auth/actions';
 
 type TeamSwitcherProps = {
-  user: UserProfile;
-  profiles: UserProfile[];
+  user: UserProfile & { id: string };
+  profiles: (SubProfile & { id: string })[]; // ✅ FIXED: Accept SubProfile[]
   className?: string;
 };
 
@@ -32,10 +31,10 @@ export default function TeamSwitcher({ user, profiles, className }: TeamSwitcher
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  // Lokale state voor de UI. Kan later een simpele client-store worden if needed.
   const [activeProfileId, setActiveProfileId] = React.useState(user.id);
   const [showMenu, setShowMenu] = React.useState(false);
 
+  // ✅ FIXED: Combine user + subProfiles
   const allProfiles = [user, ...profiles];
   const selectedProfile = allProfiles.find(p => p.id === activeProfileId) ?? user;
 
@@ -48,14 +47,10 @@ export default function TeamSwitcher({ user, profiles, className }: TeamSwitcher
   const handleProfileSwitch = (profileId: string) => {
     setActiveProfileId(profileId);
     setShowMenu(false);
-    // Optioneel: refresh de pagina als de data drastisch moet wijzigen.
-    // Voor nu is het wisselen in de UI voldoende voor de look & feel.
-    // router.refresh();
   };
 
   return (
     <div className={cn('flex items-center space-x-2', className)}>
-      {/* Profiel-selector Dropdown */}
       <DropdownMenu open={showMenu} onOpenChange={setShowMenu}>
         <DropdownMenuTrigger asChild>
           <Button
@@ -75,7 +70,7 @@ export default function TeamSwitcher({ user, profiles, className }: TeamSwitcher
           <DropdownMenuLabel>Wissel van profiel</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {allProfiles.map((profile) => (
-            <DropdownMenuItem key={profile.id} onSelect={() => handleProfileSwitch(profile.id)}>
+            <DropdownMenuItem key={profile.id} onClick={() => handleProfileSwitch(profile.id)}>
               <UserAvatar profile={profile} className="mr-2 h-5 w-5" />
               <span>{profile.displayName}</span>
             </DropdownMenuItem>
@@ -90,7 +85,6 @@ export default function TeamSwitcher({ user, profiles, className }: TeamSwitcher
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Gebruikersacties Dropdown (rechter avatar) */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative h-8 w-8 rounded-full">

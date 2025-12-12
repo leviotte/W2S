@@ -1,3 +1,4 @@
+// src/lib/server/actions/profile-actions.ts
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -72,7 +73,6 @@ export async function updatePersonalInfo(prevState: FormState, formData: FormDat
   const parsed = PersonalInfoUpdateSchema.safeParse(rawData);
   if (!parsed.success) {
     const { formErrors, fieldErrors } = parsed.error.flatten();
-    // ✅ FIX: Null check voor fieldErrors
     const allIssues = [
       ...formErrors, 
       ...Object.values(fieldErrors || {}).flat()
@@ -244,7 +244,7 @@ export async function togglePublicStatus(isPublic: boolean): Promise<ToggleStatu
 export async function getManagersForProfile(profileId: string): Promise<UserProfile[]> {
   const profileDoc = await adminDb.collection('users').doc(profileId).get();
   if (!profileDoc.exists) return [];
-  const managerIds = profileDoc.data()?.managers || [];
+  const managerIds = profileDoc.data()?.sharedWith || []; // ✅ sharedWith is de juiste property
   return getUserProfiles(managerIds);
 }
 
@@ -312,4 +312,24 @@ export async function removeManagerAction(profileId: string, managerId: string):
         console.error('Fout bij verwijderen beheerder:', e);
         return { success: false, error: 'Kon beheerder niet verwijderen.' };
     }
+}
+
+// ✅ NEW: Get all profiles for a user (for forms, team switcher, etc.)
+export async function getUserProfilesAction(userId: string): Promise<ActionResponse<UserProfile[]>> {
+  try {
+    const snapshot = await adminDb
+      .collection('users')
+      .where('userId', '==', userId)
+      .get();
+
+    const profiles = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as UserProfile[];
+
+    return { success: true, data: profiles };
+  } catch (error) {
+    console.error('Error fetching user profiles:', error);
+    return { success: false, error: 'Kon profielen niet ophalen.' };
+  }
 }

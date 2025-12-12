@@ -3,7 +3,7 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { togglePublicStatus } from '@/app/dashboard/profile/actions';
+import { togglePublicStatus } from '@/lib/server/actions/profile-actions';
 import type { UserProfile } from '@/types/user';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

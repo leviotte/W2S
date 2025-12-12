@@ -8,7 +8,7 @@ import { useForm, Controller, type FieldValues } from 'react-hook-form'; // VOEG
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod'; // IMPORTEERT 'z'
 import type { UserProfile } from '@/types/user';
-import { updatePersonalInfo } from '@/app/dashboard/profile/actions';
+import { updatePersonalInfo } from '@/lib/server/actions/profile-actions';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

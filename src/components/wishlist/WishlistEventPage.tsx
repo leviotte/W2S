@@ -93,8 +93,9 @@ export default function WishlistEventPage({
   // Fetch Wishlist Realtime
   // ============================
   useEffect(() => {
-    if (!id) return;
-    let unsubscribe: (() => void) | null = null;
+  if (!id) return;
+  
+  let unsubscribe: (() => void) | undefined;
 
     const getSlug = async (ownerId: any) => {
       const userQuery = query(collection(db, "users"), where("id", "==", ownerId));

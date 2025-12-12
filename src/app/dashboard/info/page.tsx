@@ -1,73 +1,109 @@
-import { Suspense } from 'react';
+// src/app/dashboard/info/page.tsx
 import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth/session';
-import { getEventCountsAction } from '@/lib/server/actions/event-actions';
-import { getFollowStatsAction } from '@/lib/server/actions/follow-actions';
-import { getUserWishlistsAction } from '@/lib/server/actions/wishlist-actions';
-import DashboardClientWrapper from '@/components/dashboard/dashboard-client-wrapper';
-import { Skeleton } from '@/components/ui/skeleton';
+import { getCurrentUser } from '@/lib/auth/actions';
+import { adminDb } from '@/lib/server/firebase-admin';
+import { DashboardClientWrapper } from '@/components/dashboard/dashboard-client-wrapper';
+import type { EventStats, WishlistStats } from '@/components/dashboard/dash-event-cards';
 
-export default async function DashboardInfoPage() {
-  const session = await getSession();
+async function getEventCounts(userId: string): Promise<EventStats> {
+  try {
+    const eventsRef = adminDb.collection('events');
+    const now = new Date();
 
-  if (!session.isLoggedIn || !session.user) {
-    redirect('/');
+    // Get all events for user
+    const allEventsSnapshot = await eventsRef
+      .where(`participants.${userId}.id`, '==', userId)
+      .get();
+
+    const allEvents = allEventsSnapshot.docs;
+
+    // Count upcoming events
+    const upcomingEvents = allEvents.filter(doc => {
+      const date = doc.data().date?.toDate?.() || new Date(doc.data().date);
+      return date >= now;
+    });
+
+    // Count past events
+    const pastEvents = allEvents.filter(doc => {
+      const date = doc.data().date?.toDate?.() || new Date(doc.data().date);
+      return date < now;
+    });
+
+    return {
+      upcoming: upcomingEvents.length,
+      past: pastEvents.length,
+      onGoing: 0, // ✅ Added for EventStats compatibility
+      all: allEvents.length,
+    };
+  } catch (error) {
+    console.error('Error fetching event counts:', error);
+    return { upcoming: 0, past: 0, onGoing: 0, all: 0 };
   }
-
-  const userId = session.user.id;
-
-  // ✅ Parallel data fetching
-  const [rawEventCounts, rawFollowStats, wishlistsResult] = await Promise.all([
-    getEventCountsAction(userId),
-    getFollowStatsAction(userId),
-    getUserWishlistsAction(userId),
-  ]);
-
-  // ✅ FIXED: Correct EventStats structure (upcoming instead of onGoing)
-  const eventCounts = {
-    upcoming: rawEventCounts.upcoming || 0,
-    past: rawEventCounts.past || 0,
-    all: (rawEventCounts.upcoming || 0) + (rawEventCounts.past || 0),
-  };
-
-  // ✅ FIXED: Correct FollowStats structure
-  const initialFollows = {
-    followers: rawFollowStats.followers || [],
-    following: rawFollowStats.following || [],
-    followersCount: rawFollowStats.followersCount || 0,
-    followingCount: rawFollowStats.followingCount || 0,
-  };
-
-  // ✅ FIXED: Correct WishlistStats structure
-  const wishlists = wishlistsResult.success ? wishlistsResult.data : [];
-  const initialWishlists = {
-    total: wishlists.length,
-    public: wishlists.filter((w) => w.isPublic).length,
-    private: wishlists.filter((w) => !w.isPublic).length,
-    totalItems: wishlists.reduce((sum, w) => sum + w.items.length, 0),
-  };
-
-  return (
-    <Suspense fallback={<DashboardSkeleton />}>
-      <DashboardClientWrapper
-        user={session.user}
-        initialEvents={eventCounts}
-        initialFollows={initialFollows}
-        initialWishlists={initialWishlists}
-      />
-    </Suspense>
-  );
 }
 
-function DashboardSkeleton() {
+async function getWishlistStats(userId: string): Promise<WishlistStats> {
+  try {
+    const wishlistsRef = adminDb.collection('wishlists');
+    const snapshot = await wishlistsRef
+      .where('ownerId', '==', userId)
+      .get();
+
+    const wishlists = snapshot.docs;
+    const publicCount = wishlists.filter(doc => doc.data().isPublic === true).length;
+
+    return {
+      total: wishlists.length,
+      public: publicCount,
+      private: wishlists.length - publicCount,
+    };
+  } catch (error) {
+    console.error('Error fetching wishlist stats:', error);
+    return { total: 0, public: 0, private: 0 };
+  }
+}
+
+async function getFollowStats(userId: string) {
+  try {
+    // Get followers count
+    const followersSnapshot = await adminDb
+      .collection('follows')
+      .where('followingId', '==', userId)
+      .get();
+
+    // Get following count
+    const followingSnapshot = await adminDb
+      .collection('follows')
+      .where('followerId', '==', userId)
+      .get();
+
+    return {
+      followers: followersSnapshot.size, // ✅ FIX: Return NUMBER not array
+      following: followingSnapshot.size, // ✅ FIX: Return NUMBER not array
+    };
+  } catch (error) {
+    console.error('Error fetching follow stats:', error);
+    return { followers: 0, following: 0 };
+  }
+}
+
+export default async function DashboardInfoPage() {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    redirect('/?modal=login&callbackUrl=/dashboard/info');
+  }
+
+  const [eventCounts, wishlistCounts, followStats] = await Promise.all([
+    getEventCounts(currentUser.id),
+    getWishlistStats(currentUser.id),
+    getFollowStats(currentUser.id),
+  ]);
+
   return (
-    <div className="space-y-6">
-      <Skeleton className="h-32 w-full" />
-      <div className="grid gap-6 md:grid-cols-3">
-        <Skeleton className="h-40" />
-        <Skeleton className="h-40" />
-        <Skeleton className="h-40" />
-      </div>
-    </div>
+    <DashboardClientWrapper
+      initialEvents={eventCounts}
+      initialWishlists={wishlistCounts}
+      initialFollows={followStats}
+    />
   );
 }

@@ -94,7 +94,7 @@ export function EventWishlistSelector({
   return (
     <WishlistSelector
       selectedWishlistId={selectedWishlistId}
-      onWishlistSelect={onWishlistSelect}
+      onSelect={onWishlistSelect}
       onCreateNew={() => setShowNewWishlistForm(true)}
     />
   );

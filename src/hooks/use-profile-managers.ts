@@ -8,7 +8,7 @@ import {
   searchUsersAction,
   addManagerAction,
   removeManagerAction,
-} from '@/app/dashboard/profile/actions';
+} from '@/lib/server/actions/profile-actions';
 import type { UserProfile } from '@/types/user';
 
 export function useProfileManagers(profileId: string) {

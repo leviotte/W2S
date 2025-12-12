@@ -1,132 +1,107 @@
 'use server';
 
-import 'server-only';
-import { revalidatePath } from 'next/cache'; // ✅ GEBRUIK revalidatePath in plaats van revalidateTag
 import { adminDb } from '@/lib/server/firebase-admin';
+import { revalidatePath } from 'next/cache';
 import type { Wishlist, WishlistItem } from '@/types/wishlist';
-import { wishlistSchema, wishlistItemSchema, productToWishlistItem } from '@/types/wishlist';
-import type { Product } from '@/types/product';
 
 // ============================================================================
-// TYPE DEFINITIONS
+// TYPES & INTERFACES
 // ============================================================================
 
-type ActionResult<T> = 
-  | { success: true; data: T }
-  | { success: false; error: string };
+interface ActionResult<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
 
-// ============================================================================
-// HELPER: Revalidate wishlist cache
-// ============================================================================
+interface CreateWishlistData {
+  name: string;
+  description?: string;
+  isPublic?: boolean;
+  backgroundImage?: string;
+  minPrice?: number;
+  maxPrice?: number;
+}
 
-function revalidateWishlistCache(userId?: string, wishlistId?: string, profileId?: string) {
-  // ✅ Revalideer alle relevante paths
-  revalidatePath('/dashboard/wishlists');
-  revalidatePath('/wishlists');
-  
-  if (userId) {
-    revalidatePath(`/dashboard/wishlists?user=${userId}`);
-  }
-  
-  if (wishlistId) {
-    revalidatePath(`/wishlists/${wishlistId}`);
-  }
-  
-  if (profileId) {
-    revalidatePath(`/dashboard/wishlists?profile=${profileId}`);
-  }
+interface UpdateWishlistData {
+  name?: string;
+  description?: string;
+  isPublic?: boolean;
+  backgroundImage?: string;
+  minPrice?: number;
+  maxPrice?: number;
+}
+
+interface UpdateWishlistItemData {
+  wishlistId: string;
+  itemId: string;
+  updates: Partial<WishlistItem>;
 }
 
 // ============================================================================
-// GET USER WISHLISTS
+// WISHLIST CRUD OPERATIONS
 // ============================================================================
 
-export async function getUserWishlistsAction(
-  userId: string,
-  profileId?: string | null
-): Promise<ActionResult<Wishlist[]>> {
+/**
+ * ✅ Get all wishlists for a specific user
+ */
+export async function getUserWishlistsAction(userId: string): Promise<ActionResult<Wishlist[]>> {
   try {
-    const wishlistsRef = adminDb.collection('wishlists');
-    
-    let query;
-    
-    if (profileId && profileId !== 'main-account') {
-      query = wishlistsRef.where('profileId', '==', profileId);
-    } else {
-      query = wishlistsRef
-        .where('ownerId', '==', userId)
-        .where('profileId', '==', null);
-    }
+    const wishlistsSnapshot = await adminDb
+      .collection('wishlists')
+      .where('owner', '==', userId)
+      .orderBy('createdAt', 'desc')
+      .get();
 
-    const snapshot = await query.get();
-    
-    const wishlists = snapshot.docs.map(doc => {
-      const data = doc.data();
-      const validation = wishlistSchema.safeParse({
-        ...data,
-        id: doc.id,
-      });
-
-      if (!validation.success) {
-        console.error('Wishlist validation failed:', validation.error.flatten());
-        return null;
-      }
-
-      return validation.data;
-    }).filter((w): w is Wishlist => w !== null);
+    const wishlists = wishlistsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate() || new Date(),
+      updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+    })) as Wishlist[];
 
     return { success: true, data: wishlists };
   } catch (error) {
-    console.error('Error fetching user wishlists:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Er ging iets mis bij het ophalen van de wishlists' 
+    console.error('getUserWishlistsAction error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon wishlists niet ophalen',
     };
   }
 }
 
-// ============================================================================
-// GET WISHLIST BY ID
-// ============================================================================
-
-export async function getWishlistByIdAction(
-  wishlistId: string
-): Promise<ActionResult<Wishlist>> {
+/**
+ * ✅ Get wishlist by ID
+ */
+export async function getWishlistByIdAction(wishlistId: string): Promise<ActionResult<Wishlist>> {
   try {
-    const wishlistDoc = await adminDb.collection('wishlists').doc(wishlistId).get();
+    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
 
-    if (!wishlistDoc.exists) {
+    if (!doc.exists) {
       return { success: false, error: 'Wishlist niet gevonden' };
     }
 
-    const data = wishlistDoc.data();
-    const validation = wishlistSchema.safeParse({
-      ...data,
-      id: wishlistDoc.id,
-    });
+    const wishlist = {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data()?.createdAt?.toDate() || new Date(),
+      updatedAt: doc.data()?.updatedAt?.toDate() || new Date(),
+    } as Wishlist;
 
-    if (!validation.success) {
-      console.error('Wishlist validation failed:', validation.error.flatten());
-      return { success: false, error: 'Ongeldige wishlist data' };
-    }
-
-    return { success: true, data: validation.data };
+    return { success: true, data: wishlist };
   } catch (error) {
-    console.error('Error fetching wishlist:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Er ging iets mis bij het ophalen van de wishlist' 
+    console.error('getWishlistByIdAction error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon wishlist niet ophalen',
     };
   }
 }
 
-// ============================================================================
-// GET WISHLIST BY SLUG
-// ============================================================================
-
-export async function getWishlistBySlugAction(
-  slug: string
-): Promise<ActionResult<Wishlist>> {
+/**
+ * ✅ Get wishlist by slug
+ */
+export async function getWishlistBySlugAction(slug: string): Promise<ActionResult<Wishlist>> {
   try {
     const snapshot = await adminDb
       .collection('wishlists')
@@ -138,524 +113,634 @@ export async function getWishlistBySlugAction(
       return { success: false, error: 'Wishlist niet gevonden' };
     }
 
-    const wishlistDoc = snapshot.docs[0];
-    const data = wishlistDoc.data();
-    
-    const validation = wishlistSchema.safeParse({
-      ...data,
-      id: wishlistDoc.id,
-    });
+    const doc = snapshot.docs[0];
+    const wishlist = {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data()?.createdAt?.toDate() || new Date(),
+      updatedAt: doc.data()?.updatedAt?.toDate() || new Date(),
+    } as Wishlist;
 
-    if (!validation.success) {
-      console.error('Wishlist validation failed:', validation.error.flatten());
-      return { success: false, error: 'Ongeldige wishlist data' };
-    }
-
-    return { success: true, data: validation.data };
+    return { success: true, data: wishlist };
   } catch (error) {
-    console.error('Error fetching wishlist by slug:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Er ging iets mis bij het ophalen van de wishlist' 
+    console.error('getWishlistBySlugAction error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon wishlist niet ophalen',
     };
   }
 }
 
-// ============================================================================
-// CREATE WISHLIST
-// ============================================================================
+/**
+ * ✅ Get wishlist owner (user or profile)
+ */
+export async function getWishlistOwnerAction(ownerId: string): Promise<ActionResult<any>> {
+  try {
+    // Try users first
+    const userSnapshot = await adminDb
+      .collection('users')
+      .where('id', '==', ownerId)
+      .limit(1)
+      .get();
 
+    if (!userSnapshot.empty) {
+      return { success: true, data: userSnapshot.docs[0].data() };
+    }
+
+    // Try profiles
+    const profileSnapshot = await adminDb
+      .collection('profiles')
+      .where('id', '==', ownerId)
+      .limit(1)
+      .get();
+
+    if (!profileSnapshot.empty) {
+      return { success: true, data: profileSnapshot.docs[0].data() };
+    }
+
+    return { success: false, error: 'Owner niet gevonden' };
+  } catch (error) {
+    console.error('getWishlistOwnerAction error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon owner niet ophalen',
+    };
+  }
+}
+
+/**
+ * ✅ Create a new wishlist
+ */
 export async function createWishlistAction(
   userId: string,
-  data: {
-    name: string;
-    description?: string;
-    isPublic?: boolean;
-    slug?: string;
-    eventDate?: string;
-    backgroundImage?: string;
-    category?: string;
-    tags?: string[];
-    profileId?: string | null;
-  }
+  data: CreateWishlistData
 ): Promise<ActionResult<string>> {
   try {
-    if (!data.name?.trim()) {
-      return { success: false, error: 'De naam van de wishlist is verplicht' };
-    }
+    // Generate slug from name
+    const slug = data.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
 
-    if (data.name.trim().length < 3) {
-      return { success: false, error: 'De naam moet minstens 3 tekens lang zijn' };
-    }
+    // Check if slug exists
+    const existingSnapshot = await adminDb
+      .collection('wishlists')
+      .where('slug', '==', slug)
+      .limit(1)
+      .get();
 
-    if (data.slug) {
-      const existingSlug = await adminDb
-        .collection('wishlists')
-        .where('slug', '==', data.slug)
-        .limit(1)
-        .get();
+    const finalSlug = existingSnapshot.empty ? slug : `${slug}-${Date.now()}`;
 
-      if (!existingSlug.empty) {
-        return { success: false, error: 'Deze slug is al in gebruik' };
-      }
-    }
-
-    const wishlistId = crypto.randomUUID();
-    const isProfileActive = data.profileId && data.profileId !== 'main-account';
-
-    const wishlistDoc: Omit<Wishlist, 'id'> = {
-      name: data.name.trim(),
+    const wishlistData = {
+      name: data.name,
+      description: data.description || '',
+      owner: userId,
       ownerId: userId,
-      ownerName: '',
+      slug: finalSlug,
       isPublic: data.isPublic ?? false,
-      description: data.description || null,
-      slug: data.slug || null,
-      eventDate: data.eventDate || null,
-      backgroundImage: data.backgroundImage || null,
+      backgroundImage: data.backgroundImage || '',
+      minPrice: data.minPrice || 0,
+      maxPrice: data.maxPrice || 0,
       items: [],
-      category: data.category,
-      tags: data.tags || [],
       sharedWith: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      // @ts-ignore
-      profileId: isProfileActive ? data.profileId : null,
     };
 
-    await adminDb.collection('wishlists').doc(wishlistId).set(wishlistDoc);
+    const docRef = await adminDb.collection('wishlists').add(wishlistData);
 
-    revalidateWishlistCache(userId, wishlistId, data.profileId || undefined);
+    revalidatePath('/dashboard/wishlists');
+    revalidatePath(`/wishlist/${finalSlug}`);
 
-    return { success: true, data: wishlistId };
+    return { success: true, data: docRef.id };
   } catch (error) {
-    console.error('Error creating wishlist:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Er ging iets mis bij het aanmaken van de wishlist' 
+    console.error('createWishlistAction error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon wishlist niet aanmaken',
     };
   }
 }
 
-// ============================================================================
-// UPDATE WISHLIST
-// ============================================================================
-
+/**
+ * ✅ Update wishlist metadata
+ */
 export async function updateWishlistAction(
   wishlistId: string,
-  userId: string,
-  updates: Partial<Omit<Wishlist, 'id' | 'ownerId' | 'createdAt'>>
-): Promise<ActionResult<void>> {
+  updates: UpdateWishlistData
+): Promise<ActionResult> {
   try {
-    const wishlistDoc = await adminDb.collection('wishlists').doc(wishlistId).get();
-
-    if (!wishlistDoc.exists) {
-      return { success: false, error: 'Wishlist niet gevonden' };
-    }
-
-    const wishlistData = wishlistDoc.data();
-    if (wishlistData?.ownerId !== userId) {
-      return { success: false, error: 'Je hebt geen toestemming om deze wishlist te bewerken' };
-    }
-
-    if (updates.slug && updates.slug !== wishlistData?.slug) {
-      const existingSlug = await adminDb
-        .collection('wishlists')
-        .where('slug', '==', updates.slug)
-        .limit(1)
-        .get();
-
-      if (!existingSlug.empty) {
-        return { success: false, error: 'Deze slug is al in gebruik' };
-      }
-    }
-
-    await adminDb.collection('wishlists').doc(wishlistId).update({
+    const updateData: any = {
       ...updates,
       updatedAt: new Date().toISOString(),
-    });
+    };
 
-    revalidateWishlistCache(userId, wishlistId);
+    await adminDb.collection('wishlists').doc(wishlistId).update(updateData);
 
-    return { success: true, data: undefined };
+    // Get slug for revalidation
+    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
+    const slug = doc.data()?.slug;
+
+    revalidatePath('/dashboard/wishlists');
+    if (slug) {
+      revalidatePath(`/wishlist/${slug}`);
+    }
+
+    return { success: true };
   } catch (error) {
-    console.error('Error updating wishlist:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Er ging iets mis bij het updaten van de wishlist' 
+    console.error('updateWishlistAction error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon wishlist niet bijwerken',
     };
   }
 }
 
-// ============================================================================
-// DELETE WISHLIST
-// ============================================================================
-
-export async function deleteWishlistAction(
-  wishlistId: string,
-  userId: string
-): Promise<ActionResult<void>> {
+/**
+ * ✅ Delete a wishlist
+ */
+export async function deleteWishlistAction(wishlistId: string): Promise<ActionResult> {
   try {
-    const wishlistDoc = await adminDb.collection('wishlists').doc(wishlistId).get();
-
-    if (!wishlistDoc.exists) {
-      return { success: false, error: 'Wishlist niet gevonden' };
-    }
-
-    const wishlistData = wishlistDoc.data();
-    if (wishlistData?.ownerId !== userId) {
-      return { success: false, error: 'Je hebt geen toestemming om deze wishlist te verwijderen' };
-    }
+    // Get slug before deletion for revalidation
+    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
+    const slug = doc.data()?.slug;
 
     await adminDb.collection('wishlists').doc(wishlistId).delete();
 
-    revalidateWishlistCache(userId, wishlistId);
+    revalidatePath('/dashboard/wishlists');
+    if (slug) {
+      revalidatePath(`/wishlist/${slug}`);
+    }
 
-    return { success: true, data: undefined };
+    return { success: true };
   } catch (error) {
-    console.error('Error deleting wishlist:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Er ging iets mis bij het verwijderen van de wishlist' 
+    console.error('deleteWishlistAction error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon wishlist niet verwijderen',
     };
   }
 }
 
 // ============================================================================
-// ADD ITEM TO WISHLIST
+// WISHLIST ITEMS OPERATIONS
 // ============================================================================
 
+/**
+ * ✅ Add item to wishlist
+ */
 export async function addItemToWishlistAction(
   wishlistId: string,
-  userId: string,
-  product: Product,
-  options?: {
-    quantity?: number;
-    priority?: number;
-    notes?: string;
-  }
-): Promise<ActionResult<WishlistItem>> {
+  item: Partial<WishlistItem>
+): Promise<ActionResult> {
   try {
-    const wishlistDoc = await adminDb.collection('wishlists').doc(wishlistId).get();
+    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
 
-    if (!wishlistDoc.exists) {
+    if (!doc.exists) {
       return { success: false, error: 'Wishlist niet gevonden' };
     }
 
-    const wishlistData = wishlistDoc.data() as Wishlist;
-    if (wishlistData.ownerId !== userId) {
-      return { success: false, error: 'Je hebt geen toestemming om items toe te voegen aan deze wishlist' };
-    }
+    const wishlistData = doc.data();
+    const items = wishlistData?.items || [];
 
-    const newItem: WishlistItem = {
-      ...productToWishlistItem(product),
-      quantity: options?.quantity || 1,
-      priority: options?.priority,
-      notes: options?.notes,
+    const newItem = {
+      id: item.id || `item-${Date.now()}`,
+      title: item.title || '',
+      description: item.description || '',
+      url: item.url || '',
+      imageUrl: item.imageUrl || (item as any).image || '', // ✅ Support both imageUrl and image
+      price: item.price || 0,
+      quantity: item.quantity || 1,
+      isReserved: false,
+      source: item.source || 'Internal',
+      platforms: item.platforms || {},
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
-    const validation = wishlistItemSchema.safeParse(newItem);
-    if (!validation.success) {
-      console.error('Invalid wishlist item:', validation.error.flatten());
-      return { success: false, error: 'Ongeldig item' };
-    }
-
-    const updatedItems = [...(wishlistData.items || []), validation.data];
+    items.push(newItem);
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
-      items: updatedItems,
+      items,
       updatedAt: new Date().toISOString(),
     });
 
-    revalidateWishlistCache(userId, wishlistId);
+    const slug = wishlistData?.slug;
+    revalidatePath('/dashboard/wishlists');
+    if (slug) {
+      revalidatePath(`/wishlist/${slug}`);
+    }
 
-    return { success: true, data: validation.data };
+    return { success: true };
   } catch (error) {
-    console.error('Error adding item to wishlist:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Er ging iets mis bij het toevoegen van het item' 
+    console.error('addItemToWishlistAction error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon item niet toevoegen',
     };
   }
 }
 
-// ============================================================================
-// REMOVE ITEM FROM WISHLIST
-// ============================================================================
-
-export async function removeItemFromWishlistAction(
+/**
+ * ✅ Add item to wishlist (alias for backwards compatibility)
+ */
+export async function addWishlistItemAction(
   wishlistId: string,
-  userId: string,
+  item: Partial<WishlistItem>
+): Promise<ActionResult> {
+  return addItemToWishlistAction(wishlistId, item);
+}
+
+/**
+ * ✅ Update wishlist item
+ */
+export async function updateWishlistItemAction({
+  wishlistId,
+  itemId,
+  updates,
+}: UpdateWishlistItemData): Promise<ActionResult> {
+  try {
+    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
+
+    if (!doc.exists) {
+      return { success: false, error: 'Wishlist niet gevonden' };
+    }
+
+    const wishlistData = doc.data();
+    const items = wishlistData?.items || [];
+
+    const itemIndex = items.findIndex(
+      (item: WishlistItem) => String(item.id) === String(itemId)
+    );
+
+    if (itemIndex === -1) {
+      return { success: false, error: 'Item niet gevonden' };
+    }
+
+    items[itemIndex] = {
+      ...items[itemIndex],
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await adminDb.collection('wishlists').doc(wishlistId).update({
+      items,
+      updatedAt: new Date().toISOString(),
+    });
+
+    const slug = wishlistData?.slug;
+    revalidatePath('/dashboard/wishlists');
+    if (slug) {
+      revalidatePath(`/wishlist/${slug}`);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('updateWishlistItemAction error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon item niet bijwerken',
+    };
+  }
+}
+
+/**
+ * ✅ Delete wishlist item
+ */
+export async function deleteWishlistItemAction(
+  wishlistId: string,
   itemId: string
-): Promise<ActionResult<void>> {
+): Promise<ActionResult> {
   try {
-    const wishlistDoc = await adminDb.collection('wishlists').doc(wishlistId).get();
+    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
 
-    if (!wishlistDoc.exists) {
+    if (!doc.exists) {
       return { success: false, error: 'Wishlist niet gevonden' };
     }
 
-    const wishlistData = wishlistDoc.data() as Wishlist;
-    if (wishlistData.ownerId !== userId) {
-      return { success: false, error: 'Je hebt geen toestemming om items te verwijderen van deze wishlist' };
-    }
+    const wishlistData = doc.data();
+    const items = wishlistData?.items || [];
 
-    const updatedItems = wishlistData.items.filter(item => item.id !== itemId);
-
-    await adminDb.collection('wishlists').doc(wishlistId).update({
-      items: updatedItems,
-      updatedAt: new Date().toISOString(),
-    });
-
-    revalidateWishlistCache(userId, wishlistId);
-
-    return { success: true, data: undefined };
-  } catch (error) {
-    console.error('Error removing item from wishlist:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Er ging iets mis bij het verwijderen van het item' 
-    };
-  }
-}
-
-// ============================================================================
-// UPDATE WISHLIST ITEM
-// ============================================================================
-
-export async function updateWishlistItemAction(
-  wishlistId: string,
-  userId: string,
-  itemId: string,
-  updates: Partial<Pick<WishlistItem, 'quantity' | 'priority' | 'notes'>>
-): Promise<ActionResult<void>> {
-  try {
-    const wishlistDoc = await adminDb.collection('wishlists').doc(wishlistId).get();
-
-    if (!wishlistDoc.exists) {
-      return { success: false, error: 'Wishlist niet gevonden' };
-    }
-
-    const wishlistData = wishlistDoc.data() as Wishlist;
-    if (wishlistData.ownerId !== userId) {
-      return { success: false, error: 'Je hebt geen toestemming om deze wishlist te bewerken' };
-    }
-
-    const updatedItems = wishlistData.items.map(item =>
-      item.id === itemId ? { ...item, ...updates } : item
+    const filteredItems = items.filter(
+      (item: WishlistItem) => String(item.id) !== String(itemId)
     );
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
-      items: updatedItems,
+      items: filteredItems,
       updatedAt: new Date().toISOString(),
     });
 
-    revalidateWishlistCache(userId, wishlistId);
+    const slug = wishlistData?.slug;
+    revalidatePath('/dashboard/wishlists');
+    if (slug) {
+      revalidatePath(`/wishlist/${slug}`);
+    }
 
-    return { success: true, data: undefined };
+    return { success: true };
   } catch (error) {
-    console.error('Error updating wishlist item:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Er ging iets mis bij het updaten van het item' 
+    console.error('deleteWishlistItemAction error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon item niet verwijderen',
     };
   }
 }
 
+/**
+ * ✅ Remove item from wishlist (alias for backwards compatibility)
+ */
+export async function removeItemFromWishlistAction(
+  wishlistId: string,
+  itemId: string
+): Promise<ActionResult> {
+  return deleteWishlistItemAction(wishlistId, itemId);
+}
+
 // ============================================================================
-// RESERVE ITEM
+// RESERVATION OPERATIONS
 // ============================================================================
 
+/**
+ * ✅ Reserve an item
+ */
 export async function reserveItemAction(
   wishlistId: string,
   itemId: string,
   userId: string,
   userName: string
-): Promise<ActionResult<void>> {
+): Promise<ActionResult> {
   try {
-    const wishlistDoc = await adminDb.collection('wishlists').doc(wishlistId).get();
+    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
 
-    if (!wishlistDoc.exists) {
+    if (!doc.exists) {
       return { success: false, error: 'Wishlist niet gevonden' };
     }
 
-    const wishlistData = wishlistDoc.data() as Wishlist;
+    const wishlistData = doc.data();
+    const items = wishlistData?.items || [];
 
-    const item = wishlistData.items.find(i => i.id === itemId);
-    if (!item) {
+    const itemIndex = items.findIndex(
+      (item: WishlistItem) => String(item.id) === String(itemId)
+    );
+
+    if (itemIndex === -1) {
       return { success: false, error: 'Item niet gevonden' };
     }
 
-    if (item.isReserved || item.reservedBy) {
-      return { success: false, error: 'Dit item is al gereserveerd' };
+    if (items[itemIndex].isReserved) {
+      return { success: false, error: 'Item is al gereserveerd' };
     }
 
-    const updatedItems = wishlistData.items.map(i =>
-      i.id === itemId
-        ? {
-            ...i,
-            isReserved: true,
-            reservedBy: userId,
-            claimedBy: {
-              userId,
-              userName,
-              quantity: 1,
-              claimedAt: new Date().toISOString(),
-            },
-          }
-        : i
-    );
+    items[itemIndex] = {
+      ...items[itemIndex],
+      isReserved: true,
+      reservedBy: userId,
+      reservedByName: userName,
+      reservedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
-      items: updatedItems,
+      items,
       updatedAt: new Date().toISOString(),
     });
 
-    revalidateWishlistCache(undefined, wishlistId);
+    const slug = wishlistData?.slug;
+    revalidatePath('/dashboard/wishlists');
+    if (slug) {
+      revalidatePath(`/wishlist/${slug}`);
+    }
 
-    return { success: true, data: undefined };
+    return { success: true };
   } catch (error) {
-    console.error('Error reserving item:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Er ging iets mis bij het reserveren van het item' 
+    console.error('reserveItemAction error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon item niet reserveren',
     };
   }
 }
 
-// ============================================================================
-// UNRESERVE ITEM
-// ============================================================================
-
+/**
+ * ✅ Unreserve an item
+ */
 export async function unreserveItemAction(
   wishlistId: string,
-  itemId: string,
-  userId: string
-): Promise<ActionResult<void>> {
+  itemId: string
+): Promise<ActionResult> {
   try {
-    const wishlistDoc = await adminDb.collection('wishlists').doc(wishlistId).get();
+    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
 
-    if (!wishlistDoc.exists) {
+    if (!doc.exists) {
       return { success: false, error: 'Wishlist niet gevonden' };
     }
 
-    const wishlistData = wishlistDoc.data() as Wishlist;
+    const wishlistData = doc.data();
+    const items = wishlistData?.items || [];
 
-    const item = wishlistData.items.find(i => i.id === itemId);
-    if (!item) {
+    const itemIndex = items.findIndex(
+      (item: WishlistItem) => String(item.id) === String(itemId)
+    );
+
+    if (itemIndex === -1) {
       return { success: false, error: 'Item niet gevonden' };
     }
 
-    if (item.reservedBy !== userId) {
-      return { success: false, error: 'Je hebt dit item niet gereserveerd' };
-    }
-
-    const updatedItems = wishlistData.items.map(i =>
-      i.id === itemId
-        ? {
-            ...i,
-            isReserved: false,
-            reservedBy: null,
-            claimedBy: null,
-          }
-        : i
-    );
+    items[itemIndex] = {
+      ...items[itemIndex],
+      isReserved: false,
+      reservedBy: null,
+      reservedByName: null,
+      reservedAt: null,
+      updatedAt: new Date().toISOString(),
+    };
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
-      items: updatedItems,
+      items,
       updatedAt: new Date().toISOString(),
     });
 
-    revalidateWishlistCache(undefined, wishlistId);
+    const slug = wishlistData?.slug;
+    revalidatePath('/dashboard/wishlists');
+    if (slug) {
+      revalidatePath(`/wishlist/${slug}`);
+    }
 
-    return { success: true, data: undefined };
+    return { success: true };
   } catch (error) {
-    console.error('Error unreserving item:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Er ging iets mis bij het unreserveren van het item' 
+    console.error('unreserveItemAction error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon reservering niet verwijderen',
     };
   }
 }
 
 // ============================================================================
-// SHARE WISHLIST
+// SHARING OPERATIONS
 // ============================================================================
 
+/**
+ * ✅ Share wishlist with someone
+ */
 export async function shareWishlistAction(
   wishlistId: string,
-  userId: string,
-  targetUserIds: string[]
-): Promise<ActionResult<void>> {
+  userId: string
+): Promise<ActionResult> {
   try {
-    const wishlistDoc = await adminDb.collection('wishlists').doc(wishlistId).get();
+    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
 
-    if (!wishlistDoc.exists) {
+    if (!doc.exists) {
       return { success: false, error: 'Wishlist niet gevonden' };
     }
 
-    const wishlistData = wishlistDoc.data() as Wishlist;
-    if (wishlistData.ownerId !== userId) {
-      return { success: false, error: 'Je hebt geen toestemming om deze wishlist te delen' };
+    const wishlistData = doc.data();
+    const sharedWith = wishlistData?.sharedWith || [];
+
+    if (sharedWith.includes(userId)) {
+      return { success: false, error: 'Al gedeeld met deze gebruiker' };
     }
 
-    const currentSharedWith = wishlistData.sharedWith || [];
-    const updatedSharedWith = Array.from(new Set([...currentSharedWith, ...targetUserIds]));
+    sharedWith.push(userId);
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
-      sharedWith: updatedSharedWith,
+      sharedWith,
       updatedAt: new Date().toISOString(),
     });
 
-    revalidateWishlistCache(userId, wishlistId);
+    const slug = wishlistData?.slug;
+    revalidatePath('/dashboard/wishlists');
+    if (slug) {
+      revalidatePath(`/wishlist/${slug}`);
+    }
 
-    return { success: true, data: undefined };
+    return { success: true };
   } catch (error) {
-    console.error('Error sharing wishlist:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Er ging iets mis bij het delen van de wishlist' 
+    console.error('shareWishlistAction error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon wishlist niet delen',
+    };
+  }
+}
+
+/**
+ * ✅ Unshare wishlist
+ */
+export async function unshareWishlistAction(
+  wishlistId: string,
+  userId: string
+): Promise<ActionResult> {
+  try {
+    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
+
+    if (!doc.exists) {
+      return { success: false, error: 'Wishlist niet gevonden' };
+    }
+
+    const wishlistData = doc.data();
+    const sharedWith = wishlistData?.sharedWith || [];
+
+    const filteredSharedWith = sharedWith.filter((id: string) => id !== userId);
+
+    await adminDb.collection('wishlists').doc(wishlistId).update({
+      sharedWith: filteredSharedWith,
+      updatedAt: new Date().toISOString(),
+    });
+
+    const slug = wishlistData?.slug;
+    revalidatePath('/dashboard/wishlists');
+    if (slug) {
+      revalidatePath(`/wishlist/${slug}`);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('unshareWishlistAction error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon delen niet verwijderen',
     };
   }
 }
 
 // ============================================================================
-// UNSHARE WISHLIST
+// BACKGROUND & CUSTOMIZATION
 // ============================================================================
 
-export async function unshareWishlistAction(
+/**
+ * ✅ Update wishlist background
+ */
+export async function updateWishlistBackgroundAction(
   wishlistId: string,
-  userId: string,
-  targetUserIds: string[]
-): Promise<ActionResult<void>> {
+  backgroundImage: string
+): Promise<ActionResult> {
   try {
-    const wishlistDoc = await adminDb.collection('wishlists').doc(wishlistId).get();
-
-    if (!wishlistDoc.exists) {
-      return { success: false, error: 'Wishlist niet gevonden' };
-    }
-
-    const wishlistData = wishlistDoc.data() as Wishlist;
-    if (wishlistData.ownerId !== userId) {
-      return { success: false, error: 'Je hebt geen toestemming om deze wishlist te bewerken' };
-    }
-
-    const updatedSharedWith = (wishlistData.sharedWith || []).filter(
-      id => !targetUserIds.includes(id)
-    );
-
     await adminDb.collection('wishlists').doc(wishlistId).update({
-      sharedWith: updatedSharedWith,
+      backgroundImage,
       updatedAt: new Date().toISOString(),
     });
 
-    revalidateWishlistCache(userId, wishlistId);
+    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
+    const slug = doc.data()?.slug;
 
-    return { success: true, data: undefined };
+    revalidatePath('/dashboard/wishlists');
+    if (slug) {
+      revalidatePath(`/wishlist/${slug}`);
+    }
+
+    return { success: true };
   } catch (error) {
-    console.error('Error unsharing wishlist:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Er ging iets mis bij het verwijderen van delen' 
+    console.error('updateWishlistBackgroundAction error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon achtergrond niet bijwerken',
+    };
+  }
+}
+
+/**
+ * ✅ Get all background images for wishlists
+ */
+export async function getBackgroundImagesAction(): Promise<ActionResult<any[]>> {
+  try {
+    const snapshot = await adminDb.collection('WishlistBackImages').get();
+
+    const images = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return { success: true, data: images };
+  } catch (error) {
+    console.error('getBackgroundImagesAction error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon achtergronden niet ophalen',
+    };
+  }
+}
+
+/**
+ * ✅ Get background categories
+ */
+export async function getBackgroundCategoriesAction(): Promise<ActionResult<any[]>> {
+  try {
+    const snapshot = await adminDb.collection('backgroundCategories').get();
+
+    const categories = snapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }))
+      .filter((cat: any) => cat.type === 'wishlist');
+
+    return { success: true, data: categories }; // ✅ Removed duplicate 'categories'
+  } catch (error) {
+    console.error('getBackgroundCategoriesAction error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon categorieën niet ophalen',
     };
   }
 }

@@ -1,170 +1,90 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Edit2, Trash2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { UserAvatar } from '../shared/user-avatar';
-import type { ChatMessage as ChatMessageType } from '@/types/chat';
-import { getPseudonym } from '@/lib/utils/pseudonyms';
+import React from 'react';
+import { format } from 'date-fns';
+import { nl } from 'date-fns/locale';
+import { UserAvatar } from '@/components/shared/user-avatar';
 import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
-import { nlBE } from 'date-fns/locale';
 
 interface ChatMessageProps {
-  message: ChatMessageType;
-  eventId?: string;
-  isOwnMessage: boolean;
-  onEdit?: (messageId: string, newText: string) => Promise<void>;
-  onDelete?: (messageId: string) => Promise<void>;
+  message: {
+    id: string;
+    text?: string; // ✅ FIXED: Made optional
+    gifUrl?: string; // ✅ ADDED: For GIF support
+    senderId: string;
+    senderName: string;
+    senderPhotoURL?: string | null;
+    timestamp: Date | { toDate: () => Date };
+    isGif?: boolean;
+  };
+  currentUserId: string;
+  className?: string;
 }
 
-export const ChatMessage = ({
-  message,
-  eventId,
-  isOwnMessage,
-  onEdit,
-  onDelete,
-}: ChatMessageProps) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState(message.text || '');
-  const [isHovered, setIsHovered] = useState(false);
+export function ChatMessage({ message, currentUserId, className }: ChatMessageProps) {
+  const isOwnMessage = message.senderId === currentUserId;
+  
+  const messageTime = message.timestamp instanceof Date 
+    ? message.timestamp 
+    : message.timestamp.toDate();
 
-  const handleEdit = async () => {
-    if (!onEdit || !editText.trim()) return;
-    try {
-      await onEdit(message.id, editText.trim());
-      setIsEditing(false);
-    } catch (error) {
-      console.error("Bericht bijwerken mislukt:", error);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    setEditText(message.text || '');
-  };
-
-  // ✅ FIXED: Check of senderId en eventId bestaan voordat getPseudonym wordt aangeroepen
-  const displayName = message.isAnonymous && message.senderId && eventId
-    ? getPseudonym(message.senderId, eventId)
-    : message.senderName || "Onbekende Gebruiker";
-
-  const timestampDisplay = formatDistanceToNow(new Date(message.timestamp), {
-    addSuffix: true,
-    locale: nlBE,
-  });
-
-  // ✅ FIXED: User object voor avatar
   const avatarUser = {
-    displayName: displayName,
-    photoURL: message.senderAvatar || null,
+    displayName: message.senderName,
+    photoURL: message.senderPhotoURL,
   };
+
+  // ✅ FIXED: Support both text and GIF messages
+  const messageContent = message.isGif || message.gifUrl 
+    ? message.gifUrl || message.text 
+    : message.text;
 
   return (
     <div
       className={cn(
-        'group relative flex items-start space-x-3 py-1',
-        isOwnMessage ? 'justify-end' : 'justify-start'
+        'flex items-start gap-3 mb-4',
+        isOwnMessage && 'flex-row-reverse',
+        className
       )}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Avatar tonen als het niet je eigen bericht is */}
-      {!isOwnMessage && <UserAvatar user={avatarUser} className="h-8 w-8" />}
-      
-      <div className={cn('flex flex-col max-w-sm md:max-w-md', isOwnMessage ? 'items-end' : 'items-start')}>
-        {/* De 'bubble' met de inhoud */}
+      {!isOwnMessage && <UserAvatar profile={avatarUser} className="h-8 w-8" />}
+
+      <div
+        className={cn(
+          'flex flex-col max-w-[70%]',
+          isOwnMessage && 'items-end'
+        )}
+      >
+        {!isOwnMessage && (
+          <span className="text-xs text-muted-foreground mb-1">
+            {message.senderName}
+          </span>
+        )}
+
         <div
           className={cn(
-            'relative overflow-hidden rounded-xl p-3 shadow-sm break-words',
+            'rounded-lg px-4 py-2',
             isOwnMessage
-              ? 'rounded-br-sm bg-primary text-primary-foreground'
-              : 'rounded-bl-sm bg-card text-card-foreground'
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-muted'
           )}
         >
-          {/* Header in de bubble voor anonieme/normale naam */}
-          {!isOwnMessage && (
-            <p className="pb-1 text-xs font-semibold text-primary">{displayName}</p>
-          )}
-
-          {isEditing ? (
-            <div className="flex flex-col space-y-2">
-              <textarea
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                className="w-full min-h-[60px] resize-none rounded-md border bg-background p-2 text-sm text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                rows={3}
-                autoFocus
-              />
-              <div className="flex justify-end space-x-2">
-                <button 
-                  type="button" 
-                  onClick={handleCancelEdit} 
-                  className="px-3 py-1 text-xs rounded-md hover:bg-muted"
-                >
-                  Annuleer
-                </button>
-                <button 
-                  type="button" 
-                  onClick={handleEdit} 
-                  className="px-3 py-1 text-xs rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  Opslaan
-                </button>
-              </div>
-            </div>
+          {message.isGif || message.gifUrl ? (
+            <img
+              src={messageContent}
+              alt="GIF"
+              className="max-w-xs rounded-md"
+            />
           ) : (
-            <>
-              {message.gif || message.gifUrl ? (
-                <img
-                  src={message.gif || message.gifUrl}
-                  alt="GIF"
-                  className="max-w-full rounded-md"
-                  loading="lazy"
-                />
-              ) : (
-                <p className="whitespace-pre-wrap text-sm">{message.text}</p>
-              )}
-            </>
+            <p className="text-sm whitespace-pre-wrap break-words">
+              {messageContent || ''}
+            </p>
           )}
         </div>
-        {/* Tijdstempel onder de bubble */}
-        <span className="px-2 pt-1 text-xs text-muted-foreground">{timestampDisplay}</span>
-      </div>
 
-      {/* Actieknoppen voor eigen berichten */}
-      {isOwnMessage && !isEditing && (
-        <AnimatePresence>
-          {isHovered && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ duration: 0.15 }}
-              className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 pr-2 flex items-center space-x-1"
-            >
-              {!message.gif && !message.gifUrl && onEdit && (
-                <button 
-                  type="button" 
-                  onClick={() => setIsEditing(true)} 
-                  className="rounded-full bg-card p-1.5 text-muted-foreground shadow-sm hover:text-foreground"
-                >
-                  <Edit2 className="h-3 w-3" />
-                </button>
-              )}
-              {onDelete && (
-                <button 
-                  type="button" 
-                  onClick={() => onDelete(message.id)} 
-                  className="rounded-full bg-card p-1.5 text-destructive shadow-sm hover:text-red-700"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      )}
+        <span className="text-xs text-muted-foreground mt-1">
+          {format(messageTime, 'HH:mm', { locale: nl })}
+        </span>
+      </div>
     </div>
   );
-};
+}

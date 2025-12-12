@@ -5,7 +5,7 @@ import { useState, useRef, useTransition, FormEvent } from 'react';
 import { toast } from 'sonner';
 import { Upload } from 'lucide-react';
 
-import { updatePhotoURL } from '@/app/dashboard/profile/actions';
+import { updatePhotoURL } from '@/lib/server/actions/profile-actions';
 import { uploadFile } from '@/lib/client/storage';
 import type { UserProfile } from '@/types/user';
 

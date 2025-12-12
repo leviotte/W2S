@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { getPostAction } from '@/lib/server/actions/blog';
-import { getSession } from '@/lib/auth/session';
+import { getCurrentUser } from '@/lib/auth/actions'; // ✅ FIXED: Correct import
 import { UpdatePostForm } from './_components/update-post-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,10 +12,12 @@ interface EditPostPageProps {
 
 export default async function EditPostPage({ params }: EditPostPageProps) {
   const { id } = await params;
-  const session = await getSession();
+  
+  // ✅ FIXED: Get currentUser
+  const currentUser = await getCurrentUser();
 
-  if (!session.isLoggedIn || !session.user) {
-    redirect('/');
+  if (!currentUser) {
+    redirect('/?modal=login');
   }
 
   const result = await getPostAction(id);
@@ -26,9 +28,9 @@ export default async function EditPostPage({ params }: EditPostPageProps) {
 
   const post = result.post;
 
-  // Check if user is author or admin
-  const isAuthor = post.authorId === session.user.id;
-  const isAdmin = session.user.isAdmin === true;
+  // ✅ FIXED: Check authorId from post
+  const isAuthor = (post as any).authorId === currentUser.id;
+  const isAdmin = currentUser.isAdmin === true;
 
   if (!isAuthor && !isAdmin) {
     redirect('/blog');

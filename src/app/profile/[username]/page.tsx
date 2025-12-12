@@ -27,18 +27,18 @@ export default async function UserProfilePage({
   }
 
   const wishlistsResult = await getUserWishlistsAction(profileData.id);
-  const wishlists = wishlistsResult.success ? wishlistsResult.data : [];
+  
+  // ✅ FIXED: Single declaration
+  const wishlists = wishlistsResult.success && wishlistsResult.data ? wishlistsResult.data : [];
 
   const viewerId = viewer?.id ?? null;
   const isOwnProfile = viewerId === profileData.id;
 
-  const wishlistsRecord = wishlists.reduce<Record<string, typeof wishlists[0]>>(
-    (acc, wishlist) => {
-      acc[wishlist.id] = wishlist;
-      return acc;
-    }, 
-    {}
-  );
+  // ✅ FIXED: Correct type annotation
+  const wishlistsRecord = wishlists.reduce<Record<string, (typeof wishlists)[number]>>((acc, w) => {
+    acc[w.id] = w;
+    return acc;
+  }, {});
 
   return (
     <div className="container mx-auto max-w-4xl p-4">

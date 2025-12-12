@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addressSchema, type UserProfile, type Address } from '@/types/user';
-import { updateAddress } from '@/app/dashboard/profile/actions';
+import { updateAddress } from '@/lib/server/actions/profile-actions';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

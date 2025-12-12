@@ -1,36 +1,20 @@
+import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/actions';
-import { getUserProfilesAction } from '@/lib/server/data/users';
-import { notFound } from 'next/navigation';
-
-import PersonalInfoForm from './_components/personal-info-form';
-import PhotoForm from './_components/photo-form';
-import AddressForm from './_components/address-form';
-import ShareProfileForm from './_components/share-profile-form';
+import { getUserProfileAction } from '@/lib/server/actions/user-actions';
+import { ProfileClient } from './_components/profile-client'; // ✅ FIXED: Kleine letters
 
 export default async function ProfilePage() {
-  const profileData = await getCurrentUser();
-  if (!profileData) {
-    notFound();
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    redirect('/?modal=login&callbackUrl=/dashboard/profile');
   }
 
-  // ✅ FIX: gebruik sharedWith in plaats van managers
-  const managerIds = profileData.sharedWith || [];
-  const managers = managerIds.length > 0 
-    ? await getUserProfilesAction(managerIds)
-    : [];
+  const fullProfile = await getUserProfileAction(currentUser.id);
 
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-1 space-y-6">
-           <PhotoForm profile={profileData} />
-        </div>
-        <div className="lg:col-span-2 space-y-6">
-          <PersonalInfoForm profile={profileData} />
-          <AddressForm profile={profileData} />
-        </div>
-      </div>
-      <ShareProfileForm profile={profileData} managers={managers} />
-    </div>
-  );
+  if (!fullProfile) {
+    redirect('/');
+  }
+
+  return <ProfileClient profile={fullProfile} />;
 }

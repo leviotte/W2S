@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { X } from 'lucide-react';
 // CORRECTIE: De juiste acties importeren
-import { addManagerByEmailAction, removeManagerByIdAction } from '@/app/dashboard/profile/actions';
+import { addManagerByEmailAction, removeManagerByIdAction } from '@/lib/server/actions/profile-actions';
 import type { UserProfile } from '@/types/user';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';

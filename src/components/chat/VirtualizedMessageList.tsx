@@ -1,17 +1,8 @@
-/**
- * src/components/chat/VirtualizedMessageList.tsx
- *
- * Gecorrigeerd en verbeterd component voor gevirtualiseerde berichtenlijst.
- * FIX:
- * - 'userId' vervangen door 'senderId' om te matchen met het ChatMessage type.
- * - Kleine syntaxfouten in Virtuoso props (comp -> components, itemC -> itemContent) hersteld.
- * - De naam van het bestand is aangepast om de '.Props' te verwijderen, aangezien dit het component zelf is.
- */
 'use client';
 
 import React, { useEffect, useRef } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
-import type { ChatMessage } from '@/types';
+import type { ChatMessage } from '@/types/chat';
 import { shouldShowDate, formatChatDate } from '@/lib/utils/chat';
 import { ChatMessage as ChatMessageComponent } from '@/components/chat/ChatMessage';
 import { LoadingSpinner } from '../ui/loading-spinner';
@@ -46,8 +37,7 @@ export function VirtualizedMessageList({
     if (
       lastMessage &&
       messages.length > previousMessageCount.current &&
-      // FIX: 'userId' vervangen door 'senderId' om te matchen met het type.
-      (isAtBottomRef.current || lastMessage.senderId === currentUserId)
+      (isAtBottomRef.current || (lastMessage.senderId || lastMessage.userId) === currentUserId)
     ) {
       virtuosoRef.current?.scrollToIndex({
         index: messages.length - 1,
@@ -75,7 +65,6 @@ export function VirtualizedMessageList({
       startReached={hasMore ? onLoadMore : undefined}
       followOutput="auto"
       initialTopMostItemIndex={messages.length > 0 ? messages.length - 1 : 0}
-      // FIX: 'comp' gecorrigeerd naar 'components'
       components={{
         Header: () =>
           hasMore ? (
@@ -84,30 +73,38 @@ export function VirtualizedMessageList({
             </div>
           ) : null,
       }}
-      // FIX: 'itemC' gecorrigeerd naar 'itemContent'
       itemContent={(index, message) => {
         if (!message) return null;
 
         const showDate = shouldShowDate(messages, index);
-        // FIX: 'userId' vervangen door 'senderId' om te matchen met het type.
-        const isOwnMessage = message.senderId === currentUserId;
+        const senderId = message.senderId || message.userId;
+        const senderName = message.senderName || message.userName;
+        const isOwnMessage = senderId === currentUserId;
+
+        // ✅ FIXED: Transform message to match ChatMessage component props
+        const transformedMessage = {
+          id: message.id,
+          text: message.text,
+          gifUrl: message.gifUrl,
+          senderId: senderId,
+          senderName: senderName,
+          senderPhotoURL: message.senderAvatar,
+          timestamp: message.timestamp,
+          isGif: !!message.gifUrl,
+        };
 
         return (
           <div className="px-4" key={message.id}>
             {showDate && (
               <div className="my-4 flex justify-center">
                 <span className="rounded-lg bg-warm-olive/10 px-3 py-1 text-sm text-warm-olive">
-                  {/* Deze functie werkt nu correct dankzij de aanpassing in chat.ts */}
                   {formatChatDate(message.timestamp)}
                 </span>
               </div>
             )}
             <ChatMessageComponent
-              message={message}
-              eventId={eventId}
-              isOwnMessage={isOwnMessage}
-              onEdit={onEdit}
-              onDelete={onDelete}
+              message={transformedMessage}
+              currentUserId={currentUserId}
             />
           </div>
         );

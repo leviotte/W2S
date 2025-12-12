@@ -56,5 +56,5 @@ export default async function PastEventsPage() {
   const pastEvents = await getPastEvents(currentUser.id);
 
   // We geven de data door aan een client component die de interactie afhandelt.
-  return <PastEventsClientPage initialEvents={pastEvents} />;
+  return <PastEventsClientPage initialEvents={pastEvents} currentUserId={currentUser.id} />;
 }

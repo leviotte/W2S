@@ -1,54 +1,41 @@
-import React, { useState } from "react";
-import { UserPlus } from "lucide-react";
-import ShareWishlistModal from "./ShareWishlistModal";
+'use client';
 
-interface WishlistInviteHandlerProps {
-  recipientFirstName?: string;
-  recipientLastName?: string;
-  recipientEmail?: string;
-}
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import ShareWishlistModal from './ShareWishlistModal';
 
-export default function WishlistInviteHandler({
-  recipientFirstName = "",
-  recipientLastName = "",
-  recipientEmail = "",
-}: WishlistInviteHandlerProps) {
-  const [showShareModal, setShowShareModal] = useState(false);
+export function WishlistInviteHandler() {
+  const searchParams = useSearchParams();
+  const [isOpen, setIsOpen] = useState(false);
+  const [recipientData, setRecipientData] = useState({
+    name: '',
+    firstName: '',
+    email: '',
+  });
 
-  const fullRecipientName = (() => {
-    const first = recipientFirstName.trim();
-    const last = recipientLastName.trim();
-    if (first && last) return `${first} ${last}`;
-    if (first) return first;
-    return "this person";
-  })();
+  useEffect(() => {
+    const invite = searchParams.get('invite');
+    const name = searchParams.get('name');
+    const firstName = searchParams.get('firstName');
+    const email = searchParams.get('email'); // ✅ Added email param
+
+    if (invite === 'true' && name && firstName) {
+      setRecipientData({
+        name,
+        firstName,
+        email: email || '', // ✅ Extract email from URL
+      });
+      setIsOpen(true);
+    }
+  }, [searchParams]);
 
   return (
-    <div className="text-center py-8">
-      <UserPlus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-
-      <p className="text-gray-600 mb-4">
-        Couldn't find who you're looking for? Invite them using the button below.
-      </p>
-
-      <button
-        onClick={() => setShowShareModal(true)}
-        className="inline-flex items-center px-4 py-2 bg-warm-olive text-white rounded-md hover:bg-cool-olive transition-colors"
-      >
-        <UserPlus className="h-5 w-5 mr-2" />
-        Invite Person
-      </button>
-
-      {/* ✅ FIX: isOpen prop */}
-      {showShareModal && (
-        <ShareWishlistModal
-          isOpen={showShareModal}
-          onClose={() => setShowShareModal(false)}
-          recipientName={fullRecipientName}
-          recipientFirstName={recipientFirstName || "this person"}
-          recipientEmail={recipientEmail || ""}
-        />
-      )}
-    </div>
+    <ShareWishlistModal
+      isOpen={isOpen}
+      onClose={() => setIsOpen(false)}
+      recipientName={recipientData.name}
+      recipientFirstName={recipientData.firstName}
+      recipientEmail={recipientData.email} // ✅ FIX: Pass email prop
+    />
   );
 }

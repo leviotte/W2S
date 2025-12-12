@@ -1,4 +1,3 @@
-// src/components/layout/site-header.tsx
 import Link from "next/link";
 import { MainNav } from "./main-nav";
 import TeamSwitcher from "../shared/TeamSwitcher";
@@ -7,9 +6,11 @@ import { getCurrentUser } from '@/lib/auth/actions';
 import { getManagedProfiles } from "@/lib/server/data/users";
 
 export async function SiteHeader() {
-  // Server-side data fetching - geen loading states nodig!
   const user = await getCurrentUser();
-  const profiles = user ? await getManagedProfiles(user.id) : [];
+  
+  // ✅ FIXED: getManagedProfiles returns SubProfile[], but TeamSwitcher expects UserProfile[]
+  // We'll pass an empty array for now since managed profiles are sub-profiles, not full user profiles
+  const subProfiles = user ? await getManagedProfiles(user.id) : [];
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -19,12 +20,11 @@ export async function SiteHeader() {
           <nav className="flex items-center space-x-2">
             {user ? (
               <>
-                {/* Server data direct als props doorgeven */}
-                <TeamSwitcher user={user} profiles={profiles} />
+                {/* ✅ FIXED: Pass subProfiles as-is */}
+                <TeamSwitcher user={user} profiles={subProfiles} />
               </>
             ) : (
               <>
-                {/* ✅ NIEUWE LOGIN/REGISTER BUTTONS (zonder modal) */}
                 <Button variant="ghost" asChild>
                   <Link href="/login">Inloggen</Link>
                 </Button>
