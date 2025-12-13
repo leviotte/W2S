@@ -1,28 +1,32 @@
-// app/components/Features.tsx
-"use client";
+/**
+ * components/landing/features.tsx
+ * 
+ * Feature kaarten met smooth scroll naar secties
+ */
+'use client';
 
-import { Gift, Users, CalendarPlus, Bell } from "lucide-react";
+import { Gift, Users, CalendarPlus, Share2 } from 'lucide-react';
 
 const features = [
   {
-    name: "Beheer profielen",
-    icon: Gift,
-    sectionId: "drawing",
-  },
-  {
-    name: "Organiseer evenementen",
+    name: 'Beheer profielen',
     icon: Users,
-    sectionId: "drawing",
+    sectionId: 'profiles',
   },
   {
-    name: "Maak Wishlists",
+    name: 'Maak Wishlists',
+    icon: Gift,
+    sectionId: 'wishlists',
+  },
+  {
+    name: 'Organiseer evenementen',
     icon: CalendarPlus,
-    sectionId: "events",
+    sectionId: 'events',
   },
   {
-    name: "Volg Vrienden",
-    icon: Bell,
-    sectionId: "subscriptions",
+    name: 'Volg Vrienden',
+    icon: Share2,
+    sectionId: 'following',
   },
 ];
 
@@ -30,34 +34,30 @@ export default function Features() {
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
-      element.scrollIntoView({ behavior: "smooth" });
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
   return (
-    <div className="py-12 bg-white">
+    <div className="py-12 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mt-10">
-          <div className="space-y-10 md:space-y-0 md:grid md:grid-cols-2 md:gap-x-8 md:gap-y-10">
-            {features.map((feature) => (
-              <button
-                key={feature.name}
-                onClick={() => scrollToSection(feature.sectionId)}
-                className="relative group cursor-pointer w-full text-left"
-              >
-                <div className="flex flex-col h-full p-6 bg-white rounded-lg shadow-sm border border-gray-200 transition-all duration-200 hover:shadow-md hover:border-warm-olive">
-                  <div className="absolute flex items-center justify-center h-12 w-12 rounded-md bg-warm-olive text-white">
-                    <feature.icon className="h-6 w-6" aria-hidden="true" />
-                  </div>
-                  <div className="ml-16">
-                    <h3 className="text-lg font-medium text-gray-900 group-hover:text-warm-olive transition-colors">
-                      {feature.name}
-                    </h3>
-                  </div>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {features.map((feature) => (
+            <button
+              key={feature.name}
+              onClick={() => scrollToSection(feature.sectionId)}
+              className="relative group cursor-pointer w-full text-left"
+            >
+              <div className="flex flex-col items-center justify-center h-full p-8 bg-white rounded-xl shadow-sm border border-gray-200 transition-all duration-300 hover:shadow-lg hover:border-warm-olive hover:-translate-y-1">
+                <div className="flex items-center justify-center h-16 w-16 rounded-full bg-warm-olive text-white mb-4 group-hover:scale-110 transition-transform">
+                  <feature.icon className="h-8 w-8" aria-hidden="true" />
                 </div>
-              </button>
-            ))}
-          </div>
+                <h3 className="text-lg font-semibold text-gray-900 group-hover:text-warm-olive transition-colors text-center">
+                  {feature.name}
+                </h3>
+              </div>
+            </button>
+          ))}
         </div>
       </div>
     </div>

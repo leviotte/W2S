@@ -56,3 +56,41 @@ export function isAddressComplete(address: Address | AddressNullable | null): bo
   if (!address) return false;
   return !!(address.street && address.city && address.postalCode);
 }
+/**
+ * Convert DB address (nullable) to Form address (non-nullable)
+ */
+export function addressToForm(address: AddressNullable | null): Address {
+  if (!address) {
+    return {
+      country: 'België',
+    };
+  }
+  
+  return {
+    street: address.street || undefined,
+    number: address.number || undefined,
+    box: address.box || undefined,
+    postalCode: address.postalCode || undefined,
+    city: address.city || undefined,
+    country: address.country || 'België',
+  };
+}
+
+/**
+ * Convert Form address to DB address (nullable)
+ */
+export function formToAddress(formAddress: Address): AddressNullable {
+  // Als alle velden leeg zijn, return null
+  if (!formAddress.street && !formAddress.city && !formAddress.postalCode) {
+    return null;
+  }
+  
+  return {
+    street: formAddress.street || null,
+    number: formAddress.number || null,
+    box: formAddress.box || null,
+    postalCode: formAddress.postalCode || null,
+    city: formAddress.city || null,
+    country: formAddress.country || null,
+  };
+}

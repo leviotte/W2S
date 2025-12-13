@@ -1,55 +1,65 @@
-// src/components/landing/hero-actions.tsx
 'use client';
 
-import { useRouter } from 'next/navigation';
+/**
+ * components/landing/hero-actions.tsx
+ *
+ * Interactieve actieknoppen voor Hero sectie
+ */
+
 import { Gift, Users } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-// FIX: Correcte import van beide hooks
-import { useAuthStore } from '@/lib/store/use-auth-store';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function HeroActions() {
   const router = useRouter();
-  
-  const currentUser = useAuthStore((state) => state.currentUser);
-  // FIX: We halen de 'open' functie op uit de modal-specifieke hook
-  const { open: openModal } = useAuthStore();
+  const { currentUser, showLoginModal } = useAuth();
 
-  const handleNavigation = (path: string) => {
+  const handleCreateEvent = () => {
     if (!currentUser) {
-      // FIX: Roep de 'open' functie aan met 'login' als argument
-      openModal('login');
-    } else {
-      router.push(path);
+      showLoginModal();
+      return;
     }
+    router.push('/dashboard/events/create');
+
+  };
+
+  const handleCreateWishlist = () => {
+    if (!currentUser) {
+      showLoginModal();
+      return;
+    }
+    router.push('/dashboard?tab=wishlists&subTab=create');
   };
 
   return (
-    <div className="mx-auto mt-8 flex max-w-md flex-col gap-4 sm:flex-row md:mt-10">
-      <Button
-        size="lg"
-        className="h-28 flex-1 flex-col gap-2 !text-lg"
-        // FIX: Correcte onClick syntax
-        onClick={() => handleNavigation('/dashboard/event/create')} 
-      >
-        <Users className="h-7 w-7" />
-        <div>
-          Maak een Event
-          <p className="text-sm font-normal opacity-80">(Met of zonder lootjes)</p>
-        </div>
-      </Button>
-      <Button
-        size="lg"
-        variant="outline"
-        className="h-28 flex-1 flex-col gap-2 !text-lg"
-        // FIX: Correcte onClick syntax
-        onClick={() => handleNavigation('/dashboard/wishlist/create')}
-      >
-        <Gift className="h-7 w-7" />
-        <div>
-          Maak een Wishlist
-          <p className="text-sm font-normal opacity-80">(Voor jezelf of anderen)</p>
-        </div>
-      </Button>
+    <div className="mx-auto mt-5 flex max-w-md flex-row items-center justify-center gap-5 md:mt-6">
+      {/* Event Button */}
+      <div className="w-full sm:w-[48%] md:w-[48%]">
+        <button
+          onClick={handleCreateEvent}
+          className="z-10 flex h-32 w-full min-w-32 flex-col items-center justify-center overflow-hidden rounded-md border-4 border-transparent bg-gradient-to-r from-warm-olive via-cool-olive to-warm-olive px-2 text-base font-medium text-white transition-all duration-300 hover:scale-105 hover:bg-gradient-to-r hover:from-cool-olive hover:via-warm-olive hover:to-cool-olive hover:shadow-[0_4px_12px_rgba(72,97,64,0.3)] sm:px-6"
+        >
+          <Users className="mb-3 h-8 w-8" />
+          <span className="px-2 text-md sm:text-lg">Maak een Event</span>
+          <span className="text-xs opacity-80 sm:text-sm">
+            (Met of zonder lootjes)
+          </span>
+        </button>
+      </div>
+
+      {/* Wishlist Button */}
+      <div className="w-full sm:w-[48%] md:w-[48%]">
+        <button
+          onClick={handleCreateWishlist}
+          className="flex h-32 w-full min-w-32 flex-col items-center justify-center overflow-hidden rounded-md border-4 border-transparent bg-gradient-to-r from-warm-olive via-cool-olive to-warm-olive px-2 text-base font-medium text-white transition-all duration-300 hover:scale-105 hover:bg-gradient-to-r hover:from-cool-olive hover:via-warm-olive hover:to-cool-olive hover:shadow-[0_4px_12px_rgba(72,97,64,0.3)] sm:px-6"
+        >
+          <Gift className="mb-3 h-8 w-8" />
+          <span className="text-md sm:text-lg">Maak een Wishlist</span>
+          <span className="text-xs opacity-80 sm:text-sm">
+            (Voor jezelf of anderen)
+          </span>
+        </button>
+      </div>
     </div>
   );
 }

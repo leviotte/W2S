@@ -1,263 +1,198 @@
-// src/lib/server/actions/auth.ts
 'use server';
 
+import { adminAuth, adminDb } from '@/lib/server/firebase-admin';
+import { createSession, destroySession } from '@/lib/auth/session';
+import type { SessionUser } from '@/lib/auth/session';
 import { revalidatePath } from 'next/cache';
-import { Timestamp } from 'firebase-admin/firestore';
-import { destroySession as destroySessionCookie, createSession } from '@/lib/auth/session'
-import { adminDb, adminAuth } from '@/lib/server/firebase-admin';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-export type ActionResult<T = void> = 
-  | { success: true; data: T }
-  | { success: false; error: string };
-
-// ============================================================================
-// SERVER ACTIONS
-// ============================================================================
-
-/**
- * Logout - Server Action
- */
-export async function logoutAction(): Promise<ActionResult> {
-  try {
-    await destroySessionCookie();
-    revalidatePath('/', 'layout');
-    
-    return { success: true, data: undefined };
-  } catch (error: any) {
-    console.error('Logout error:', error);
-    return {
-      success: false,
-      error: 'Uitloggen mislukt',
-    };
-  }
+export interface RegisterFormData {
+  firstName: string;
+  lastName: string;
+  birthdate?: string; // ISO date string
+  gender?: string;
+  country?: string;
+  location?: string;
+  email: string;
+  password: string;
 }
 
-/**
- * Complete Registration - Server Action
- */
+export interface AuthActionResult {
+  success: boolean;
+  error?: string;
+  data?: {
+    userId?: string;
+    redirectTo?: string;
+  };
+}
+
+// ============================================================================
+// COMPLETE REGISTRATION ACTION
+// ============================================================================
+
 export async function completeRegistrationAction(data: {
   idToken: string;
   firstName: string;
   lastName: string;
   birthdate?: string;
   gender?: string;
-  city?: string;
   country?: string;
-}): Promise<ActionResult> {
+  location?: string;
+}): Promise<AuthActionResult> {
   try {
+    // Verify Firebase ID token
     const decodedToken = await adminAuth.verifyIdToken(data.idToken);
-    const uid = decodedToken.uid;
-    const email = decodedToken.email;
-
-    if (!email) {
-      return { success: false, error: 'Email niet gevonden in token' };
-    }
-
-    const adminEmails = ['leviotte@icloud.com', 'deneyer.liesa@telenet.be'];
-    const isAdmin = adminEmails.includes(email);
-
-    const displayName = `${data.firstName} ${data.lastName}`;
-    const slug = displayName.toLowerCase().replace(/\s+/g, '-');
-    
-    const userProfile = {
-      id: uid,
-      userId: uid,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      displayName,
-      email,
-      photoURL: null,
-      birthdate: data.birthdate || '',
-      gender: data.gender || '',
-      address: data.city && data.country ? {
-        city: data.city,
-        country: data.country,
-      } : null,
-      slug,
-      isPublic: true,
-      isAdmin,
-      isPartner: false,
-      emailVerified: false,
-      notifications: { email: true },
-      firstName_lower: data.firstName.toLowerCase(),
-      lastName_lower: data.lastName.toLowerCase(),
-    };
-
-    await adminDb.collection('users').doc(uid).set({
-      ...userProfile,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    });
-
-    await createSession({
-      id: uid,
-      email,
-      displayName,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      photoURL: null,
-      isAdmin,
-      isPartner: false,
-    });
-
-    revalidatePath('/', 'layout');
-
-    return { success: true, data: undefined };
-  } catch (error: any) {
-    console.error('Complete registration error:', error);
-    return { 
-      success: false, 
-      error: 'Fout bij het aanmaken van gebruikersprofiel' 
-    };
-  }
-}
-
-/**
- * Complete Login - Server Action
- */
-export async function completeLoginAction(
-  idToken: string
-): Promise<ActionResult<{ redirectTo: string }>> {
-  try {
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
-    const uid = decodedToken.uid;
-
-    const userDoc = await adminDb.collection('users').doc(uid).get();
-    
-    if (!userDoc.exists) {
-      return { 
-        success: false, 
-        error: 'Gebruiker niet gevonden' 
-      };
-    }
-
-    const userData = userDoc.data();
-    if (!userData) {
-      return { success: false, error: 'Gebruikersdata niet gevonden' };
-    }
-
-    await createSession({
-      id: uid,
-      email: userData.email,
-      displayName: userData.displayName,
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      photoURL: userData.photoURL || null,
-      username: userData.username || userData.displayName?.toLowerCase().replace(/\s+/g, '-'),
-      isAdmin: userData.isAdmin || false,
-      isPartner: userData.isPartner || false,
-    });
-
-    revalidatePath('/', 'layout');
-
-    const redirectTo = userData.isAdmin ? '/admin-dashboard' : '/dashboard';
-
-    return { 
-      success: true, 
-      data: { redirectTo } 
-    };
-
-  } catch (error: any) {
-    console.error('Complete login error:', error);
-    return {
-      success: false,
-      error: 'Login mislukt',
-    };
-  }
-}
-
-/**
- * Google Sign-In - Server Action
- */
-export async function completeGoogleSignInAction(
-  idToken: string
-): Promise<ActionResult<{ redirectTo: string; isNewUser: boolean }>> {
-  try {
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
     const uid = decodedToken.uid;
     const email = decodedToken.email!;
 
-    const userDoc = await adminDb.collection('users').doc(uid).get();
-    const isNewUser = !userDoc.exists;
+    // Get Firebase user to check email verification status
+    const firebaseUser = await adminAuth.getUser(uid);
 
-    if (isNewUser) {
-      const displayName = decodedToken.name || email.split('@')[0];
-      const [firstName, ...lastNameParts] = displayName.split(' ');
-      const lastName = lastNameParts.join(' ') || '';
+    // Create full user profile in Firestore
+    const userProfile = {
+      firstName: data.firstName,
+      lastName: data.lastName,
+      firstName_lower: data.firstName.toLowerCase(),
+      lastName_lower: data.lastName.toLowerCase(),
+      email,
+      displayName: `${data.firstName} ${data.lastName}`,
+      photoURL: null,
+      username: null,
+      birthdate: data.birthdate || null,
+      gender: data.gender || null,
+      country: data.country || null,
+      location: data.location || null,
+      isAdmin: false,
+      isPartner: false,
+      emailVerified: firebaseUser.emailVerified,
+      notifications: {
+        email: true,
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
 
-      const adminEmails = ['leviotte@icloud.com', 'deneyer.liesa@telenet.be'];
-      const isAdmin = adminEmails.includes(email);
+    await adminDb.collection('users').doc(uid).set(userProfile);
 
-      const userProfile = {
+    // Create session ONLY if email is verified
+    // (We'll check this client-side too, but double-check here)
+    if (firebaseUser.emailVerified) {
+      const sessionUser: Omit<SessionUser, 'isLoggedIn' | 'createdAt' | 'lastActivity'> = {
         id: uid,
-        userId: uid,
-        firstName,
-        lastName,
-        displayName,
         email,
-        photoURL: decodedToken.picture || null,
-        slug: displayName.toLowerCase().replace(/\s+/g, '-'),
-        isPublic: true,
-        isAdmin,
+        displayName: userProfile.displayName,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        photoURL: null,
+        username: null,
+        isAdmin: false,
         isPartner: false,
-        emailVerified: true,
-        notifications: { email: true },
-        firstName_lower: firstName.toLowerCase(),
-        lastName_lower: lastName.toLowerCase(),
       };
 
-      await adminDb.collection('users').doc(uid).set({
-        ...userProfile,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
+      await createSession(sessionUser);
+      revalidatePath('/dashboard');
+    }
+
+    console.log(`[Auth] ✅ User registered: ${email}`);
+    return { 
+      success: true, 
+      data: { 
+        userId: uid,
+        redirectTo: firebaseUser.emailVerified ? '/dashboard' : '/',
+      } 
+    };
+  } catch (error: any) {
+    console.error('[Auth] Registration completion error:', error);
+    return { success: false, error: error.message || 'Registratie mislukt' };
+  }
+}
+
+// ============================================================================
+// COMPLETE LOGIN ACTION
+// ============================================================================
+
+export async function completeLoginAction(idToken: string): Promise<AuthActionResult> {
+  try {
+    // Verify the Firebase ID token
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+
+    // Get user data from Firestore
+    const userDoc = await adminDb.collection('users').doc(uid).get();
+
+    if (!userDoc.exists) {
+      return { success: false, error: 'Gebruiker niet gevonden' };
+    }
+
+    const userData = userDoc.data()!;
+
+    // Check email verification
+    const firebaseUser = await adminAuth.getUser(uid);
+    if (!firebaseUser.emailVerified) {
+      return { 
+        success: false, 
+        error: 'E-mail niet geverifieerd. Controleer je inbox.' 
+      };
+    }
+
+    // Update email verification status in Firestore if needed
+    if (!userData.emailVerified) {
+      await adminDb.collection('users').doc(uid).update({
+        emailVerified: true,
+        updatedAt: new Date().toISOString(),
       });
-    } else {
-      const userData = userDoc.data();
-      if (userData && !userData.photoURL && decodedToken.picture) {
-        await adminDb.collection('users').doc(uid).update({
-          photoURL: decodedToken.picture,
-          updatedAt: Timestamp.now(),
-        });
-      }
     }
 
-    const updatedUserDoc = await adminDb.collection('users').doc(uid).get();
-    const userData = updatedUserDoc.data();
-
-    if (!userData) {
-      return { success: false, error: 'Gebruikersdata niet gevonden' };
-    }
-
-    await createSession({
+    // Create session
+    const sessionUser: Omit<SessionUser, 'isLoggedIn' | 'createdAt' | 'lastActivity'> = {
       id: uid,
       email: userData.email,
-      displayName: userData.displayName,
+      displayName: userData.displayName || `${userData.firstName} ${userData.lastName}`,
       firstName: userData.firstName,
       lastName: userData.lastName,
       photoURL: userData.photoURL || null,
-      username: userData.username || userData.displayName?.toLowerCase().replace(/\s+/g, '-'),
-      isAdmin: userData.isAdmin || false,
-      isPartner: userData.isPartner || false,
-    });
+      username: userData.username || null,
+      isAdmin: userData.isAdmin === true,
+      isPartner: userData.isPartner === true,
+    };
 
-    revalidatePath('/', 'layout');
+    await createSession(sessionUser);
 
+    // Revalidate dashboard
+    revalidatePath('/dashboard');
+
+    // Determine redirect based on role
     const redirectTo = userData.isAdmin ? '/admin-dashboard' : '/dashboard';
 
+    console.log(`[Auth] ✅ User logged in: ${userData.email}`);
     return { 
       success: true, 
-      data: { redirectTo, isNewUser } 
+      data: { 
+        userId: uid,
+        redirectTo,
+      } 
     };
-
   } catch (error: any) {
-    console.error('Google sign-in error:', error);
-    return {
-      success: false,
-      error: 'Google inloggen mislukt',
-    };
+    console.error('[Auth] Login error:', error);
+    return { success: false, error: error.message || 'Login mislukt' };
+  }
+}
+
+// ============================================================================
+// LOGOUT ACTION
+// ============================================================================
+
+export async function logoutAction(): Promise<AuthActionResult> {
+  try {
+    await destroySession();
+    revalidatePath('/');
+    console.log('[Auth] ✅ User logged out');
+    return { success: true };
+  } catch (error: any) {
+    console.error('[Auth] Logout error:', error);
+    return { success: false, error: error.message || 'Logout mislukt' };
   }
 }

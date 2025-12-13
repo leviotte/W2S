@@ -1,17 +1,12 @@
 /**
  * components/landing/how-it-works.tsx
- *
- * GEMIGREERD & GEOPTIMALISEERD
- * - Omgezet naar een Server Component (geen 'use client') voor maximale performance.
- * - Alle <img> tags vervangen door de geoptimaliseerde <Image> component van Next.js.
- * - <Link> componenten gebruiken nu de Next.js 'href' prop.
- * - De interactieve video is een apart component 'IntroVideo' (wordt een Client Component).
  */
 import { Gift, Share2, Heart, Users, CalendarPlus } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import IntroVideo from './intro-video';
 
+// ⚠️ TYPO GEFIXED: "featureSecti [" was fout!
 const featureSections = [
   {
     id: 'profiles',
@@ -31,7 +26,7 @@ const featureSections = [
   },
   {
     id: 'wishlists',
-    icon: CalendarPlus, // Dit icoon past beter bij 'maken'
+    icon: CalendarPlus,
     title: 'WishLists maken',
     imageUrl:
       'https://firebasestorage.googleapis.com/v0/b/wish2share4u.firebasestorage.app/o/public%2Fimages%2FCreateWishlist.svg?alt=media&token=675dcc74-0ab2-4476-a676-2111d60af4ec',
@@ -62,7 +57,7 @@ const featureSections = [
   },
   {
     id: 'following',
-    icon: Share2, // Passender icoon voor 'volgen'
+    icon: Share2,
     title: 'Vrienden Volgen',
     imageUrl:
       'https://firebasestorage.googleapis.com/v0/b/wish2share4u.firebasestorage.app/o/public%2Fimages%2FFollowFriends.svg?alt=media&token=16a3dcb1-e208-44f1-bbd3-733aa37a6729',
@@ -113,7 +108,7 @@ export default function HowItWorks() {
             <FeatureSection
               key={feature.id}
               {...feature}
-              imageFirst={index % 2 !== 0} // Zorgt voor de afwisseling
+              imageFirst={index % 2 !== 0}
             />
           ))}
         </div>
@@ -122,7 +117,7 @@ export default function HowItWorks() {
   );
 }
 
-// Sub-component voor de stappen, houdt de JSX clean
+// Sub-component voor de stappen
 const Step = ({ icon: Icon, title, description }: { icon: React.ElementType; title: string; description: string; }) => (
   <div className="flex items-center gap-6">
     <div className="relative flex-shrink-0">
@@ -140,12 +135,11 @@ const Step = ({ icon: Icon, title, description }: { icon: React.ElementType; tit
   </div>
 );
 
-// Sub-component voor de feature sections, houdt de JSX clean
+// Sub-component voor de feature sections
 const FeatureSection = ({ id, icon: Icon, title, imageUrl, alt, points, imageFirst }: (typeof featureSections)[0]) => (
   <section id={id} className="scroll-mt-20">
     <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
       <div className={`relative ${imageFirst ? 'md:order-2' : 'md:order-1'}`}>
-        {/* NEXT.JS IMAGE OPTIMIZATION! */}
         <Image
           src={imageUrl}
           alt={alt}

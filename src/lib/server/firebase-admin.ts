@@ -1,16 +1,4 @@
-/**
- * Firebase Admin SDK Initialisatie
- * 
- * GOLD STANDARD SINGLETON PROVIDER voor de Firebase Admin SDK.
- * 
- * Features:
- * - GlobalThis caching voor stabiliteit tijdens hot-reloading
- * - Robuuste private key parsing
- * - Volledige service exports (Auth, Firestore, Storage)
- * - Uitgebreide error handling
- * 
- * @see https://firebase.google.com/docs/admin/setup
- */
+// src/lib/server/firebase-admin.ts
 import 'server-only';
 import * as admin from 'firebase-admin';
 import type { App } from 'firebase-admin/app';

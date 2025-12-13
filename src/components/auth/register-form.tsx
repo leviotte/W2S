@@ -1,23 +1,28 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
 
 import { getClientAuth } from '@/lib/client/firebase';
 import { completeRegistrationAction } from '@/lib/server/actions/auth';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const registerSchema = z.object({
   firstName: z.string().min(1, 'Voornaam is verplicht'),
   lastName: z.string().min(1, 'Achternaam is verplicht'),
+  birthdate: z.string().optional(),
+  gender: z.string().optional(),
+  country: z.string().optional(),
+  location: z.string().optional(),
   email: z.string().email('Ongeldig e-mailadres'),
   password: z.string().min(6, 'Wachtwoord moet minimaal 6 karakters bevatten'),
   confirmPassword: z.string(),
@@ -42,6 +47,10 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
     defaultValues: {
       firstName: '',
       lastName: '',
+      birthdate: '',
+      gender: '',
+      country: '',
+      location: '',
       email: '',
       password: '',
       confirmPassword: '',
@@ -51,7 +60,7 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
   const onSubmit = (data: RegisterFormValues) => {
     startTransition(async () => {
       try {
-        // 1. Client-side Firebase registration
+        // Step 1: Create Firebase user
         const auth = getClientAuth();
         const userCredential = await createUserWithEmailAndPassword(
           auth, 
@@ -59,26 +68,48 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
           data.password
         );
         
-        const idToken = await userCredential.user.getIdToken();
+        const user = userCredential.user;
 
-        // 2. Server-side user profile creation
+        // Step 2: Update display name
+        await updateProfile(user, {
+          displayName: `${data.firstName} ${data.lastName}`,
+        });
+
+        // Step 3: Send verification email
+        await sendEmailVerification(user);
+
+        // Step 4: Get ID token
+        const idToken = await user.getIdToken();
+
+        // Step 5: Complete registration server-side (create Firestore profile)
         const result = await completeRegistrationAction({
           idToken,
           firstName: data.firstName,
           lastName: data.lastName,
+          birthdate: data.birthdate,
+          gender: data.gender,
+          country: data.country,
+          location: data.location,
         });
 
         if (result.success) {
           toast.success('Account succesvol aangemaakt!', {
-            description: 'Je wordt doorgestuurd naar je dashboard...'
+            description: 'Controleer je e-mail voor de verificatie link.',
           });
+          
+          // Sign out (user moet eerst email verifiëren)
+          await auth.signOut();
           
           if (onSuccess) {
             onSuccess();
           }
           
-          router.push('/dashboard');
-          router.refresh();
+          // Switch to login
+          if (onSwitchToLogin) {
+            onSwitchToLogin();
+          } else {
+            router.push('/');
+          }
         } else {
           toast.error('Registratie mislukt', { 
             description: result.error || 'Er ging iets mis bij het aanmaken van je profiel.' 
@@ -104,95 +135,213 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
+      {/* Header */}
       <div className="flex flex-col items-center text-center gap-1">
-        <h1 className="text-2xl font-bold">Maak een Account aan</h1>
-        <p className="text-balance text-muted-foreground">Start met het delen van je wensen</p>
+        <h1 className="text-2xl font-bold">Welkom</h1>
+        <p className="text-sm text-muted-foreground">Creëer een Wish2Share-account</p>
       </div>
 
+      {/* Form */}
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-3">
+          {/* Voornaam */}
+          <FormField
+            control={form.control}
+            name="firstName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Voornaam</FormLabel>
+                <FormControl>
+                  <Input placeholder="Voornaam" {...field} disabled={isPending} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Achternaam */}
+          <FormField
+            control={form.control}
+            name="lastName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Achternaam</FormLabel>
+                <FormControl>
+                  <Input placeholder="Achternaam" {...field} disabled={isPending} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Geboortedatum */}
+          <FormField
+            control={form.control}
+            name="birthdate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Geboortedatum</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="date" 
+                    placeholder="dd-mm-jj" 
+                    {...field} 
+                    disabled={isPending}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Gender */}
+          <FormField
+            control={form.control}
+            name="gender"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Gender</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isPending}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select your gender" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="male">Man</SelectItem>
+                    <SelectItem value="female">Vrouw</SelectItem>
+                    <SelectItem value="other">Ander</SelectItem>
+                    <SelectItem value="prefer-not-to-say">Liever niet zeggen</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Land + Locatie */}
+          <div className="grid grid-cols-2 gap-3">
             <FormField
               control={form.control}
-              name="firstName"
+              name="country"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Voornaam</FormLabel>
-                  <FormControl><Input placeholder="John" {...field} /></FormControl>
+                  <FormLabel>Land</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Land" {...field} disabled={isPending} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
-              name="lastName"
+              name="location"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Achternaam</FormLabel>
-                  <FormControl><Input placeholder="Doe" {...field} /></FormControl>
+                  <FormLabel>Locatie</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Locatie" {...field} disabled={isPending} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
 
+          {/* E-mail */}
           <FormField
             control={form.control}
             name="email"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>E-mail</FormLabel>
-                <FormControl><Input type="email" placeholder="naam@voorbeeld.be" {...field} /></FormControl>
+                <FormControl>
+                  <Input 
+                    type="email" 
+                    placeholder="leviotte@icloud.com" 
+                    {...field} 
+                    disabled={isPending}
+                    autoComplete="email"
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
+          {/* Wachtwoord */}
           <FormField
             control={form.control}
             name="password"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Wachtwoord</FormLabel>
-                <FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl>
+                <FormControl>
+                  <Input 
+                    type="password" 
+                    placeholder="•••••••" 
+                    {...field} 
+                    disabled={isPending}
+                    autoComplete="new-password"
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
+          {/* Bevestig Wachtwoord */}
           <FormField
             control={form.control}
             name="confirmPassword"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Bevestig Wachtwoord</FormLabel>
-                <FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl>
+                <FormControl>
+                  <Input 
+                    type="password" 
+                    placeholder="•••••••" 
+                    {...field} 
+                    disabled={isPending}
+                    autoComplete="new-password"
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          <Button disabled={isPending} type="submit" className="w-full flex items-center justify-center gap-2">
-            {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            Registreer
+          {/* Submit Button */}
+          <Button 
+            disabled={isPending} 
+            type="submit" 
+            className="w-full mt-2"
+            style={{ backgroundColor: '#6B8E23' }} // Olive green zoals je oude site
+          >
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Create account
           </Button>
         </form>
       </Form>
       
+      {/* Switch to Login */}
       {onSwitchToLogin && (
         <div className="text-center text-sm">
-          Al een account?{' '}
-          <button onClick={onSwitchToLogin} className="underline underline-offset-2 hover:text-primary">
+          Heb je al een account?{' '}
+          <button onClick={onSwitchToLogin} className="text-primary font-medium hover:underline">
             Log in
           </button>
         </div>
       )}
       
-      <div className="text-balance text-center text-xs text-muted-foreground">
-        Door te registreren ga je akkoord met onze{' '}
-        <a href="/terms" className="underline underline-offset-2 hover:text-primary">
-          gebruiksvoorwaarden
+      {/* Terms */}
+      <div className="text-center text-xs text-muted-foreground">
+        Door het creëren van een nieuw account ga je akkoord met onze{' '}
+        <a href="/terms-and-conditions" className="underline hover:text-primary">
+          Gebruiksvoorwaarden
         </a>
       </div>
     </div>
