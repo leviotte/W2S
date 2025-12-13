@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { BlogPost } from '@/types/blog';
-import { BlogPostCard } from './blog-post-card';
+import { PostCard } from '@/components/blog/post-card';
 
 type Props = {
   posts: BlogPost[];
@@ -47,7 +47,7 @@ export function BlogGrid({ posts, isAdmin }: Props) {
       {posts.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
           {posts.map((post) => (
-            <BlogPostCard 
+            <PostCard 
               key={post.id} 
               post={post} 
               isAdmin={isAdmin}

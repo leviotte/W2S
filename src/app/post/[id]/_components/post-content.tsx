@@ -182,16 +182,16 @@ export function PostContent({ post, isAdmin, currentUser }: Props) {
         )}
 
         {/* Admin Actions */}
-        {isAdmin && (
-          <div className="mt-12 pt-8 border-t border-gray-200 flex gap-4">
-            <Button
-              onClick={() => router.push(`/update-post/${post.id}`)}
-              variant="outline"
-            >
-              Post bewerken
-            </Button>
-          </div>
-        )}
+{isAdmin && (
+  <div className="mt-12 pt-8 border-t border-gray-200 flex gap-4">
+    <Button
+      onClick={() => router.push(`/dashboard/posts/${post.id}/edit`)}  // ✅ GEFIXED
+      variant="outline"
+    >
+      Post bewerken
+    </Button>
+  </div>
+)}
       </div>
     </article>
   );

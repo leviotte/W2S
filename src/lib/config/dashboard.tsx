@@ -1,4 +1,4 @@
-// src/lib/config/dashboard.ts
+// src/lib/config/dashboard.tsx
 import { LayoutDashboard, Calendar, Gift, Settings, User } from 'lucide-react';
 
 export interface NavItem {

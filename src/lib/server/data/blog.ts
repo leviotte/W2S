@@ -2,26 +2,74 @@
 import 'server-only';
 import { adminDb } from '@/lib/server/firebase-admin';
 import { unstable_cache as cache } from 'next/cache';
-import type { BlogPost } from '@/types/blog';
+import type { BlogPost, ClientBlogPost, BlogSection } from '@/types/blog';
 
 // ============================================================================
 // HELPERS
 // ============================================================================
 
-function convertTimestamp(data: any): any {
-  if (!data) return data;
-  
-  const converted: any = { ...data };
-  
-  if (data.createdAt && typeof data.createdAt.toDate === 'function') {
-    converted.createdAt = data.createdAt.toDate();
+/**
+ * Map eventuele legacy affiliateProduct naar section.items
+ */
+function mapLegacyAffiliate(section: BlogSection): BlogSection {
+  if (section.affiliateProduct) {
+    section.items = section.items ?? [];
+    section.items.push({
+      id: section.affiliateProduct.id,
+      title: section.affiliateProduct.title,
+      image: section.affiliateProduct.imageUrl,
+      description: '',
+      url: section.affiliateProduct.url,
+      price: section.affiliateProduct.price?.toString(),
+      source: section.affiliateProduct.source,
+    });
+    delete section.affiliateProduct;
   }
-  
-  if (data.updatedAt && typeof data.updatedAt.toDate === 'function') {
-    converted.updatedAt = data.updatedAt.toDate();
+  return section;
+}
+
+/**
+ * Converteer Firestore Timestamp / TimestampLike / Date naar Date
+ */
+function toDateSafe(
+  timestamp: BlogPost['createdAt'] | BlogPost['updatedAt'] | undefined
+): Date {
+  if (!timestamp) return new Date();
+  if (timestamp instanceof Date) return timestamp;
+  if ('toDate' in timestamp && typeof timestamp.toDate === 'function') {
+    return timestamp.toDate();
   }
-  
-  return converted;
+  if ('_seconds' in timestamp && '_nanoseconds' in timestamp) {
+    return new Date(timestamp._seconds * 1000);
+  }
+  return new Date();
+}
+
+/**
+ * Converteer raw Firestore data naar ClientBlogPost
+ */
+function convertPost(docData: Partial<BlogPost> & { id: string }): ClientBlogPost {
+  const sections = (docData.sections ?? []).map(mapLegacyAffiliate);
+
+  return {
+    id: docData.id,
+    headTitle: docData.headTitle ?? '',
+    headDescription: docData.headDescription ?? '',
+    headImage: docData.headImage ?? '',
+    subDescription: docData.subDescription,
+    sections,
+    content: docData.content,
+    authorId: docData.authorId,
+    authorName: docData.authorName,
+    author: docData.author,
+    published: docData.published ?? false,
+    slug: docData.slug,
+    tags: docData.tags ?? [],
+    views: docData.views ?? 0,
+    metaDescription: docData.metaDescription,
+    createdAt: toDateSafe(docData.createdAt),
+    updatedAt: docData.updatedAt ? toDateSafe(docData.updatedAt) : undefined,
+  };
 }
 
 // ============================================================================
@@ -31,17 +79,16 @@ function convertTimestamp(data: any): any {
 /**
  * Haal alle blog posts op, gesorteerd op datum (nieuwste eerst)
  */
-export async function getBlogPosts(): Promise<BlogPost[]> {
+export async function getBlogPosts(): Promise<ClientBlogPost[]> {
   try {
     const snapshot = await adminDb
       .collection('posts')
       .orderBy('createdAt', 'desc')
       .get();
 
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...convertTimestamp(doc.data()),
-    })) as BlogPost[];
+    return snapshot.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) =>
+      convertPost({ id: doc.id, ...doc.data() as Partial<BlogPost> })
+    );
   } catch (error) {
     console.error('Error fetching blog posts:', error);
     return [];
@@ -50,33 +97,26 @@ export async function getBlogPosts(): Promise<BlogPost[]> {
 
 /**
  * Cached versie voor betere performance
- * Cache: 5 minuten (blog posts zijn relatief statisch)
  */
 export const getCachedBlogPosts = cache(
   getBlogPosts,
   ['blog-posts'],
   {
     tags: ['blog', 'posts'],
-    revalidate: 300, // 5 minuten
+    revalidate: 300,
   }
 );
 
 /**
  * Haal een enkele blog post op
  */
-export async function getBlogPost(postId: string): Promise<BlogPost | null> {
+export async function getBlogPost(postId: string): Promise<ClientBlogPost | null> {
   try {
-    const doc = await adminDb
-      .collection('posts')
-      .doc(postId)
-      .get();
+    const doc = await adminDb.collection('posts').doc(postId).get();
 
     if (!doc.exists) return null;
 
-    return {
-      id: doc.id,
-      ...convertTimestamp(doc.data()),
-    } as BlogPost;
+    return convertPost({ id: doc.id, ...doc.data() as Partial<BlogPost> });
   } catch (error) {
     console.error('Error fetching blog post:', error);
     return null;
