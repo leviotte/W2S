@@ -1,3 +1,4 @@
+// src/app/create-post/page.tsx
 import { redirect } from 'next/navigation';
 import { requireAdmin } from '@/lib/auth/actions';
 import { CreatePostForm } from './_components/create-post-form';

@@ -1,3 +1,4 @@
+// src/components/blog/post-card.tsx
 "use client";
 
 import Link from "next/link";

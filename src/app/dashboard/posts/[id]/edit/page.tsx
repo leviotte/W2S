@@ -1,3 +1,4 @@
+// src/app/dashboard/posts/[id]/edit/page.tsx
 import { notFound, redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { getPostAction } from '@/lib/server/actions/blog';

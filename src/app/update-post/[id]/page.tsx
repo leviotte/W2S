@@ -1,3 +1,4 @@
+// src/app/update-post/[id]/page.tsx
 import { notFound, redirect } from 'next/navigation';
 import { requireAdmin } from '@/lib/auth/actions';
 import { getCachedBlogPost } from '@/lib/server/data/blog';

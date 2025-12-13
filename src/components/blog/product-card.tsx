@@ -1,3 +1,4 @@
+// src/components/blog/product-card.tsx
 import Image from 'next/image';
 import { type Product } from '@/types/product';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';

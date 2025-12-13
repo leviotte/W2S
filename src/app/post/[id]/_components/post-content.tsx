@@ -1,3 +1,4 @@
+//src/app/post/[id]/_components/post-content.tsx
 'use client';
 
 import { useRouter } from 'next/navigation';

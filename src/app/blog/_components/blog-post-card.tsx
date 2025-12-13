@@ -1,4 +1,5 @@
-'use client';
+// src/app/blog/_components/blog-grid.tsx
+"use client";
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';

@@ -1,3 +1,4 @@
+// src/app/dashboard/posts/[id]/edit/_components/update-post-form.tsx
 'use client';
 
 import { useState, useTransition } from 'react';
