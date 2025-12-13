@@ -1,7 +1,7 @@
-// lib/client/firebase.ts
+// src/lib/client/firebase.ts
 // Client-side Firebase utilities for Next.js App Router
 // NOTE: This file is intended to be imported from client components only.
-// Server code should use lib/firebaseAdmin.ts instead.
+// Server code should use lib/server/firebase-admin.ts instead.
 
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import type { FirebaseOptions } from "firebase/app";

@@ -1,3 +1,4 @@
+// src/app/post/[id]/page.tsx
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getCachedBlogPost, getCachedBlogPosts } from '@/lib/server/data/blog';

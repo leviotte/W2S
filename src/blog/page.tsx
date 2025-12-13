@@ -1,3 +1,4 @@
+// src/app/blog/page.tsx
 import { adminDb } from "@/lib/server/firebase-admin";
 import { getSession } from "@/lib/auth/actions";
 import PageTitle from "@/components/layout/page-title";

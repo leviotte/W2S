@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { Trash2, UserPlus, ChevronDown, ChevronUp } from "lucide-react";
 import { useDroppable } from "@dnd-kit/core";
 import { toast } from "sonner";
-import { updateEventAction } from '@/app/dashboard/event/[id]/actions';
+import { updateEventAction } from '@/app/dashboard/events/[id]/actions';
 
 import type { Task } from "@/types/task";
 import type { EventParticipant } from "@/types/event";

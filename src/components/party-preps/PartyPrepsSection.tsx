@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import TaskList from './TaskList';
 import ParticipantList from '../event/ParticipantList';
 import DraggableParticipant from './DraggableParticipant';
-import { updateEventAction } from '@/app/dashboard/event/[id]/actions';
+import { updateEventAction } from '@/app/dashboard/events/[id]/actions';
 import type { Event, EventParticipant } from '@/types/event';
 import type { Task } from '@/types/task';
 

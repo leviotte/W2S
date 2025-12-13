@@ -7,7 +7,7 @@ import { useFormState } from "react-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { createEventAction, type FormState } from "@/app/dashboard/event/create/actions";
+import { createEventAction, type FormState } from "@/app/dashboard/events/create/actions";
 import type { UserProfile } from "@/types/user";
 
 // UI imports

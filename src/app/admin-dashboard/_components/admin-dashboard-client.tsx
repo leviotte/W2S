@@ -12,12 +12,12 @@ import type { BackgroundImage, BackgroundCategory } from '@/types/background';
 import type { AffiliateStats } from '@/types/affiliate'; // ✅ ADD
 
 // Tab Components
-import { MetricsTab } from './tabs/metrics-tab';
-import { BackgroundsTab } from './tabs/backgrounds-tab';
+import { MetricsTab } from '../../admin/metrics/page';
+import { BackgroundsTab } from '../../admin/backgrounds/page';
 import { SettingsTab } from './tabs/settings-tab';
-import { BlogTab } from './tabs/blog-tab';
-import { AccountsTab } from './tabs/accounts-tab';
-import { InquiriesTab } from './tabs/inquiries-tab';
+import { BlogTab } from '../../admin/blog/page';
+import { AccountsTab } from '../../admin/accounts/page';
+import { InquiriesTab } from '../../admin/inquiries/inquiries-tab';
 
 // ============================================================================
 // TYPES

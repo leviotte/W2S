@@ -1,3 +1,4 @@
+// src/app/blog/page.tsx
 import { Metadata } from 'next';
 import { getCachedBlogPosts } from '@/lib/server/data/blog';
 import { getCurrentUser } from '@/lib/auth/actions';

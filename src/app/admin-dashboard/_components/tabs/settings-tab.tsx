@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import type { AffiliateStats } from '@/types/affiliate';
 
 // Sub-components
-import { AffiliateStoresStats } from './settings/affiliate-stores-stats';
+import { AffiliateStoresStats } from '../../../admin/settings/affiliate-stores/page';
 
 // ============================================================================
 // TYPES
