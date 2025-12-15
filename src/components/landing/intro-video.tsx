@@ -22,8 +22,7 @@ export default function IntroVideo() {
 
   const videoUrl =
     "https://firebasestorage.googleapis.com/v0/b/wish2share4u.firebasestorage.app/o/public%2Fvideos%2FWish2Share%20video.mp4?alt=media&token=29ce3c27-106f-4c7f-b86c-2b6a62d57332";
-  const posterUrl = 
-    "https://firebasestorage.googleapis.com/v0/b/wish2share4u.firebasestorage.app/o/public%2Fimages%2FW2S-Video-poster.png?alt=media&token=e1f7c327-1090-482f-876b-c74384d0bd92";
+  const posterUrl = "/wish2share.png"; // Gebruik je logo als placeholder
 
 
   const togglePlay = (e?: React.MouseEvent) => {

@@ -1,7 +1,7 @@
 // src/lib/auth/actions.ts
 import 'server-only';
 import { redirect } from 'next/navigation';
-import { getSession as getSessionFromCookie } from './session';
+import { getUserId, isAuthenticated, isAdmin as checkIsAdmin } from './session';
 import { adminDb } from '@/lib/server/firebase-admin';
 import type { UserProfile } from '@/types/user';
 
@@ -9,21 +9,33 @@ import type { UserProfile } from '@/types/user';
 // RE-EXPORTS (voor server components)
 // ============================================================================
 
-export { getSession, destroySession } from './session';
+export { 
+  getSession, 
+  destroySession, 
+  getUserId, 
+  getUserEmail,
+  isAuthenticated,
+  isAdmin,
+  isPartner,
+} from './session';
 
 // ============================================================================
 // HELPER: Get Current User (alleen voor server components)
 // ============================================================================
 
+/**
+ * Get volledige user profile uit Firestore
+ * ✅ Gebruikt session voor ID, haalt rest uit database
+ */
 export async function getCurrentUser(): Promise<UserProfile | null> {
-  const session = await getSessionFromCookie();
+  const userId = await getUserId();
   
-  if (!session.user) {
+  if (!userId) {
     return null;
   }
 
   try {
-    const userDoc = await adminDb.collection('users').doc(session.user.id).get();
+    const userDoc = await adminDb.collection('users').doc(userId).get();
     
     if (!userDoc.exists) {
       return null;
@@ -33,12 +45,12 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
     
     return {
       ...userData,
-      id: session.user.id,
+      id: userId,
       createdAt: userData?.createdAt?.toDate?.() || new Date(),
       updatedAt: userData?.updatedAt?.toDate?.() || new Date(),
     } as UserProfile;
   } catch (error) {
-    console.error('Get current user error:', error);
+    console.error('[Auth] Get current user error:', error);
     return null;
   }
 }
@@ -62,11 +74,15 @@ export async function requireAuth(): Promise<UserProfile> {
 // ============================================================================
 
 export async function requireAdmin(): Promise<UserProfile> {
-  const user = await requireAuth();
+  // Check session first (fast)
+  const isAdminUser = await checkIsAdmin();
   
-  if (!user.isAdmin) {
+  if (!isAdminUser) {
     redirect('/dashboard');
   }
+  
+  // Get full profile
+  const user = await requireAuth();
   
   return user;
 }
@@ -86,10 +102,10 @@ export async function getManagedProfiles(userId: string) {
       id: doc.id,
       ...doc.data(),
       createdAt: doc.data().createdAt?.toDate?.() || new Date(),
-      updatedAt: doc.data().updatedAt?.toDate?.() || new Date(),
+      updatedAt: doc.data().createdAt?.toDate?.() || new Date(),
     }));
   } catch (error) {
-    console.error('Get managed profiles error:', error);
+    console.error('[Auth] Get managed profiles error:', error);
     return [];
   }
 }

@@ -1,100 +1,136 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
+    
     // ============================================================================
     // HELPER FUNCTIONS
     // ============================================================================
+    
     function isAuthenticated() {
       return request.auth != null;
     }
 
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isAuthenticated() && request.auth.uid == userId;
     }
 
     function isAdmin() {
-      return isAuthenticated() &&
-        (request.auth.token.email == 'leviotte@icloud.com' ||
-         request.auth.token.email == 'deneyer.liesa@telenet.be');
+      return isAuthenticated() && (
+        request.auth.token.email == 'leviotte@icloud.com' ||
+        request.auth.token.email == 'deneyer.liesa@telenet.be'
+      );
     }
 
     // ============================================================================
-    // ADMIN ACCESS (voor development & debugging)
+    // USERS
     // ============================================================================
-    match /{document=**} {
-      allow read: if isAdmin() || isAuthenticated();
-    }
-
-    // ============================================================================
-    // USER PROFILES
-    // ============================================================================
+    
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow write: if isOwner(userId) || isAdmin();
-    }
-
-    match /users/{userId}/following/{followingId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-    }
-
-    match /users/{userId}/followers/{followerId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-    }
-
-    // ============================================================================
-    // WISHLISTS
-    // ============================================================================
-    match /wishlists/{wishlistId} {
-      allow read: if resource.data.isPrivate == false ||
-                   (isAuthenticated() && (
-                     isOwner(resource.data.userId) ||
-                     resource.data.sharedWith[request.auth.uid] == true
-                   ));
-      allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated() && (isOwner(resource.data.userId) || isAdmin());
-    }
-
-    // ============================================================================
-    // EVENTS
-    // ============================================================================
-    match /events/{eventId} {
-      allow read: if isAuthenticated() && (
-        isOwner(resource.data.organizer) ||
-        exists(/databases/$(database)/documents/events/$(eventId)/participants/$(request.auth.uid))
-      );
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (
-        isOwner(resource.data.organizer) ||
-        (resource.data.participants[request.auth.uid] != null)
-      );
-      allow delete: if isAuthenticated() && (isOwner(resource.data.organizer) || isAdmin());
+      
+      // Subcollections
+      match /following/{followingId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+      }
+      
+      match /followers/{followerId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+      }
     }
 
     // ============================================================================
     // PROFILES (sub-profiles)
     // ============================================================================
+    
     match /profiles/{profileId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated();
+      
+      match /following/{followingId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+      }
+      
+      match /followers/{followerId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+      }
     }
 
-    match /profiles/{profileId}/following/{followingId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+    // ============================================================================
+    // WISHLISTS - BACKWARDS COMPATIBLE
+    // ============================================================================
+    
+    match /wishlists/{wishlistId} {
+      // Support BOTH isPrivate (old) AND visibility (new)
+      allow read: if (resource.data.isPrivate == false || resource.data.visibility == 'public') ||
+                     (isAuthenticated() && (
+                       isOwner(resource.data.userId) ||
+                       resource.data.sharedWith[request.auth.uid] == true
+                     )) ||
+                     isAdmin();
+      
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (isOwner(resource.data.userId) || isAdmin());
     }
 
-    match /profiles/{profileId}/followers/{followerId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+    // ============================================================================
+    // EVENTS - BACKWARDS COMPATIBLE
+    // ============================================================================
+    
+    match /events/{eventId} {
+      // Support BOTH organizer (old) AND organizerId (new)
+      allow read: if isAuthenticated() && (
+        isOwner(resource.data.organizer) ||
+        isOwner(resource.data.organizerId) ||
+        request.auth.uid in resource.data.participants ||
+        request.auth.uid in resource.data.participantIds ||
+        exists(/databases/$(database)/documents/events/$(eventId)/participants/$(request.auth.uid))
+      );
+      
+      allow create: if isAuthenticated();
+      
+      allow update: if isAuthenticated() && (
+        isOwner(resource.data.organizer) ||
+        isOwner(resource.data.organizerId) ||
+        request.auth.uid in resource.data.participants ||
+        request.auth.uid in resource.data.participantIds
+      );
+      
+      allow delete: if isAuthenticated() && (
+        isOwner(resource.data.organizer) ||
+        isOwner(resource.data.organizerId) ||
+        isAdmin()
+      );
+      
+      // Subcollections (for new Next.js app)
+      match /participants/{participantId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+      }
+      
+      match /messages/{messageId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update, delete: if isOwner(resource.data.senderId) || isAdmin();
+      }
     }
 
     // ============================================================================
     // AFFILIATE & CONTENT
     // ============================================================================
+    
     match /stores/{storeId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /affiliateStores/{storeId} {
       allow read: if true;
       allow write: if isAdmin();
     }
@@ -108,10 +144,30 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+    
+    match /socialMedia/accounts {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ============================================================================
+    // BACKGROUNDS
+    // ============================================================================
+    
+    match /backgroundCategories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /{type}BackImages/{imageId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
 
     // ============================================================================
     // INQUIRIES & REQUESTS
     // ============================================================================
+    
     match /inquiries/{inquiryId} {
       allow create: if true;
       allow read, update, delete: if isAdmin();
@@ -119,6 +175,22 @@ service cloud.firestore {
 
     match /event_requests/{requestId} {
       allow read, write: if true;
+    }
+    
+    match /wishlistRequests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    // ============================================================================
+    // FOLLOWS
+    // ============================================================================
+    
+    match /follows/{followId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow delete: if isOwner(resource.data.followerId) || isAdmin();
     }
   }
 }

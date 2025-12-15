@@ -2,9 +2,7 @@
 import { Product, ProductQueryOptions } from '@/types/product';
 import { getAmazonProducts } from './amazonService';
 import { getBolProducts } from './bolService';
-import { Redis } from '@upstash/redis';
-
-const redis = Redis.fromEnv();
+import { kv } from '@vercel/kv';
 
 // ============================================================================
 // SEARCH PRODUCTS ON PLATFORMS (met caching)
@@ -15,11 +13,18 @@ export async function searchProductsOnPlatforms(options: ProductQueryOptions): P
   const cacheKey = `products:${JSON.stringify(options)}`;
 
   try {
-    const cachedData = await redis.get<Product[]>(cacheKey);
-    if (cachedData) {
-      console.log(`[CACHE HIT] voor product search: ${cacheKey}`);
-      return cachedData;
+    // Check cache (graceful fallback if KV not configured)
+    let cachedData: Product[] | null = null;
+    try {
+      cachedData = await kv.get<Product[]>(cacheKey);
+      if (cachedData) {
+        console.log(`[CACHE HIT] voor product search: ${cacheKey}`);
+        return cachedData;
+      }
+    } catch (kvError) {
+      console.warn('[KV] Cache read failed (KV might not be configured):', kvError);
     }
+
     console.log(`[CACHE MISS] voor product search: ${cacheKey}`);
 
     // Voer de zoekopdrachten parallel uit
@@ -47,8 +52,12 @@ export async function searchProductsOnPlatforms(options: ProductQueryOptions): P
 
     const finalProducts = Array.from(uniqueProducts.values());
 
-    // Sla het resultaat op in de cache voor 1 uur
-    await redis.set(cacheKey, JSON.stringify(finalProducts), { ex: 3600 });
+    // Sla het resultaat op in de cache voor 1 uur (graceful fallback)
+    try {
+      await kv.set(cacheKey, JSON.stringify(finalProducts), { ex: 3600 });
+    } catch (kvError) {
+      console.warn('[KV] Cache write failed (KV might not be configured):', kvError);
+    }
 
     return finalProducts;
 
@@ -63,7 +72,7 @@ export async function searchProductsOnPlatforms(options: ProductQueryOptions): P
 // ============================================================================
 
 /**
- * ✅ FIXED: Filter en zoek producten lokaal (aligned met ProductQueryOptions)
+ * Filter en zoek producten lokaal (aligned met ProductQueryOptions)
  */
 export function filterAndSearchProducts(
   products: Product[],
@@ -71,7 +80,7 @@ export function filterAndSearchProducts(
 ): Product[] {
   let filtered = [...products];
 
-  // ✅ Filter op query (was keyword)
+  // Filter op query
   if (options.query) {
     const lowerQuery = options.query.toLowerCase();
     filtered = filtered.filter(p =>
@@ -96,7 +105,7 @@ export function filterAndSearchProducts(
     filtered = filtered.filter(p => p.price <= options.maxPrice!);
   }
 
-  // ✅ Filter op age (was ageGroup)
+  // Filter op age
   if (options.age) {
     filtered = filtered.filter(p => p.ageGroup === options.age);
   }
@@ -106,7 +115,7 @@ export function filterAndSearchProducts(
     filtered = filtered.filter(p => p.gender === options.gender);
   }
 
-  // ✅ Paginering met offset/limit (was page-based)
+  // Paginering met offset/limit
   const offset = options.offset || 0;
   const limit = options.limit || 20;
   const endIndex = offset + limit;

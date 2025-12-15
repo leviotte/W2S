@@ -6,8 +6,8 @@ import './globals.css';
 // Providers en Globale Componenten
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { AuthProvider } from '@/components/providers/auth-provider';
-import { SiteHeader } from '@/components/layout/site-header';
-import { AuthModalManager } from '@/components/auth/auth-modal-manager'; // ✅ CORRECT
+import { Navbar } from '@/components/layout/navbar'; // ✅ NIEUWE NAVBAR
+import { AuthModalManager } from '@/components/auth/auth-modal-manager';
 import { Toaster } from 'sonner';
 import Footer from '@/components/layout/Footer';
 
@@ -34,14 +34,14 @@ export default function RootLayout({
         >
           <AuthProvider>
             <div className="relative flex min-h-screen flex-col bg-background">
-              <SiteHeader />
+              <Navbar /> {/* ✅ NIEUWE NAVBAR */}
               <main className="flex-1">{children}</main>
               <Footer />
             </div>
             
             {/* Globale componenten */}
             <Toaster richColors position="top-center" />
-            <AuthModalManager /> {/* ✅ CORRECT - Renders Login/Register modals */}
+            <AuthModalManager />
           </AuthProvider>
         </ThemeProvider>
       </body>

@@ -1,74 +1,157 @@
+// src/scripts/backfillProfileNames.ts
 /**
- * src/scripts/backfillProfileNames.ts
- *
- * Vult een doorzoekbaar 'displayName_lower' veld in voor bestaande gebruikers.
- * Dit script is geüpdatet naar de 'gold standard' architectuur van ons project.
- *
+ * Database migration script: Backfill displayName fields
+ * 
+ * Vult 'displayName' en 'displayName_lower' velden in voor bestaande gebruikers.
+ * Dit maakt case-insensitive zoeken mogelijk.
+ * 
  * BELANGRIJK:
- * Maak altijd een backup van je data voordat je dit soort bulk-updates uitvoert.
- *
- * Draai lokaal met:
+ * - Maak ALTIJD een Firestore backup voor je dit draait!
+ * - Test eerst op een staging database
+ * 
+ * Usage:
  *   npm run db:backfill-names
+ * 
+ * Environment variables (automatisch geladen door Next.js):
+ *   FIREBASE_PROJECT_ID
+ *   FIREBASE_CLIENT_EMAIL
+ *   FIREBASE_PRIVATE_KEY
  */
 
-// Stap 1: Laad environment variabelen uit .env.local
-import * as dotenv from 'dotenv';
-// Het pad is correct, want het script draait vanuit de root dankzij `ts-node`.
-dotenv.config({ path: '.env.local' }); 
-
-// Stap 2: Importeer de DIRECTE adminDb instance uit onze centrale firebaseAdmin module
-import { adminDb } from '../lib/server/firebase-admin'; // Pad aangepast voor scriptlocatie
+import { adminDb } from '../lib/server/firebase-admin';
 import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
-async function runBackfill() {
-  console.log("--- Starten van het 'displayName_lower' backfill script ---");
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+const BATCH_SIZE = 500; // Firestore max batch size
+const USERS_COLLECTION = 'users';
+const DRY_RUN = process.env.DRY_RUN === 'true'; // Voor testing
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface UserData {
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
+  displayName_lower?: string;
+}
+
+// ============================================================================
+// MAIN LOGIC
+// ============================================================================
+
+async function backfillDisplayNames() {
+  console.log('🚀 Starting displayName backfill script...\n');
+  
+  if (DRY_RUN) {
+    console.log('⚠️  DRY RUN MODE - No changes will be committed\n');
+  }
+
   try {
-    // MENTOR-VERBETERING: Gebruik de consistente 'users' collectienaam
-    const usersRef = adminDb.collection('users');
+    // Fetch all users
+    const usersRef = adminDb.collection(USERS_COLLECTION);
     const snapshot = await usersRef.get();
 
     if (snapshot.empty) {
-      console.log('✅ Geen gebruikers gevonden om te updaten.');
+      console.log('✅ No users found in database.');
       return;
     }
 
-    const batch = adminDb.batch();
-    let updatesCount = 0;
+    console.log(`📊 Found ${snapshot.size} users to process\n`);
 
-    snapshot.forEach((doc: QueryDocumentSnapshot) => {
-      const data = doc.data();
-      
-      // MENTOR-VERBETERING: Logica aangepast aan ons UserProfile schema
-      const displayName = `${data.firstName || ''} ${data.lastName || ''}`.trim();
+    // Process in batches
+    let batch = adminDb.batch();
+    let batchCount = 0;
+    let updateCount = 0;
+    let skipCount = 0;
+
+    for (const doc of snapshot.docs) {
+      const data = doc.data() as UserData;
+      const userId = doc.id;
+
+      // Generate displayName from firstName + lastName
+      const firstName = (data.firstName || '').trim();
+      const lastName = (data.lastName || '').trim();
+      const displayName = `${firstName} ${lastName}`.trim() || 'Anonymous';
       const displayNameLower = displayName.toLowerCase();
 
-      // Controleer of displayName en displayName_lower niet bestaan of incorrect zijn
-      if (data.displayName !== displayName || data.displayName_lower !== displayNameLower) {
-        console.log(`➡️  Update gepland voor gebruiker ${doc.id} (Naam: "${displayName}")`);
-        batch.update(doc.ref, { 
-          displayName: displayName,
-          displayName_lower: displayNameLower 
-        });
-        updatesCount++;
-      }
-    });
+      // Check if update is needed
+      const needsUpdate =
+        data.displayName !== displayName ||
+        data.displayName_lower !== displayNameLower;
 
-    if (updatesCount === 0) {
-      console.log("✅ Alle gebruikers hebben al een correct 'displayName' en 'displayName_lower' veld. Geen updates nodig.");
-      return;
+      if (!needsUpdate) {
+        skipCount++;
+        continue;
+      }
+
+      // Log planned update
+      console.log(`➡️  User ${userId}: "${data.displayName || '(empty)'}" → "${displayName}"`);
+
+      if (!DRY_RUN) {
+        batch.update(doc.ref, {
+          displayName,
+          displayName_lower: displayNameLower,
+          updatedAt: new Date().toISOString(),
+        });
+        batchCount++;
+        updateCount++;
+
+        // Commit batch when it reaches 500 operations
+        if (batchCount >= BATCH_SIZE) {
+          await batch.commit();
+          console.log(`\n✅ Committed batch of ${batchCount} updates\n`);
+          batch = adminDb.batch();
+          batchCount = 0;
+        }
+      } else {
+        updateCount++;
+      }
     }
 
-    // Voer alle updates uit in één atomaire batch-operatie
-    await batch.commit();
-    console.log(`🚀 Succesvol ${updatesCount} gebruikersprofielen bijgewerkt.`);
+    // Commit remaining updates
+    if (batchCount > 0 && !DRY_RUN) {
+      await batch.commit();
+      console.log(`\n✅ Committed final batch of ${batchCount} updates\n`);
+    }
 
-  } catch (err) {
-    console.error('❌ Fout tijdens het backfill script:', err);
-    process.exitCode = 1; 
-  } finally {
-    console.log('--- Script voltooid ---');
+    // Summary
+    console.log('─'.repeat(50));
+    console.log('📈 SUMMARY');
+    console.log('─'.repeat(50));
+    console.log(`Total users:      ${snapshot.size}`);
+    console.log(`Updates needed:   ${updateCount}`);
+    console.log(`Already correct:  ${skipCount}`);
+    console.log(`Mode:             ${DRY_RUN ? 'DRY RUN (no changes)' : 'LIVE (changes committed)'}`);
+    console.log('─'.repeat(50));
+
+    if (DRY_RUN) {
+      console.log('\n💡 Run without DRY_RUN=true to apply changes');
+    } else {
+      console.log('\n🎉 Migration completed successfully!');
+    }
+
+  } catch (error) {
+    console.error('\n❌ Error during backfill:', error);
+    process.exitCode = 1;
   }
 }
 
-// Draai het script
-runBackfill();
+// ============================================================================
+// EXECUTION
+// ============================================================================
+
+// Run the script
+backfillDisplayNames()
+  .then(() => {
+    console.log('\n✅ Script finished');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('\n❌ Script failed:', error);
+    process.exit(1);
+  });

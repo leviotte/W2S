@@ -1,6 +1,6 @@
 // src/app/(auth)/login/page.tsx
 import { Metadata } from 'next';
-import { LoginForm } from '@/components/auth/login-form';
+import { LoginClient } from './_components/login-client';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
@@ -21,9 +21,7 @@ export default function LoginPage() {
       </Link>
       
       <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[450px]">
-        <LoginForm 
-          onSwitchToRegister={() => window.location.href = '/register'}
-        />
+        <LoginClient />
       </div>
     </div>
   );

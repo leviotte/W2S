@@ -5,11 +5,8 @@
  * Beveiligde server-side sessie management met iron-session.
  * Sessions worden encrypted opgeslagen in cookies.
  * 
- * Features:
- * - User authentication state
- * - Role-based access (admin, partner)
- * - Profile data caching
- * - Secure cookie configuration
+ * ⚠️ BELANGRIJK: Cookies hebben een limiet van ~4KB
+ * → Bewaar ALLEEN essentiële data, geen grote objecten!
  * 
  * @see https://github.com/vvo/iron-session
  */
@@ -22,18 +19,30 @@ import { cookies } from 'next/headers';
 // ============================================================================
 
 export interface SessionUser {
-  id: string;
-  email: string;
-  displayName: string;
-  firstName: string;
-  lastName: string;
-  photoURL?: string | null;
-  username?: string | null;
-  isLoggedIn: boolean;
-  isAdmin?: boolean;
-  isPartner?: boolean;
-  createdAt?: number;
-  lastActivity?: number;
+  // ✅ Essential identifiers
+  id: string;                    // Firebase UID
+  email: string;                 // User email
+  
+  // ✅ Display info (short strings only!)
+  firstName: string;             // Voor UI display
+  lastName: string;              // Voor UI display
+  displayName: string;           // Full name voor UI
+  photoURL?: string | null;      // Avatar URL (kort!)
+  username?: string | null;      // Username voor profile URLs
+  
+  // ✅ Role flags (tiny!)
+  isAdmin?: boolean;             // Admin access
+  isPartner?: boolean;           // Partner access
+  
+  // ✅ Timestamps (small)
+  createdAt: number;             // Session creation
+  lastActivity: number;          // Last activity
+  
+  // ❌ NIET IN SESSION:
+  // - Hele user profile objects
+  // - Arrays (wishlists, events, etc.)
+  // - Nested objects (address, preferences, etc.)
+  // → Deze haal je op uit Firestore wanneer nodig!
 }
 
 // ============================================================================
@@ -109,14 +118,34 @@ export async function getSession(): Promise<IronSession<SessionData>> {
 /**
  * Create a new session with user data
  * ✅ AANGEROEPEN: Na succesvolle Firebase login/register
+ * 
+ * ⚠️ CRITICAL: Accepteert ALLEEN minimale strings, GEEN objecten/arrays!
  */
-export async function createSession(user: Omit<SessionUser, 'isLoggedIn' | 'createdAt' | 'lastActivity'>) {
+export async function createSession(userData: {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  photoURL?: string | null;
+  username?: string | null;
+  isAdmin?: boolean;
+  isPartner?: boolean;
+}) {
   const session = await getSession();
   const now = Date.now();
   
+  // ✅ KRITISCH: Alleen primitieve types, GEEN objecten/arrays!
   session.user = {
-    ...user,
-    isLoggedIn: true,
+    id: userData.id,
+    email: userData.email,
+    firstName: userData.firstName,
+    lastName: userData.lastName,
+    displayName: userData.displayName,
+    photoURL: userData.photoURL || null,
+    username: userData.username || null,
+    isAdmin: userData.isAdmin || false,
+    isPartner: userData.isPartner || false,
     createdAt: now,
     lastActivity: now,
   };
@@ -124,7 +153,20 @@ export async function createSession(user: Omit<SessionUser, 'isLoggedIn' | 'crea
   
   await session.save();
   
-  console.log(`[Session] ✅ Session created for user: ${user.email}`);
+  // ✅ Cookie size debugging
+  const cookieSize = JSON.stringify(session.user).length;
+  console.log(`[Session] ✅ Session created for user: ${userData.email}`);
+  console.log(`[Session] 📊 Cookie size: ${cookieSize} bytes (max 4096)`);
+  
+  if (cookieSize > 2000) {
+    console.warn(`[Session] ⚠️  Cookie size is getting large: ${cookieSize} bytes`);
+  }
+  
+  if (cookieSize > 4096) {
+    console.error(`[Session] ❌ CRITICAL: Cookie exceeds 4KB limit! Size: ${cookieSize} bytes`);
+    console.error('[Session] Session data:', JSON.stringify(session.user, null, 2));
+    throw new Error(`Session cookie too large: ${cookieSize} bytes (max 4096)`);
+  }
 }
 
 /**
@@ -139,10 +181,13 @@ export async function destroySession() {
 }
 
 /**
- * Update session user data
- * ✅ GEBRUIK: Voor profile updates zonder re-login
+ * Update session flags (admin/partner status)
+ * ✅ GEBRUIK: Voor role updates zonder re-login
  */
-export async function updateSessionUser(userData: Partial<SessionUser>) {
+export async function updateSessionFlags(flags: {
+  isAdmin?: boolean;
+  isPartner?: boolean;
+}) {
   const session = await getSession();
 
   if (!session.user) {
@@ -151,13 +196,13 @@ export async function updateSessionUser(userData: Partial<SessionUser>) {
 
   session.user = {
     ...session.user,
-    ...userData,
+    ...flags,
     lastActivity: Date.now(),
   };
 
   await session.save();
   
-  console.log(`[Session] 🔄 Session updated for user: ${session.user.email}`);
+  console.log(`[Session] 🔄 Session flags updated for user: ${session.user.email}`);
 }
 
 /**
@@ -181,11 +226,19 @@ export async function updateSessionActivity(): Promise<void> {
 // ============================================================================
 
 /**
- * Get current authenticated user or null
+ * Get current authenticated user ID or null
  */
-export async function getCurrentSessionUser(): Promise<SessionUser | null> {
+export async function getUserId(): Promise<string | null> {
   const session = await getSession();
-  return session.user && session.isLoggedIn ? session.user : null;
+  return session.user?.id || null;
+}
+
+/**
+ * Get current authenticated user email or null
+ */
+export async function getUserEmail(): Promise<string | null> {
+  const session = await getSession();
+  return session.user?.email || null;
 }
 
 /**
@@ -194,14 +247,6 @@ export async function getCurrentSessionUser(): Promise<SessionUser | null> {
 export async function isAuthenticated(): Promise<boolean> {
   const session = await getSession();
   return session.isLoggedIn && !!session.user;
-}
-
-/**
- * Get user ID from session
- */
-export async function getUserId(): Promise<string | null> {
-  const session = await getSession();
-  return session.user?.id || null;
 }
 
 /**

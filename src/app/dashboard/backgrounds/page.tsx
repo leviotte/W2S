@@ -2,16 +2,17 @@
 import { adminDb } from '@/lib/server/firebase-admin';
 import { BackgroundCategory } from '@/types/background';
 import { BackgroundCategoryManager } from './_components/background-category-manager';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { getClientFirestore } from '@/lib/client/firebase';
 
-
-// Functie om categorieën op te halen. Wordt op de server uitgevoerd.
-async function getBackgroundCategories() {
+/**
+ * Server-side data fetching met Firebase Admin SDK
+ */
+async function getBackgroundCategories(): Promise<BackgroundCategory[]> {
   try {
-    const categoriesCollection = collection(getClientFirestore(), "backgroundCategories");
-    const q = query(categoriesCollection, orderBy('type'), orderBy('name'));
-    const snapshot = await getDocs(q);
+    const snapshot = await adminDb
+      .collection('backgroundCategories')
+      .orderBy('type')
+      .orderBy('name')
+      .get();
     
     if (snapshot.empty) {
       return [];
@@ -22,11 +23,10 @@ async function getBackgroundCategories() {
       ...doc.data(),
     })) as BackgroundCategory[];
   } catch (error) {
-    console.error("Failed to fetch background categories:", error);
-    return []; // Geef een lege array terug bij een fout
+    console.error('Failed to fetch background categories:', error);
+    return [];
   }
 }
-
 
 export default async function ManageBackgroundsPage() {
   const categories = await getBackgroundCategories();

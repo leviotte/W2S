@@ -1,47 +1,75 @@
+// src/lib/server/redis.ts
+import 'server-only';
+import { kv } from '@vercel/kv';
+
 /**
- * lib/server/redis.ts
- *
- * Singleton-patroon voor de Redis-client.
- * Dit voorkomt een "connection flood" in zowel development (HMR) als productie (serverless).
- * De connectie wordt gecached op de globale scope om hergebruikt te worden.
- *
- * BELANGRIJK: Dit bestand mag ENKEL op de server geïmporteerd worden.
+ * Vercel KV client for Redis operations
+ * 
+ * Automatically uses environment variables:
+ * - KV_REST_API_URL
+ * - KV_REST_API_TOKEN
+ * 
+ * Setup in Vercel dashboard:
+ * https://vercel.com/docs/storage/vercel-kv/quickstart
+ * 
+ * Local development:
+ * Use Vercel CLI: `vercel env pull .env.local`
  */
-import { createClient } from 'redis';
 
-// Haal de Redis URL op uit de environment variables.
-const redisUrl = process.env.REDIS_URL;
+// Export the KV client directly
+export { kv };
 
-// TypeScript: Vertel de compiler dat we een 'redis' property op de globale scope kunnen hebben.
-declare global {
-  var redis: ReturnType<typeof createClient> | undefined;
-}
-
-let client: ReturnType<typeof createClient>;
-
-if (!redisUrl) {
-  // Als er geen Redis URL is, willen we niet crashen, maar een duidelijke melding geven
-  // en een 'mock' client voorzien die niets doet. Dit kan handig zijn voor lokale tests zonder Redis.
-  console.warn('🔴 REDIS_URL is niet ingesteld. Redis-client zal niet functioneren.');
-  // We creëren een dummy client om te voorkomen dat de app crasht bij aanroepen.
-  // In een echte productie-omgeving zou je hier misschien een error willen throwen.
-  client = {} as ReturnType<typeof createClient>;
-} else {
-  // In development, hergebruiken we de connectie van 'global.redis' om HMR-problemen te voorkomen.
-  if (process.env.NODE_ENV === 'development') {
-    if (!global.redis) {
-      console.log('✨ Creating new Redis connection for development...');
-      global.redis = createClient({ url: redisUrl });
-      global.redis.connect().catch(console.error);
+// Helper functions for common operations
+export const cache = {
+  /**
+   * Get cached data with automatic JSON parsing
+   */
+  async get<T>(key: string): Promise<T | null> {
+    try {
+      return await kv.get<T>(key);
+    } catch (error) {
+      console.error(`[KV] Error getting key "${key}":`, error);
+      return null;
     }
-    client = global.redis;
-  } else {
-    // In productie, creëren we altijd een nieuwe client.
-    // Vercel's architectuur zorgt voor het hergebruiken van de "warme" instantie.
-    client = createClient({ url: redisUrl });
-    client.connect().catch(console.error);
-  }
-}
+  },
 
-// Exporteer de (mogelijk gecachte) client.
-export default client;
+  /**
+   * Set cached data with optional TTL (in seconds)
+   */
+  async set<T>(key: string, value: T, ttl?: number): Promise<void> {
+    try {
+      if (ttl) {
+        await kv.set(key, value, { ex: ttl });
+      } else {
+        await kv.set(key, value);
+      }
+    } catch (error) {
+      console.error(`[KV] Error setting key "${key}":`, error);
+    }
+  },
+
+  /**
+   * Delete cached data
+   */
+  async del(key: string): Promise<void> {
+    try {
+      await kv.del(key);
+    } catch (error) {
+      console.error(`[KV] Error deleting key "${key}":`, error);
+    }
+  },
+
+  /**
+   * Check if key exists
+   */
+  async exists(key: string): Promise<boolean> {
+    try {
+      return (await kv.exists(key)) === 1;
+    } catch (error) {
+      console.error(`[KV] Error checking key "${key}":`, error);
+      return false;
+    }
+  },
+};
+
+export default kv;

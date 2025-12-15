@@ -5,13 +5,23 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions, type SessionData } from '@/lib/auth/session';
 
-const publicRoutes = ['/', '/about', '/help', '/terms', '/blog', '/guides'];
+const publicRoutes = ['/', '/about', '/help', '/terms', '/blog', '/guides', '/post', '/search'];
 const authRoutes = ['/login', '/register', '/reset-password'];
 const protectedRoutes = ['/dashboard', '/wishlists', '/events'];
-const adminRoutes = ['/admin-dashboard', '/admin'];
+const adminRoutes = ['/admin']; // ✅ FIXED: /admin ipv /admin-dashboard
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Skip middleware for public routes, API routes, and static files
+  if (
+    publicRoutes.some(route => pathname === route || pathname.startsWith(`${route}/`)) ||
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/_next/') ||
+    pathname.includes('.')
+  ) {
+    return NextResponse.next();
+  }
 
   // Get session
   const cookieStore = await cookies();
@@ -20,10 +30,10 @@ export async function middleware(request: NextRequest) {
   const isLoggedIn = session.isLoggedIn && !!session.user;
   const isAdmin = session.user?.isAdmin === true;
 
-  // Admin routes
+  // Admin routes check
   if (adminRoutes.some(route => pathname.startsWith(route))) {
     if (!isLoggedIn) {
-      return NextResponse.redirect(new URL('/', request.url));
+      return NextResponse.redirect(new URL('/?auth=login', request.url));
     }
     if (!isAdmin) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
@@ -31,20 +41,21 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Protected routes
+  // Protected routes check
   if (protectedRoutes.some(route => pathname.startsWith(route))) {
     if (!isLoggedIn) {
       const url = new URL('/', request.url);
+      url.searchParams.set('auth', 'login');
       url.searchParams.set('returnUrl', pathname);
       return NextResponse.redirect(url);
     }
     return NextResponse.next();
   }
 
-  // Auth routes
+  // Auth routes (redirect if already logged in)
   if (authRoutes.some(route => pathname.startsWith(route))) {
     if (isLoggedIn) {
-      const redirectTo = isAdmin ? '/admin-dashboard' : '/dashboard';
+      const redirectTo = isAdmin ? '/admin' : '/dashboard'; // ✅ FIXED
       return NextResponse.redirect(new URL(redirectTo, request.url));
     }
     return NextResponse.next();
