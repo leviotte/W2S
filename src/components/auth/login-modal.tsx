@@ -1,3 +1,4 @@
+// src/components/auth/login-modal.tsx
 'use client';
 
 import {

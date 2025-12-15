@@ -1,7 +1,8 @@
+// src/app/admin/social-media/_components/social-media-manager.tsx
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Trash2, Save, Link as LinkIcon, Loader2, AlertCircle } from 'lucide-react';
+import { Trash2, Save, Link as LinkIcon, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +25,48 @@ import {
   updateSocialMediaAccounts,
 } from '@/lib/server/actions/social-media';
 import type { SocialMediaAccounts, SocialPlatform } from '@/types/social-media';
-import { SOCIAL_PLATFORMS } from '@/types';
+
+// ============================================================================
+// SOCIAL PLATFORMS CONFIG
+// ============================================================================
+
+const SOCIAL_PLATFORMS: Record<SocialPlatform, {
+  name: string;
+  icon: string;
+  color: string;
+  placeholder: string;
+}> = {
+  instagram: {
+    name: 'Instagram',
+    icon: '📷',
+    color: 'from-purple-500 to-pink-500',
+    placeholder: 'https://instagram.com/jouwaccount',
+  },
+  facebook: {
+    name: 'Facebook',
+    icon: '👥',
+    color: 'from-blue-600 to-blue-400',
+    placeholder: 'https://facebook.com/jouwpagina',
+  },
+  twitter: {
+    name: 'Twitter / X',
+    icon: '🐦',
+    color: 'from-sky-500 to-blue-500',
+    placeholder: 'https://twitter.com/jouwaccount',
+  },
+  tiktok: {
+    name: 'TikTok',
+    icon: '🎵',
+    color: 'from-black to-gray-800',
+    placeholder: 'https://tiktok.com/@jouwaccount',
+  },
+  pinterest: {
+    name: 'Pinterest',
+    icon: '📌',
+    color: 'from-red-600 to-red-400',
+    placeholder: 'https://pinterest.com/jouwaccount',
+  },
+};
 
 // ============================================================================
 // TYPES

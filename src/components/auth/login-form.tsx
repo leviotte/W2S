@@ -1,3 +1,4 @@
+// src/components/auth/login-form.tsx
 'use client';
 
 import { useState, useTransition } from 'react';
@@ -12,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { SocialAuthButtons } from './social-auth-buttons';
 import { getClientAuth } from '@/lib/client/firebase';
 import { completeLoginAction } from '@/lib/server/actions/auth';
 
@@ -47,7 +49,6 @@ export function LoginForm({
   const onSubmit = (data: LoginFormValues) => {
     startTransition(async () => {
       try {
-        // Step 1: Client-side Firebase login
         const auth = getClientAuth();
         const userCredential = await signInWithEmailAndPassword(
           auth, 
@@ -57,7 +58,6 @@ export function LoginForm({
         
         const user = userCredential.user;
 
-        // Check if email is verified
         if (!user.emailVerified) {
           toast.error('E-mail niet geverifieerd', {
             description: 'Controleer je inbox voor de verificatie link.',
@@ -73,10 +73,7 @@ export function LoginForm({
           return;
         }
 
-        // Step 2: Get ID token
         const idToken = await user.getIdToken();
-
-        // Step 3: Server-side session creation
         const result = await completeLoginAction(idToken);
 
         if (result.success) {
@@ -86,7 +83,6 @@ export function LoginForm({
             onSuccess();
           }
           
-          // Navigate to return URL or dashboard
           const redirectTo = returnUrl || result.data?.redirectTo || '/dashboard';
           router.push(redirectTo);
           router.refresh();
@@ -118,6 +114,19 @@ export function LoginForm({
       <div className="flex flex-col items-center text-center gap-1">
         <h1 className="text-2xl font-bold">Welkom terug</h1>
         <p className="text-sm text-muted-foreground">Log in op je Wish2Share-account</p>
+      </div>
+
+      {/* Social Login Buttons */}
+      <SocialAuthButtons />
+
+      {/* Divider */}
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background px-2 text-muted-foreground">Of met email</span>
+        </div>
       </div>
 
       {/* Form */}
@@ -202,7 +211,7 @@ export function LoginForm({
             type="submit" 
             className="w-full mt-2" 
             disabled={isPending}
-            style={{ backgroundColor: '#6B8E23' }} // Olive green
+            style={{ backgroundColor: '#6B8E23' }}
           >
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Log in
@@ -213,13 +222,13 @@ export function LoginForm({
       {/* Switch to Register */}
       {onSwitchToRegister && (
         <div className="text-center text-sm">
-          Heb je al een account?{' '}
+          Nog geen account?{' '}
           <button 
             onClick={onSwitchToRegister} 
             className="text-primary font-medium hover:underline"
             disabled={isPending}
           >
-            Log in
+            Registreer nu
           </button>
         </div>
       )}

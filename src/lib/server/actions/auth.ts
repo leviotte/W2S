@@ -1,8 +1,8 @@
+// src/lib/server/actions/auth.ts
 'use server';
 
 import { adminAuth, adminDb } from '@/lib/server/firebase-admin';
-import { createSession, destroySession } from '@/lib/auth/session';
-import type { SessionUser } from '@/lib/auth/session';
+import { createSession, destroySession, type SessionUser } from '@/lib/auth/session';
 import { revalidatePath } from 'next/cache';
 
 // ============================================================================
@@ -12,7 +12,7 @@ import { revalidatePath } from 'next/cache';
 export interface RegisterFormData {
   firstName: string;
   lastName: string;
-  birthdate?: string; // ISO date string
+  birthdate?: string;
   gender?: string;
   country?: string;
   location?: string;
@@ -43,15 +43,12 @@ export async function completeRegistrationAction(data: {
   location?: string;
 }): Promise<AuthActionResult> {
   try {
-    // Verify Firebase ID token
     const decodedToken = await adminAuth.verifyIdToken(data.idToken);
     const uid = decodedToken.uid;
     const email = decodedToken.email!;
 
-    // Get Firebase user to check email verification status
     const firebaseUser = await adminAuth.getUser(uid);
 
-    // Create full user profile in Firestore
     const userProfile = {
       firstName: data.firstName,
       lastName: data.lastName,
@@ -65,7 +62,7 @@ export async function completeRegistrationAction(data: {
       gender: data.gender || null,
       country: data.country || null,
       location: data.location || null,
-      isAdmin: false,
+      isAdmin: email === 'leviotte@icloud.com',
       isPartner: false,
       emailVerified: firebaseUser.emailVerified,
       notifications: {
@@ -77,32 +74,14 @@ export async function completeRegistrationAction(data: {
 
     await adminDb.collection('users').doc(uid).set(userProfile);
 
-    // Create session ONLY if email is verified
-    // (We'll check this client-side too, but double-check here)
-    if (firebaseUser.emailVerified) {
-      const sessionUser: Omit<SessionUser, 'isLoggedIn' | 'createdAt' | 'lastActivity'> = {
-        id: uid,
-        email,
-        displayName: userProfile.displayName,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        photoURL: null,
-        username: null,
-        isAdmin: false,
-        isPartner: false,
-      };
-
-      await createSession(sessionUser);
-      revalidatePath('/dashboard');
-    }
-
-    console.log(`[Auth] ✅ User registered: ${email}`);
-    return { 
-      success: true, 
-      data: { 
+    console.log(`[Auth] ✅ User registered (pending email verification): ${email}`);
+    
+    return {
+      success: true,
+      data: {
         userId: uid,
-        redirectTo: firebaseUser.emailVerified ? '/dashboard' : '/',
-      } 
+        redirectTo: '/',
+      },
     };
   } catch (error: any) {
     console.error('[Auth] Registration completion error:', error);
@@ -116,11 +95,9 @@ export async function completeRegistrationAction(data: {
 
 export async function completeLoginAction(idToken: string): Promise<AuthActionResult> {
   try {
-    // Verify the Firebase ID token
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     const uid = decodedToken.uid;
 
-    // Get user data from Firestore
     const userDoc = await adminDb.collection('users').doc(uid).get();
 
     if (!userDoc.exists) {
@@ -129,7 +106,6 @@ export async function completeLoginAction(idToken: string): Promise<AuthActionRe
 
     const userData = userDoc.data()!;
 
-    // Check email verification
     const firebaseUser = await adminAuth.getUser(uid);
     if (!firebaseUser.emailVerified) {
       return { 
@@ -138,7 +114,6 @@ export async function completeLoginAction(idToken: string): Promise<AuthActionRe
       };
     }
 
-    // Update email verification status in Firestore if needed
     if (!userData.emailVerified) {
       await adminDb.collection('users').doc(uid).update({
         emailVerified: true,
@@ -146,7 +121,6 @@ export async function completeLoginAction(idToken: string): Promise<AuthActionRe
       });
     }
 
-    // Create session
     const sessionUser: Omit<SessionUser, 'isLoggedIn' | 'createdAt' | 'lastActivity'> = {
       id: uid,
       email: userData.email,
@@ -161,10 +135,8 @@ export async function completeLoginAction(idToken: string): Promise<AuthActionRe
 
     await createSession(sessionUser);
 
-    // Revalidate dashboard
     revalidatePath('/dashboard');
 
-    // Determine redirect based on role
     const redirectTo = userData.isAdmin ? '/admin-dashboard' : '/dashboard';
 
     console.log(`[Auth] ✅ User logged in: ${userData.email}`);
@@ -178,6 +150,84 @@ export async function completeLoginAction(idToken: string): Promise<AuthActionRe
   } catch (error: any) {
     console.error('[Auth] Login error:', error);
     return { success: false, error: error.message || 'Login mislukt' };
+  }
+}
+
+// ============================================================================
+// COMPLETE SOCIAL LOGIN ACTION
+// ============================================================================
+
+export async function completeSocialLoginAction(
+  idToken: string,
+  provider: 'google' | 'apple'
+): Promise<AuthActionResult> {
+  try {
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+    const email = decodedToken.email;
+
+    if (!email) {
+      return { success: false, error: 'Geen email gevonden in social account' };
+    }
+
+    let userDoc = await adminDb.collection('users').doc(uid).get();
+
+    if (!userDoc.exists) {
+      const firebaseUser = await adminAuth.getUser(uid);
+      const displayName = firebaseUser.displayName || email.split('@')[0];
+      const [firstName, ...lastNameParts] = displayName.split(' ');
+      const lastName = lastNameParts.join(' ') || firstName;
+
+      const newProfile = {
+        firstName,
+        lastName,
+        firstName_lower: firstName.toLowerCase(),
+        lastName_lower: lastName.toLowerCase(),
+        email,
+        displayName,
+        photoURL: firebaseUser.photoURL || null,
+        username: null,
+        birthdate: null,
+        gender: null,
+        country: null,
+        location: null,
+        isAdmin: email === 'leviotte@icloud.com',
+        isPartner: false,
+        emailVerified: true,
+        notifications: { email: true },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        authProvider: provider,
+      };
+
+      await adminDb.collection('users').doc(uid).set(newProfile);
+      userDoc = await adminDb.collection('users').doc(uid).get();
+    }
+
+    const userData = userDoc.data()!;
+
+    const sessionUser: Omit<SessionUser, 'isLoggedIn' | 'createdAt' | 'lastActivity'> = {
+      id: uid,
+      email: userData.email,
+      displayName: userData.displayName,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      photoURL: userData.photoURL || null,
+      username: userData.username || null,
+      isAdmin: userData.isAdmin === true,
+      isPartner: userData.isPartner === true,
+    };
+
+    await createSession(sessionUser);
+    revalidatePath('/dashboard');
+
+    const redirectTo = userData.isAdmin ? '/admin-dashboard' : '/dashboard';
+
+    console.log(`[Auth] ✅ Social login (${provider}): ${email}`);
+    return { success: true, data: { userId: uid, redirectTo } };
+  } catch (error: any) {
+    console.error('[Auth] Social login error:', error);
+    return { success: false, error: error.message || 'Social login mislukt' };
   }
 }
 

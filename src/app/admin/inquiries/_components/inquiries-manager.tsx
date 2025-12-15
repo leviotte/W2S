@@ -1,3 +1,4 @@
+// src/app/admin/inquiries/_components/inquiries-manager.tsx
 'use client';
 
 import { useState, useTransition, useMemo } from 'react';
@@ -14,7 +15,6 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -159,7 +159,7 @@ export function InquiriesManager({
   };
 
   const handlePageChange = (newPage: number) => {
-    router.push(`/admin-dashboard/inquiries?page=${newPage}`);
+    router.push(`/admin/inquiries?page=${newPage}`);
   };
 
   // ============================================================================

@@ -1,3 +1,4 @@
+// src/types/user.ts
 import { z } from 'zod';
 import { addressSchema, type Address, type AddressNullable } from './address';
 

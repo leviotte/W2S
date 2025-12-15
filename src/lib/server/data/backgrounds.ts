@@ -124,3 +124,32 @@ export async function getBackgroundImage(
     return null;
   }
 }
+
+// ============================================================================
+// COMBINED GETTERS (✅ NIEUW)
+// ============================================================================
+
+/**
+ * Haal zowel images als categories op voor een type
+ * Convenience function voor admin pages
+ */
+export async function getBackgroundsByType(type: BackgroundType) {
+  const [images, categories] = await Promise.all([
+    getBackgroundImages(type),
+    getBackgroundCategories(type),
+  ]);
+  
+  return { images, categories };
+}
+
+/**
+ * Cached versie
+ */
+export const getCachedBackgroundsByType = cache(
+  getBackgroundsByType,
+  ['backgrounds-by-type'],
+  {
+    tags: ['backgrounds'],
+    revalidate: 60,
+  }
+);

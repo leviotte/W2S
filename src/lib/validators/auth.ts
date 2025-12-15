@@ -1,3 +1,4 @@
+// src/lib/validators/auth.ts
 import { z } from 'zod';
 
 // --- VOOR HET CLIENT-SIDE FORMULIER ---

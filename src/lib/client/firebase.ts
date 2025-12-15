@@ -1,25 +1,27 @@
 // src/lib/client/firebase.ts
-// Client-side Firebase utilities for Next.js App Router
-// NOTE: This file is intended to be imported from client components only.
-// Server code should use lib/server/firebase-admin.ts instead.
+'use client';
 
-import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
-import type { FirebaseOptions } from "firebase/app";
-import type { Firestore } from "firebase/firestore";
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import type { FirebaseOptions } from 'firebase/app';
+import type { Firestore } from 'firebase/firestore';
 import {
   getAuth,
   browserLocalPersistence,
   setPersistence,
-  Auth,
-} from "firebase/auth";
+  type Auth,
+} from 'firebase/auth';
 import {
   getFirestore,
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
-} from "firebase/firestore";
-import { getStorage, FirebaseStorage } from "firebase/storage";
-import { getFunctions, Functions } from "firebase/functions";
+} from 'firebase/firestore';
+import { getStorage, type FirebaseStorage } from 'firebase/storage';
+import { getFunctions, type Functions } from 'firebase/functions';
+
+// ============================================================================
+// FIREBASE CONFIG
+// ============================================================================
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
@@ -28,59 +30,58 @@ const firebaseConfig: FirebaseOptions = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID!,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize the Firebase *app* in a safe, idempotent way
-export const app: FirebaseApp =
-  getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+// ============================================================================
+// FIREBASE APP INITIALIZATION
+// ============================================================================
 
-// Exports that are only usable in the browser (guarded)
+export const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+
+// ============================================================================
+// SERVICE INITIALIZATION (Lazy + Browser-Only)
+// ============================================================================
+
 let _auth: Auth | null = null;
 let _db: Firestore | null = null;
 let _storage: FirebaseStorage | null = null;
 let _functions: Functions | null = null;
 
 /**
- * Initialize and return Firebase Auth (browser only)
+ * Get Firebase Auth (browser only)
  */
 export function getClientAuth(): Auth {
-  if (typeof window === "undefined") {
-    throw new Error("getClientAuth() called on server. Import lib/firebase only from client code.");
+  if (typeof window === 'undefined') {
+    throw new Error('[Firebase Client] getClientAuth() called on server');
   }
 
   if (!_auth) {
     _auth = getAuth(app);
-    // Set persistent local storage once
     setPersistence(_auth, browserLocalPersistence).catch((err) => {
-      // Non-fatal: log and continue
-      console.warn("Auth persistence error:", err?.message ?? err);
+      console.warn('[Firebase Client] Auth persistence error:', err?.message ?? err);
     });
   }
   return _auth;
 }
 
 /**
- * Initialize and return Firestore (browser only).
- * We only enable persistentLocalCache in browser.
+ * Get Firestore (browser only)
  */
 export function getClientFirestore(): Firestore {
-  if (typeof window === "undefined") {
-    throw new Error("getClientFirestore() called on server. Use firebase-admin for server operations.");
+  if (typeof window === 'undefined') {
+    throw new Error('[Firebase Client] getClientFirestore() called on server');
   }
 
   if (!_db) {
     try {
-      // initializeFirestore is idempotent for an already initialized app
       initializeFirestore(app, {
         localCache: persistentLocalCache({
           tabManager: persistentMultipleTabManager(),
         }),
       });
     } catch (err) {
-      // If initializeFirestore throws because Firestore is already initialized, ignore.
-      // We still want to call getFirestore.
-      // console.warn("initializeFirestore:", err);
+      // Firestore already initialized - safe to ignore
     }
     _db = getFirestore(app);
   }
@@ -88,28 +89,35 @@ export function getClientFirestore(): Firestore {
 }
 
 /**
- * Storage (browser only)
+ * Get Storage (browser only)
  */
 export function getClientStorage(): FirebaseStorage {
-  if (typeof window === "undefined") {
-    throw new Error("getClientStorage() called on server.");
+  if (typeof window === 'undefined') {
+    throw new Error('[Firebase Client] getClientStorage() called on server');
   }
-  if (!_storage) _storage = getStorage(app);
+  if (!_storage) {
+    _storage = getStorage(app);
+  }
   return _storage;
 }
 
 /**
- * Functions (browser only)
+ * Get Functions (browser only)
  */
 export function getClientFunctions(): Functions {
-  if (typeof window === "undefined") {
-    throw new Error("getClientFunctions() called on server.");
+  if (typeof window === 'undefined') {
+    throw new Error('[Firebase Client] getClientFunctions() called on server');
   }
-  if (!_functions) _functions = getFunctions(app);
+  if (!_functions) {
+    _functions = getFunctions(app);
+  }
   return _functions;
 }
 
-// Convenience default exports (still safe — they will throw on server)
+// ============================================================================
+// CONVENIENCE EXPORTS (safe - will throw on server)
+// ============================================================================
+
 export const auth = (() => {
   try {
     return getClientAuth();

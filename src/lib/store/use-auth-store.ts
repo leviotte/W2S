@@ -1,103 +1,55 @@
+// src/lib/store/use-auth-store.ts
 import { create } from 'zustand';
 import type { UserProfile } from '@/types/user';
 import type { Wishlist } from '@/types/wishlist';
 
-type ModalType = "login" | "register" | "forgotPassword";
+type ModalType = 'login' | 'register' | 'forgotPassword';
 
 interface AuthState {
-  // ===== USER STATE =====
+  // User State
   currentUser: UserProfile | null;
   isInitialized: boolean;
-  
-  // ===== WISHLISTS (for legacy compatibility) =====
+
+  // Wishlists (voor compatibility)
   wishlists: Wishlist[];
-  
-  // ===== MODAL STATE =====
+
+  // Modal State
   activeModal: ModalType | null;
-  onSuccessCallback: (() => void) | null;
-  
-  // ===== ACTIONS =====
+
+  // Actions
   setCurrentUser: (user: UserProfile | null) => void;
   setInitialized: (initialized: boolean) => void;
   setWishlists: (wishlists: Wishlist[]) => void;
   
-  // Modal actions
-  openModal: (modal: ModalType, onSuccess?: () => void) => void;
-  closeModal: () => void;
-  
-  // ✅ LEGACY COMPATIBILITY
-  isLoginModalOpen: boolean;
-  hideLoginModal: () => void;
-  openLoginModal: (onSuccess?: () => void) => void;
-  openRegisterModal: (onSuccess?: () => void) => void;
+  // Modal Actions
+  openModal: (modal: ModalType) => void; // ✅ TOEGEVOEGD
+  openLoginModal: () => void;
+  openRegisterModal: () => void;
   openForgotPasswordModal: () => void;
-  open: (modal: ModalType, onSuccess?: () => void) => void;
+  closeModal: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
-  // ===== INITIAL STATE =====
+export const useAuthStore = create<AuthState>((set) => ({
+  // Initial State
   currentUser: null,
   isInitialized: false,
-  wishlists: [],
+  wishlists: [], // ✅ TOEGEVOEGD
   activeModal: null,
-  onSuccessCallback: null,
-  
-  // ✅ COMPUTED PROPERTY
-  get isLoginModalOpen() {
-    return get().activeModal === 'login';
-  },
-  
-  // ===== CORE ACTIONS =====
+
+  // User Actions
   setCurrentUser: (user) => set({ currentUser: user }),
   setInitialized: (initialized) => set({ isInitialized: initialized }),
-  setWishlists: (wishlists) => set({ wishlists }),
-  
-  // ===== MODAL ACTIONS =====
-  openModal: (modal, onSuccess) => 
-    set({ 
-      activeModal: modal, 
-      onSuccessCallback: onSuccess || null 
-    }),
-  
-  closeModal: () => 
-    set({ 
-      activeModal: null, 
-      onSuccessCallback: null 
-    }),
-  
-  // ===== CONVENIENCE METHODS =====
-  hideLoginModal: () => 
-    set({ 
-      activeModal: null, 
-      onSuccessCallback: null 
-    }),
-  
-  openLoginModal: (onSuccess) => 
-    set({ 
-      activeModal: "login", 
-      onSuccessCallback: onSuccess || null 
-    }),
-  
-  openRegisterModal: (onSuccess) => 
-    set({ 
-      activeModal: "register", 
-      onSuccessCallback: onSuccess || null 
-    }),
-  
-  openForgotPasswordModal: () => 
-    set({ 
-      activeModal: "forgotPassword", 
-      onSuccessCallback: null 
-    }),
-  
-  open: (modal, onSuccess) => 
-    set({ 
-      activeModal: modal, 
-      onSuccessCallback: onSuccess || null 
-    }),
+  setWishlists: (wishlists) => set({ wishlists }), // ✅ TOEGEVOEGD
+
+  // Modal Actions
+  openModal: (modal) => set({ activeModal: modal }), // ✅ TOEGEVOEGD
+  openLoginModal: () => set({ activeModal: 'login' }),
+  openRegisterModal: () => set({ activeModal: 'register' }),
+  openForgotPasswordModal: () => set({ activeModal: 'forgotPassword' }),
+  closeModal: () => set({ activeModal: null }),
 }));
 
+// Convenience Selectors
 export const useCurrentUser = () => useAuthStore((state) => state.currentUser);
 export const useIsAuthenticated = () => useAuthStore((state) => !!state.currentUser);
-export const useActiveModal = () => useAuthStore((state) => state.activeModal);
-export const useIsLoginModalOpen = () => useAuthStore((state) => state.activeModal === 'login');
+export const useIsAdmin = () => useAuthStore((state) => state.currentUser?.isAdmin === true);

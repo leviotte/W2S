@@ -1,44 +1,29 @@
+// src/components/auth/auth-modal-manager.tsx
 'use client';
 
-import { useModalStore } from '@/lib/store/use-modal-store';
+import { useAuthStore } from '@/lib/store/use-auth-store';
 import { LoginModal } from './login-modal';
 import { RegisterModal } from './register-modal';
 
 export function AuthModalManager() {
-  const { 
-    isOpen, 
-    type, 
-    returnUrl, 
-    close, 
-    switchToLogin, 
-    switchToRegister, 
-    switchToForgotPassword 
-  } = useModalStore();
+  const activeModal = useAuthStore((state) => state.activeModal);
+  const closeModal = useAuthStore((state) => state.closeModal);
+  const openLoginModal = useAuthStore((state) => state.openLoginModal);
+  const openRegisterModal = useAuthStore((state) => state.openRegisterModal);
 
   return (
     <>
-      {/* Login Modal */}
       <LoginModal
-        isOpen={isOpen && type === 'login'}
-        onClose={close}
-        onSwitchToRegister={switchToRegister}
-        onSwitchToForgotPassword={switchToForgotPassword}
-        returnUrl={returnUrl}
+        isOpen={activeModal === 'login'}
+        onClose={closeModal}
+        onSwitchToRegister={openRegisterModal}
       />
 
-      {/* Register Modal */}
       <RegisterModal
-        isOpen={isOpen && type === 'register'}
-        onClose={close}
-        onSwitchToLogin={switchToLogin}
+        isOpen={activeModal === 'register'}
+        onClose={closeModal}
+        onSwitchToLogin={openLoginModal}
       />
-
-      {/* TODO: Forgot Password Modal - Add later if needed */}
-      {/* <ForgotPasswordModal
-        isOpen={isOpen && type === 'forgotPassword'}
-        onClose={close}
-        onSwitchToLogin={switchToLogin}
-      /> */}
     </>
   );
 }

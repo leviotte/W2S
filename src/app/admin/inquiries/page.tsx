@@ -1,4 +1,6 @@
-import { requireAdmin } from '@/lib/auth/actions';
+// src/app/admin/inquiries/page.tsx
+import { getServerSession } from '@/lib/auth/get-server-session';
+import { redirect } from 'next/navigation';
 import { getInquiries, getInquiryStats, getUniqueInquiryTypes } from '@/lib/server/data/inquiries';
 import { InquiriesManager } from './_components/inquiries-manager';
 
@@ -16,15 +18,17 @@ type Props = {
   }>;
 };
 
-export default async function InquiriesPage({ searchParams }: Props) {
-  // Auth check
-  await requireAdmin();
+export default async function AdminInquiriesPage({ searchParams }: Props) {
+  const session = await getServerSession();
+
+  if (!session?.user?.isAdmin) {
+    redirect('/');
+  }
 
   const params = await searchParams;
   const page = parseInt(params.page || '1');
   const limit = parseInt(params.limit || '10');
 
-  // Fetch data
   const [inquiries, stats, inquiryTypes] = await Promise.all([
     getInquiries({ limit }),
     getInquiryStats(),

@@ -1,10 +1,5 @@
+// src/components/landing/hero-actions.tsx
 'use client';
-
-/**
- * components/landing/hero-actions.tsx
- *
- * Interactieve actieknoppen voor Hero sectie
- */
 
 import { Gift, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -12,23 +7,22 @@ import { useAuth } from '@/hooks/use-auth';
 
 export default function HeroActions() {
   const router = useRouter();
-  const { currentUser, showLoginModal } = useAuth();
+  const { currentUser, openLoginModal } = useAuth();
 
   const handleCreateEvent = () => {
     if (!currentUser) {
-      showLoginModal();
+      openLoginModal();
       return;
     }
     router.push('/dashboard/events/create');
-
   };
 
   const handleCreateWishlist = () => {
     if (!currentUser) {
-      showLoginModal();
+      openLoginModal();
       return;
     }
-    router.push('/dashboard?tab=wishlists&subTab=create');
+    router.push('/dashboard/wishlists/create');
   };
 
   return (

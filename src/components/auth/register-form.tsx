@@ -1,3 +1,4 @@
+// src/components/auth/register-form.tsx
 'use client';
 
 import { useState, useTransition } from 'react';
@@ -15,6 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SocialAuthButtons } from './social-auth-buttons';
 
 const registerSchema = z.object({
   firstName: z.string().min(1, 'Voornaam is verplicht'),
@@ -60,7 +62,6 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
   const onSubmit = (data: RegisterFormValues) => {
     startTransition(async () => {
       try {
-        // Step 1: Create Firebase user
         const auth = getClientAuth();
         const userCredential = await createUserWithEmailAndPassword(
           auth, 
@@ -70,18 +71,14 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
         
         const user = userCredential.user;
 
-        // Step 2: Update display name
         await updateProfile(user, {
           displayName: `${data.firstName} ${data.lastName}`,
         });
 
-        // Step 3: Send verification email
         await sendEmailVerification(user);
 
-        // Step 4: Get ID token
         const idToken = await user.getIdToken();
 
-        // Step 5: Complete registration server-side (create Firestore profile)
         const result = await completeRegistrationAction({
           idToken,
           firstName: data.firstName,
@@ -97,14 +94,12 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
             description: 'Controleer je e-mail voor de verificatie link.',
           });
           
-          // Sign out (user moet eerst email verifiëren)
           await auth.signOut();
           
           if (onSuccess) {
             onSuccess();
           }
           
-          // Switch to login
           if (onSwitchToLogin) {
             onSwitchToLogin();
           } else {
@@ -140,6 +135,19 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
       <div className="flex flex-col items-center text-center gap-1">
         <h1 className="text-2xl font-bold">Welkom</h1>
         <p className="text-sm text-muted-foreground">Creëer een Wish2Share-account</p>
+      </div>
+
+      {/* Social Login Buttons */}
+      <SocialAuthButtons />
+
+      {/* Divider */}
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background px-2 text-muted-foreground">Of met email</span>
+        </div>
       </div>
 
       {/* Form */}
@@ -319,7 +327,7 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
             disabled={isPending} 
             type="submit" 
             className="w-full mt-2"
-            style={{ backgroundColor: '#6B8E23' }} // Olive green zoals je oude site
+            style={{ backgroundColor: '#6B8E23' }}
           >
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Create account

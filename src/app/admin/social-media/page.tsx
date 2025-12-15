@@ -1,5 +1,6 @@
+// src/app/admin/social-media/page.tsx
+import { getServerSession } from '@/lib/auth/get-server-session';
 import { redirect } from 'next/navigation';
-import { requireAdmin } from '@/lib/auth/actions';
 import { getCachedSocialMediaAccounts } from '@/lib/server/data/social-media';
 import { SocialMediaManager } from './_components/social-media-manager';
 
@@ -8,11 +9,13 @@ export const metadata = {
   description: 'Beheer je social media accounts',
 };
 
-export default async function SocialMediaPage() {
-  // Auth check
-  await requireAdmin();
+export default async function AdminSocialMediaPage() {
+  const session = await getServerSession();
 
-  // Fetch existing accounts
+  if (!session?.user?.isAdmin) {
+    redirect('/');
+  }
+
   const accounts = await getCachedSocialMediaAccounts();
 
   return (

@@ -1,3 +1,4 @@
+// src/types/global.ts
 export interface UserProfile {
   id: string;
   firstName: string;

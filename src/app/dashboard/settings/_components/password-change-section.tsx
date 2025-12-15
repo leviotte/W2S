@@ -1,3 +1,4 @@
+// src/app/dashboard/settings/_components/password-change-section.tsx
 'use client';
 
 import { useForm } from 'react-hook-form';

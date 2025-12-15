@@ -1,3 +1,4 @@
+// src/app/dashboard/settings/page.tsx
 import { redirect } from 'next/navigation';
 import { Separator } from '@/components/ui/separator';
 import PageTitle from '@/components/layout/page-title';

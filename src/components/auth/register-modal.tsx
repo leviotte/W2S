@@ -1,3 +1,4 @@
+// src/components/auth/register-modal.tsx
 'use client';
 
 import {

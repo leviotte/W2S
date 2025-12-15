@@ -1,3 +1,4 @@
+// src/components/wishlist/WishlistSelector.tsx
 "use client";
 
 import React, { useState } from "react";

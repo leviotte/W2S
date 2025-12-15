@@ -1,3 +1,4 @@
+// src/lib/auth/session.ts
 /**
  * Iron Session Configuration
  * 

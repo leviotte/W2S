@@ -238,3 +238,15 @@ export const getAdminMetrics = cache(
     revalidate: 300, // 5 minuten cache
   }
 );
+
+// ============================================================================
+// EXPORT ALIASES (✅ NIEUW)
+// ============================================================================
+
+/**
+ * Alias voor backward compatibility
+ */
+export const getMetricsData = getAdminMetrics;
+
+// Default export
+export default getAdminMetrics;

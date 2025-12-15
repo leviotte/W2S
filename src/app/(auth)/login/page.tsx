@@ -1,3 +1,4 @@
+// src/app/(auth)/login/page.tsx
 import { Metadata } from 'next';
 import { LoginForm } from '@/components/auth/login-form';
 import Link from 'next/link';
