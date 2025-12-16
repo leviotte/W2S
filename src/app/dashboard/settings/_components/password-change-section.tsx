@@ -3,8 +3,8 @@
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useFormState } from 'react-dom';
-import { useEffect } from 'react';
+// FIX: useActionState importeren uit 'react' i.p.v. 'react-dom'
+import { useEffect, useActionState } from 'react';
 import { toast } from 'sonner';
 
 import { updateUserPassword, type PasswordFormState } from '@/app/dashboard/settings/actions';
@@ -17,7 +17,9 @@ import { SubmitButton } from '@/components/ui/submit-button';
 
 export function PasswordChangeSection() {
   const initialState: PasswordFormState = { success: false, message: '' };
-  const [state, formAction] = useFormState(updateUserPassword, initialState);
+
+  // FIX: useFormState hernoemd naar useActionState
+  const [state, formAction] = useActionState(updateUserPassword, initialState);
   
   const form = useForm<PasswordChangeFormValues>({
     resolver: zodResolver(passwordChangeSchema),
@@ -33,7 +35,7 @@ export function PasswordChangeSection() {
             toast.error('Fout', { description: state.message });
         }
     }
-  }, [state]);
+  }, [state, form]); // form toegevoegd aan dependency array
 
   return (
     <Card>
@@ -44,7 +46,11 @@ export function PasswordChangeSection() {
         </CardDescription>
       </CardHeader>
       <Form {...form}>
-        <form action={formAction} className="space-y-4">
+        {/*
+          Een Form-wrapper rond de CardContent en CardFooter plaatsen 
+          is beter voor de structuur van react-hook-form.
+        */}
+        <form action={formAction} className="space-y-0">
           <CardContent className="space-y-4">
             <FormField
               control={form.control}

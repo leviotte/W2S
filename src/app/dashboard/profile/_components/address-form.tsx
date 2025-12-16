@@ -1,9 +1,10 @@
 // src/app/dashboard/profile/_components/address-form.tsx
 'use client';
-import { useFormState } from 'react-dom';
-import { useEffect } from 'react';
+
+// FIX 1: 'useActionState' importeren uit 'react'
+import { useActionState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { useForm } from 'react-hook-form';
+import { useForm, type FieldValues } from 'react-hook-form'; // 'FieldValues' toegevoegd
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addressSchema, type UserProfile, type Address } from '@/types/user';
 import { updateAddress } from '@/lib/server/actions/profile-actions';
@@ -27,9 +28,10 @@ const addressFields: { key: keyof Address; label: string }[] = [
 ];
 
 export default function AddressForm({ profile }: AddressFormProps) {
-  const [state, formAction] = useFormState(updateAddress, { message: '' });
+  // FIX 2: Hook hernoemd naar useActionState
+  const [state, formAction] = useActionState(updateAddress, { message: '' });
 
-  const { register, formState: { errors, isDirty } } = useForm<Address>({
+  const { register, handleSubmit, formState: { errors, isDirty } } = useForm<Address>({
     resolver: zodResolver(addressSchema),
     defaultValues: {
       street: profile.address?.street || '',
@@ -46,13 +48,24 @@ export default function AddressForm({ profile }: AddressFormProps) {
        if (state.issues) {
         toast.error(state.message, { description: state.issues.join(', ') });
       } else {
-        toast.success(state.message);
+        // Aangenomen dat als er geen 'issues' zijn, het een succes is.
+        toast.success("Adres succesvol bijgewerkt!");
       }
     }
   }, [state]);
 
+  // FIX 3: Wrapper functie om react-hook-form te verbinden met de server action.
+  const onFormSubmit = (data: FieldValues) => {
+    const formData = new FormData();
+    Object.keys(data).forEach(key => {
+      formData.append(key, data[key]);
+    });
+    formAction(formData);
+  };
+
   return (
-    <form action={formAction}>
+    // FIX 4: handleSubmit koppelen aan de onSubmit van het formulier.
+    <form onSubmit={handleSubmit(onFormSubmit)}>
       <Card>
         <CardHeader>
           <CardTitle>Adres</CardTitle>

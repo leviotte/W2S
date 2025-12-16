@@ -35,11 +35,14 @@ export type SocialLinks = z.infer<typeof socialLinksSchema>;
  */
 export const baseProfileSchema = z.object({
   id: z.string(),
-  userId: z.string(),
+  // FIX: userId is niet altijd in de DB, we voegen die later toe.
+  userId: z.string().optional(), 
   firstName: z.string().min(1, 'Voornaam is verplicht'),
   lastName: z.string().min(1, 'Achternaam is verplicht'),
-  displayName: z.string().min(2, 'Weergavenaam is te kort'),
-  photoURL: z.string().url('Ongeldige URL').optional().nullable(),
+  // FIX: displayName is niet altijd in de DB, we genereren die.
+  displayName: z.string().optional(), 
+  // FIX: Verander .url() naar .string() om data-URI's toe te laten
+  photoURL: z.string().optional().nullable(), 
   birthdate: z.string().optional().nullable(),
   gender: z.string().optional().nullable(),
 });

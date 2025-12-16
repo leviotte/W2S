@@ -1,10 +1,10 @@
 // src/app/dashboard/events/create/_components/CreateEventForm.tsx
 "use client";
 
-import { useEffect } from "react";
+// FIX 1: 'useActionState' importeren uit 'react' in plaats van 'useFormState' uit 'react-dom'.
+import { useEffect, useActionState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { useFormState } from "react-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -25,14 +25,13 @@ import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
-// ** DE FIX **: Correcte Zod syntax voor alle velden.
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: "Naam moet minimaal 3 karakters lang zijn." }),
   date: z.date().nullable().refine(date => date !== null, {
     message: "Een datum is verplicht.",
   }),
   description: z.string().optional(),
-  organizerProfileId: z.string().min(1, { message: "Kies een organisator." }), // Correcte syntax voor 'required'
+  organizerProfileId: z.string().min(1, { message: "Kies een organisator." }),
   drawNames: z.boolean().default(false),
 });
 
@@ -47,7 +46,8 @@ const initialState: FormState = { success: false, message: "" };
 
 export default function CreateEventForm({ currentUser, profiles }: CreateEventFormProps) {
   const router = useRouter();
-  const [state, formAction] = useFormState(createEventAction, initialState);
+  // FIX 2: De hook hernoemd van useFormState naar useActionState.
+  const [state, formAction] = useActionState(createEventAction, initialState);
 
   const form = useForm<EventFormData>({
     resolver: zodResolver(eventFormSchema),
@@ -81,6 +81,7 @@ export default function CreateEventForm({ currentUser, profiles }: CreateEventFo
         <input type="hidden" name="organizerEmail" value={currentUser.email} />
         
         <FormField
+          // FIX 3: Correcte prop 'control'
           control={form.control}
           name="name"
           render={({ field }) => (
@@ -92,6 +93,7 @@ export default function CreateEventForm({ currentUser, profiles }: CreateEventFo
           )}
         />
         <FormField
+          // FIX 3: Correcte prop 'control'
           control={form.control}
           name="date"
           render={({ field }) => (
@@ -107,6 +109,7 @@ export default function CreateEventForm({ currentUser, profiles }: CreateEventFo
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
+                  {/* FIX 4: Correcte prop 'onSelect' voor Calendar */}
                   <Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} disabled={(date) => date < new Date() || date < new Date("1900-01-01")} initialFocus />
                 </PopoverContent>
               </Popover>
@@ -115,6 +118,7 @@ export default function CreateEventForm({ currentUser, profiles }: CreateEventFo
           )}
         />
         <FormField
+          // FIX 3: Correcte prop 'control'
           control={form.control}
           name="description"
           render={({ field }) => (
@@ -126,11 +130,13 @@ export default function CreateEventForm({ currentUser, profiles }: CreateEventFo
           )}
         />
         <FormField
+          // FIX 3: Correcte prop 'control'
           control={form.control}
           name="organizerProfileId"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Organisator</FormLabel>
+               {/* FIX 5: Correcte prop 'onValueChange' voor Select */}
                <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl><SelectTrigger><SelectValue placeholder="Selecteer een profiel" /></SelectTrigger></FormControl>
                   <SelectContent>
@@ -145,6 +151,7 @@ export default function CreateEventForm({ currentUser, profiles }: CreateEventFo
           )}
         />
         <FormField
+          // FIX 3: Correcte prop 'control'
           control={form.control}
           name="drawNames"
           render={({ field }) => (

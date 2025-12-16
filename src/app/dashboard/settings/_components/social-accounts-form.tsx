@@ -1,3 +1,4 @@
+// src/app/dashboard/settings/_components/social-accounts-form.ts
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';

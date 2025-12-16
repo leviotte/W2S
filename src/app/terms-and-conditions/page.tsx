@@ -1,3 +1,5 @@
+// src/app/terms-and-conditions/page.tsx
+
 import React from 'react';
 
 export default function TermsAndConditions() {
@@ -5,11 +7,14 @@ export default function TermsAndConditions() {
         <div className="p-6 sm:p-10 bg-gray-50 min-h-screen">
             <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-6 sm:p-8">
                 <h1 className="text-5xl font-bold text-gray-800 mb-4">Algemene Voorwaarden</h1>
-                <p className="text-sm text-gray-500 mb-6"><p className="text-sm text-gray-500 mb-6">Ingangsdatum: 
-                    {new Date().toLocaleString('default', {month: 'long', year: 'numeric'})}</p></p>
+                
+                {/* FIX 1: Geneste <p> tags samengevoegd tot één enkele <p> tag. */}
+                <p className="text-sm text-gray-500 mb-6">
+                    Ingangsdatum: {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
+                </p>
 
                 <p className="text-gray-700 leading-relaxed mb-6 font-sans font-semibold text-xl">
-                    Welkom bij <a href="http://wish2share.com" className="text-blue-600">Wish2Share.com</a>, een service geleverd door Leliflow ("wij," "ons," "onze"). Door de website te openen of te gebruiken, gaat u akkoord met deze Algemene Voorwaarden ("Voorwaarden") en verplicht u zich deze na te leven. Lees ze zorgvuldig door. Als u niet akkoord gaat met deze Voorwaarden, gebruik de website dan niet.
+                    Welkom bij <a href="http://wish2share.com" className="text-blue-600 hover:underline">Wish2Share.com</a>, een service geleverd door Leliflow ("wij," "ons," "onze"). Door de website te openen of te gebruiken, gaat u akkoord met deze Algemene Voorwaarden ("Voorwaarden") en verplicht u zich deze na te leven. Lees ze zorgvuldig door. Als u niet akkoord gaat met deze Voorwaarden, gebruik de website dan niet.
                 </p>
 
                 <div className="space-y-8">
@@ -51,8 +56,7 @@ export default function TermsAndConditions() {
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-semibold text-gray-800 mb-2">5. Geen aansprakelijkheid
-                        </h2>
+                        <h2 className="text-xl font-semibold text-gray-800 mb-2">5. Geen aansprakelijkheid</h2>
                         <p className="text-gray-700 leading-relaxed">
                         Leliflow is niet aansprakelijk voor problemen met betrekking tot de aankoop, retourneren of levering van items die zijn gekocht bij affiliate winkels. Wij adverteren deze items alleen op de website.
                         </p>
@@ -62,48 +66,45 @@ export default function TermsAndConditions() {
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-semibold text-gray-800 mb-2">6. Schorsing van het account
-                        </h2>
+                        <h2 className="text-xl font-semibold text-gray-800 mb-2">6. Schorsing van het account</h2>
                         <p className="text-gray-700 leading-relaxed">
                         Als er enige schendingen van deze voorwaarden worden vastgesteld, wordt het gebruikersaccount onmiddellijk geschorst zonder voorafgaande kennisgeving.
                         </p>
                     </section>
+                    
                     <section>
-                        <h2 className="text-xl font-semibold text-gray-800 mb-2">7. Privacy
-                        </h2>
+                        <h2 className="text-xl font-semibold text-gray-800 mb-2">7. Privacy</h2>
                         <p className="text-gray-700 leading-relaxed">
-                        De gegevens en privacy van gebruikers zijn belangrijk voor ons. We delen de persoonlijke informatie van gebruikers niet met derden. Voor meer details kunt u ons privacybeleid raadplegen. <a href="/privacy-policy"
-                                                                                         className="text-blue-600">Privacy
-                            Beleid</a> .
-
+                        De gegevens en privacy van gebruikers zijn belangrijk voor ons. We delen de persoonlijke informatie van gebruikers niet met derden. Voor meer details kunt u ons privacybeleid raadplegen. <a href="/privacy-policy" className="text-blue-600 hover:underline">Privacy Beleid</a>.
                         </p>
                     </section>
-                    <section>
-                        <h2 className="text-xl font-semibold text-gray-800 mb-2">8. Intellectueel eigendom
 
-                        </h2>
+                    <section>
+                        <h2 className="text-xl font-semibold text-gray-800 mb-2">8. Intellectueel eigendom</h2>
                         <p className="text-gray-700 leading-relaxed">
                         Alle inhoud op de website, inclusief door gebruikers geüploade inhoud, is eigendom van Leliflow. Gebruikers mogen geen inhoud op de website kopiëren, verspreiden of afgeleide werken maken van enige inhoud.
-
                         </p>
                     </section>
+
+                    {/* FIX 2: Sectienummer gecorrigeerd van 6 naar 9. */}
                     <section>
-                        <h2 className="text-xl font-semibold text-gray-800 mb-2">6. Schorsing van het account
-                        </h2>
+                        <h2 className="text-xl font-semibold text-gray-800 mb-2">9. Contact</h2>
                         <p className="text-gray-700 leading-relaxed">
                         Gebruikers kunnen de sitebeheerder contacteren via een speciaal contactformulier dat beschikbaar is op de website voor vragen of problemen.
-
                         </p>
                     </section>
-                    <section>
-                        <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                            Door gebruik te maken van <a href="http://wish2share.com" className="text-blue-600">Wish2Share.com</a>, Gaat
-                            u akkoord met deze Algemene Voorwaarden. Wij behouden ons het recht voor om deze Voorwaarden op elk moment te wijzigen, en dergelijke wijzigingen zijn onmiddellijk van kracht zodra ze op de website zijn geplaatst. Het voortdurende gebruik van de website na wijzigingen geeft aan dat u akkoord gaat met de gewijzigde Voorwaarden.
 
+                    <section>
+                         {/* FIX 3: Structuur verbeterd, <a> tag staat nu binnen de tekst. */}
+                        <h2 className="text-xl font-semibold text-gray-800 mb-2">
+                            Door gebruik te maken van <a href="http://wish2share.com" className="text-blue-600 hover:underline">Wish2Share.com</a>, gaat u akkoord met deze Algemene Voorwaarden. Wij behouden ons het recht voor om deze Voorwaarden op elk moment te wijzigen, en dergelijke wijzigingen zijn onmiddellijk van kracht zodra ze op de website zijn geplaatst. Het voortdurende gebruik van de website na wijzigingen geeft aan dat u akkoord gaat met de gewijzigde Voorwaarden.
                         </h2>
                     </section>
+
                     <section>
-                        <h2 className="text-xl font-semibold text-gray-800 mb-2">Bedankt voor het gebruik van <a href="http://wish2share.com" className="text-blue-600">Wish2Share.com</a>!
+                        {/* FIX 3: Structuur verbeterd, <a> tag staat nu binnen de tekst. */}
+                        <h2 className="text-xl font-semibold text-gray-800 mb-2">
+                            Bedankt voor het gebruik van <a href="http://wish2share.com" className="text-blue-600 hover:underline">Wish2Share.com</a>!
                         </h2>
                     </section>
                 </div>

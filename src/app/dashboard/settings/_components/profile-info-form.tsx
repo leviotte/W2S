@@ -1,7 +1,9 @@
+// src/app/dashboard/settings/_components/profile-info-form.tsx
 'use client';
 
-import { useEffect } from 'react';
-import { useFormState, useFormStatus } from 'react-dom';
+// FIX: useActionState importeren uit 'react' i.p.v. 'react-dom'
+import { useEffect, useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { toast } from 'sonner';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -19,8 +21,11 @@ interface ProfileInfoFormProps {
 
 export function ProfileInfoForm({ initialData }: ProfileInfoFormProps) {
   const initialState: ProfileInfoFormState = { success: false, message: '' };
-  const [formState, formAction] = useFormState(updateProfileInfo, initialState);
   
+  // FIX: useFormState hernoemd naar useActionState
+  const [formState, formAction] = useActionState(updateProfileInfo, initialState);
+  
+  // useFormStatus moet na useActionState worden aangeroepen.
   const { pending } = useFormStatus();
 
   useEffect(() => {
@@ -28,7 +33,6 @@ export function ProfileInfoForm({ initialData }: ProfileInfoFormProps) {
       if (formState.success) {
         toast.success('Profiel opgeslagen!', { description: formState.message });
       } else if (formState.message && !formState.errors) {
-        // Toon algemene serverfouten die geen specifieke veldfout zijn
         toast.error('Opslaan mislukt', { description: formState.message });
       }
     }

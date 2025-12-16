@@ -1,12 +1,10 @@
-// src/app/dashboard/profile/_components/personal-info-form.tsx
 'use client';
 
-import { useFormState } from 'react-dom';
-import { useEffect } from 'react';
+import { useActionState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { useForm, Controller, type FieldValues } from 'react-hook-form'; // VOEGT Controller TOE
+import { useForm, Controller, type FieldValues } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod'; // IMPORTEERT 'z'
+import { z } from 'zod';
 import type { UserProfile } from '@/types/user';
 import { updatePersonalInfo } from '@/lib/server/actions/profile-actions';
 
@@ -16,25 +14,26 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { SubmitButton } from '@/components/ui/submit-button';
 
-// 1. Correct Schema definitie
+// FIX 2: Correcte naam voor het schema
 const PersonalInfoSchema = z.object({
   firstName: z.string().min(1, 'Voornaam is verplicht.'),
   lastName: z.string().min(1, 'Achternaam is verplicht.'),
   isPublic: z.boolean().default(false),
 });
 
-// 2. Correct Type Inference
+// FIX 3: Correcte naam voor het afgeleide type
 type PersonalInfoFormData = z.infer<typeof PersonalInfoSchema>;
 
 interface PersonalInfoFormProps {
   profile: UserProfile;
 }
 
-export default function PersonalInfoForm({ profile }: PersonalInfoFormProps) {
-  // Dit blijft perfect voor de Server Action communicatie
-  const [state, formAction] = useFormState(updatePersonalInfo, { message: '' });
+const initialState = { success: false, message: '', issues: [] };
 
-  // 3. React Hook Form Setup
+export default function PersonalInfoForm({ profile }: PersonalInfoFormProps) {
+  // FIX 4: Hook hernoemd naar useActionState
+  const [state, formAction] = useActionState(updatePersonalInfo, initialState);
+
   const { register, control, handleSubmit, formState: { errors, isDirty } } = useForm<PersonalInfoFormData>({
     resolver: zodResolver(PersonalInfoSchema),
     defaultValues: {
@@ -44,7 +43,6 @@ export default function PersonalInfoForm({ profile }: PersonalInfoFormProps) {
     },
   });
 
-  // 4. Toast-notificaties gebaseerd op de server response
   useEffect(() => {
     if (state?.message) {
       if (state.success) {
@@ -57,11 +55,9 @@ export default function PersonalInfoForm({ profile }: PersonalInfoFormProps) {
     }
   }, [state]);
 
-  // Functie die de react-hook-form data doorgeeft aan de server action
   const onFormSubmit = (data: FieldValues) => {
     const formData = new FormData();
     Object.keys(data).forEach(key => {
-        // Speciale behandeling voor booleans in FormData
         if (key === 'isPublic') {
             if (data[key]) {
                 formData.append(key, 'on');
@@ -74,7 +70,6 @@ export default function PersonalInfoForm({ profile }: PersonalInfoFormProps) {
   };
 
   return (
-    // 5. handleSubmit koppelen
     <form onSubmit={handleSubmit(onFormSubmit)}>
       <Card>
         <CardHeader>
@@ -93,14 +88,15 @@ export default function PersonalInfoForm({ profile }: PersonalInfoFormProps) {
             {errors.lastName && <p className="text-sm text-destructive">{errors.lastName.message}</p>}
           </div>
           <div className="flex items-center space-x-2 pt-2">
-            {/* 6. Correcte implementatie van Controller */}
             <Controller
               name="isPublic"
+              // FIX 5: Correcte prop 'control'
               control={control}
               render={({ field }) => (
                 <Switch
                   id="isPublic"
                   checked={field.value}
+                  // FIX 6: Correcte prop 'onCheckedChange'
                   onCheckedChange={field.onChange}
                   aria-label="Publiek profiel"
                 />
@@ -110,7 +106,6 @@ export default function PersonalInfoForm({ profile }: PersonalInfoFormProps) {
           </div>
         </CardContent>
         <CardFooter className="border-t px-6 py-4">
-          {/* 7. SubmitButton met correcte state */}
           <SubmitButton pendingText="Opslaan..." disabled={!isDirty}>Opslaan</SubmitButton>
         </CardFooter>
       </Card>

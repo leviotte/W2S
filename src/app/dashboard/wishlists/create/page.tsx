@@ -1,7 +1,8 @@
+// src/app/dashboard/wishlists/create/page.tsx
+
 "use client";
 
-import { useState, useEffect } from "react";
-import { useFormState } from "react-dom";
+import { useState, useEffect, useActionState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Plus, Trash2 } from "lucide-react";
@@ -43,7 +44,7 @@ export default function CreateWishlistPage() {
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
   
   const initialState: CreateWishlistFormState = { success: false, message: '', errors: {} };
-  const [formState, formAction] = useFormState(createWishlistAction, initialState);
+  const [formState, formAction] = useActionState(createWishlistAction, initialState);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -82,7 +83,6 @@ export default function CreateWishlistPage() {
   }, [selectedCategory, backImages]);
 
   const handleProductSelected = (product: Product) => {
-    // ✅ FIX: productToWishlistItem() voegt al quantity, isReserved, reservedBy toe
     const newWishlistItem: WishlistItem = productToWishlistItem(product);
 
     if (!items.some(item => item.id === newWishlistItem.id)) {
@@ -104,7 +104,7 @@ export default function CreateWishlistPage() {
       <div className="container mx-auto max-w-4xl py-8">
         <PageTitle 
           title="Nieuwe Wishlist Maken" 
-          description={eventId ? `Voor een event` : "Stel je perfecte verlanglijst samen."} 
+          description={eventId ? "Voor een event" : "Stel je perfecte verlanglijst samen."} 
         />
         
         <form action={formAction} className="space-y-8 mt-8">
@@ -134,12 +134,15 @@ export default function CreateWishlistPage() {
                 </div>
                 <div>
                   <Label>Wishlist Achtergrond</Label>
+                  {/* FIX: Lege defaultValue is correct, maar de SelectItem met lege value is verwijderd. */}
                   <Select name="backgroundImage" defaultValue="">
                     <SelectTrigger><SelectValue placeholder="Kies een achtergrond" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="" disabled>Kies een achtergrond</SelectItem>
-                      {filteredImages.map(img => (
-                        <SelectItem key={img.id} value={img.imageLink}>{img.title}</SelectItem>
+                      {/* De placeholder wordt nu automatisch getoond. */}
+                      {filteredImages
+                        .filter(img => img.imageLink && img.imageLink.trim() !== "")
+                        .map(img => (
+                          <SelectItem key={img.id} value={img.imageLink}>{img.title}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
