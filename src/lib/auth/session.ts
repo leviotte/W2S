@@ -117,9 +117,7 @@ export async function getSession(): Promise<IronSession<SessionData>> {
 
 /**
  * Create a new session with user data
- * ✅ AANGEROEPEN: Na succesvolle Firebase login/register
- * 
- * ⚠️ CRITICAL: Accepteert ALLEEN minimale strings, GEEN objecten/arrays!
+ * ✅ AANGEROEPEN: Na succesvolle Firebase login/register via auth.ts
  */
 export async function createSession(userData: {
   id: string;
@@ -153,7 +151,7 @@ export async function createSession(userData: {
   
   await session.save();
   
-  // ✅ Cookie size debugging
+  // ✅ Cookie size debugging (je had dit al, maar nu ook hier!)
   const cookieSize = JSON.stringify(session.user).length;
   console.log(`[Session] ✅ Session created for user: ${userData.email}`);
   console.log(`[Session] 📊 Cookie size: ${cookieSize} bytes (max 4096)`);
@@ -164,7 +162,6 @@ export async function createSession(userData: {
   
   if (cookieSize > 4096) {
     console.error(`[Session] ❌ CRITICAL: Cookie exceeds 4KB limit! Size: ${cookieSize} bytes`);
-    console.error('[Session] Session data:', JSON.stringify(session.user, null, 2));
     throw new Error(`Session cookie too large: ${cookieSize} bytes (max 4096)`);
   }
 }

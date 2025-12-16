@@ -36,18 +36,48 @@ export interface AuthActionResult {
 /**
  * ⚠️ CRITICAL: Extract ONLY the minimal fields needed for session
  * This prevents the cookie from exceeding 4KB limit
+ * 
+ * ❌ NEVER use spread operator (...userData)
+ * ✅ ALWAYS explicitly pick only needed fields
+ * ⚠️ FILTER OUT base64 images - they're HUGE!
  */
-function extractSessionData(userData: any) {
+function extractSessionData(data: {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  photoURL?: string | null;
+  username?: string | null;
+  isAdmin?: boolean;
+  isPartner?: boolean;
+}) {
+  // ✅ Filter out base64 images - they can be 100KB+!
+  let cleanPhotoURL = data.photoURL;
+  
+  if (cleanPhotoURL && cleanPhotoURL.startsWith('data:')) {
+    console.warn('[Auth] ⚠️ Base64 image detected in photoURL - removing from session');
+    console.warn('[Auth] Use Firebase Storage URLs instead!');
+    cleanPhotoURL = null; // Don't store base64 in session!
+  }
+  
+  // Also check if photoURL is suspiciously long
+  if (cleanPhotoURL && cleanPhotoURL.length > 500) {
+    console.warn('[Auth] ⚠️ PhotoURL too long:', cleanPhotoURL.length, 'chars - removing');
+    cleanPhotoURL = null;
+  }
+
+  // ✅ EXPLICIT field selection, NO spread operator!
   return {
-    id: userData.id || '',
-    email: userData.email || '',
-    firstName: userData.firstName || '',
-    lastName: userData.lastName || '',
-    displayName: userData.displayName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.email?.split('@')[0] || '',
-    photoURL: userData.photoURL || null,
-    username: userData.username || null,
-    isAdmin: userData.isAdmin === true,
-    isPartner: userData.isPartner === true,
+    id: data.id,
+    email: data.email,
+    firstName: data.firstName,
+    lastName: data.lastName,
+    displayName: data.displayName,
+    photoURL: cleanPhotoURL, // ← Now filtered!
+    username: data.username || null,
+    isAdmin: data.isAdmin || false,
+    isPartner: data.isPartner || false,
   };
 }
 
@@ -143,11 +173,28 @@ export async function completeLoginAction(idToken: string): Promise<AuthActionRe
       });
     }
 
-    // ✅ FIX: Extract ONLY minimal session data
+    // ✅ FIX: EXPLICIT field extraction, NO spread operator!
     const sessionData = extractSessionData({
       id: uid,
-      ...userData,
+      email: userData.email,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      displayName: userData.displayName,
+      photoURL: userData.photoURL,
+      username: userData.username,
+      isAdmin: userData.isAdmin,
+      isPartner: userData.isPartner,
     });
+
+    // ✅ Log session size BEFORE calling createSession
+    const sessionSize = JSON.stringify(sessionData).length;
+    console.log('[Auth] 📊 Session data size:', sessionSize, 'bytes');
+    
+    if (sessionSize > 1000) {
+      console.error('[Auth] ❌ Session data too large!');
+      console.error('[Auth] Session data:', JSON.stringify(sessionData, null, 2));
+      throw new Error(`Session data too large: ${sessionSize} bytes`);
+    }
 
     await createSession(sessionData);
 
@@ -156,7 +203,6 @@ export async function completeLoginAction(idToken: string): Promise<AuthActionRe
     const redirectTo = userData.isAdmin ? '/admin' : '/dashboard';
 
     console.log(`[Auth] ✅ User logged in: ${userData.email}`);
-    console.log(`[Auth] 📊 Session data size: ${JSON.stringify(sessionData).length} bytes`);
     
     return { 
       success: true, 
@@ -190,7 +236,7 @@ export async function completeSocialLoginAction(
 
     let userDoc = await adminDb.collection('users').doc(uid).get();
 
-    // ✅ FIX: If user doesn't exist in Firestore, create profile
+    // Create profile if doesn't exist
     if (!userDoc.exists) {
       const firebaseUser = await adminAuth.getUser(uid);
       const displayName = firebaseUser.displayName || email.split('@')[0];
@@ -227,11 +273,28 @@ export async function completeSocialLoginAction(
 
     const userData = userDoc.data()!;
 
-    // ✅ FIX: Extract ONLY minimal session data
+    // ✅ FIX: EXPLICIT field extraction, NO spread operator!
     const sessionData = extractSessionData({
       id: uid,
-      ...userData,
+      email: userData.email,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      displayName: userData.displayName,
+      photoURL: userData.photoURL,
+      username: userData.username,
+      isAdmin: userData.isAdmin,
+      isPartner: userData.isPartner,
     });
+
+    // ✅ Log session size BEFORE calling createSession
+    const sessionSize = JSON.stringify(sessionData).length;
+    console.log('[Auth] 📊 Session data size:', sessionSize, 'bytes');
+    
+    if (sessionSize > 1000) {
+      console.error('[Auth] ❌ Session data too large!');
+      console.error('[Auth] Session data:', JSON.stringify(sessionData, null, 2));
+      throw new Error(`Session data too large: ${sessionSize} bytes`);
+    }
 
     await createSession(sessionData);
 
@@ -240,7 +303,6 @@ export async function completeSocialLoginAction(
     const redirectTo = userData.isAdmin ? '/admin' : '/dashboard';
 
     console.log(`[Auth] ✅ Social login (${provider}): ${email}`);
-    console.log(`[Auth] 📊 Session data size: ${JSON.stringify(sessionData).length} bytes`);
     
     return { success: true, data: { userId: uid, redirectTo } };
   } catch (error: any) {
