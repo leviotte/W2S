@@ -1,3 +1,4 @@
+// src/components/background/BackgroundTheme.tsx
 "use client";
 
 import { db } from "@/lib/client/firebase";

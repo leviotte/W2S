@@ -1,3 +1,4 @@
+// src/app/dashboard/events/[id]/actions.ts
 'use server';
 
 import { redirect } from 'next/navigation';

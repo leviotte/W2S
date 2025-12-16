@@ -1,3 +1,4 @@
+// src/app/dashboard/events/create/page.tsx
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/actions';
 import { getUserProfilesAction } from '@/lib/server/actions/profile-actions'; // ✅ FIXED IMPORT

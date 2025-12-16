@@ -1,3 +1,4 @@
+// src/lib/server/actions/wishlist-actions.ts
 'use server';
 
 import { adminDb } from '@/lib/server/firebase-admin';

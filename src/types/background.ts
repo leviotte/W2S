@@ -1,3 +1,4 @@
+// src/types/background.ts
 import { z } from 'zod';
 
 export type BackgroundType = 'wishlist' | 'event' | 'web';

@@ -83,6 +83,11 @@
   /* Tailwind base overrides */
   body {
     @apply bg-background text-foreground;
+    /* 👇 ACHTERGROND TOEGEVOEGD */
+    background-image: url('/pattern-bg.svg');
+    background-repeat: repeat;
+    background-size: auto;
+    background-attachment: fixed;
   }
 }
 
@@ -307,6 +312,7 @@
     @apply bg-background text-foreground;
   }
 }
+
 /* Hide scrollbar maar behoud scroll functionaliteit */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
