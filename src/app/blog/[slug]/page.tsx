@@ -1,27 +1,26 @@
-// src/app/post/[id]/page.tsx
-import { Metadata } from 'next';
+// src/app/blog/[id]/page.tsx
+
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getCachedBlogPost, getCachedBlogPosts } from '@/lib/server/data/blog';
+
+import { getCachedBlogPost, getBlogPostIds } from '@/lib/server/data/blog';
 import { getCurrentUser } from '@/lib/auth/actions';
-import { incrementViewCountAction } from '@/lib/server/actions/blog';
+
 import { PostContent } from './_components/post-content';
 
 type Props = {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 };
 
 // ============================================================================
-// METADATA (DYNAMIC SEO)
+// SEO METADATA
 // ============================================================================
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params;
-  const post = await getCachedBlogPost(id);
+  const post = await getCachedBlogPost(params.id);
 
   if (!post) {
-    return {
-      title: 'Post niet gevonden',
-    };
+    return { title: 'Blogpost niet gevonden' };
   }
 
   return {
@@ -32,8 +31,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: post.headDescription,
       images: [{ url: post.headImage }],
       type: 'article',
-      publishedTime: post.createdAt.toString(),
-      authors: [post.author?.name || 'Wish2Share'],
+      publishedTime: new Date(post.createdAt).toISOString(),
+      authors: [post.author?.name ?? 'Wish2Share'],
     },
     twitter: {
       card: 'summary_large_image',
@@ -45,46 +44,32 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 // ============================================================================
-// STATIC GENERATION (voor populaire posts)
+// STATIC GENERATION
 // ============================================================================
 
 export async function generateStaticParams() {
-  const posts = await getCachedBlogPosts();
-  
-  // Genereer statische pagina's voor de 10 meest recente posts
-  return posts.slice(0, 10).map((post) => ({
-    id: post.id,
-  }));
+  const ids = await getBlogPostIds();
+  return ids.slice(0, 10).map((id) => ({ id }));
 }
 
-// ISR: revalidate elke 5 minuten
+// ISR
 export const revalidate = 300;
 
 // ============================================================================
-// PAGE COMPONENT
+// PAGE
 // ============================================================================
 
-export default async function PostPage({ params }: Props) {
-  const { id } = await params;
-  
-  // Parallel fetching
+export default async function BlogPostPage({ params }: Props) {
   const [post, currentUser] = await Promise.all([
-    getCachedBlogPost(id),
+    getCachedBlogPost(params.id),
     getCurrentUser().catch(() => null),
   ]);
 
-  if (!post) {
-    notFound();
-  }
-
-  // Increment views (non-blocking)
-  incrementViewCountAction(id).catch(() => {});
-
-  const isAdmin = currentUser?.isAdmin || false;
+  if (!post) notFound();
 
   return (
     <>
-      {/* JSON-LD Structured Data */}
+      {/* JSON-LD */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -93,11 +78,11 @@ export default async function PostPage({ params }: Props) {
             '@type': 'BlogPosting',
             headline: post.headTitle,
             image: post.headImage,
-            datePublished: post.createdAt.toString(),
-            dateModified: post.updatedAt?.toString() || post.createdAt.toString(),
+            datePublished: new Date(post.createdAt).toISOString(),
+            dateModified: new Date(post.updatedAt ?? post.createdAt).toISOString(),
             author: {
               '@type': 'Person',
-              name: post.author?.name || 'Wish2Share',
+              name: post.author?.name ?? 'Wish2Share',
             },
             publisher: {
               '@type': 'Organization',
@@ -112,7 +97,11 @@ export default async function PostPage({ params }: Props) {
         }}
       />
 
-      <PostContent post={post} isAdmin={isAdmin} currentUser={currentUser} />
+      <PostContent
+        post={post}
+        currentUser={currentUser}
+        isAdmin={Boolean(currentUser?.isAdmin)}
+      />
     </>
   );
 }
