@@ -1,3 +1,4 @@
+// src/app/wishlist/[slug]/_components/wishlist-detail-client
 'use client';
 
 import React, { useState } from 'react';
@@ -207,16 +208,14 @@ export function WishlistDetailClient({
             <div className="p-4 sm:p-6 shadow-md">
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 {owner && (
-                  <UserAvatar
-                    profile={{
-                      firstName: owner.firstName,
-                      lastName: owner.lastName,
-                      photoURL: owner.photoURL || owner.avatarURL,
-                      displayName: owner.name || `${owner.firstName} ${owner.lastName}`,
-                    }}
-                    size="h-16 w-16"
-                  />
-                )}
+  <UserAvatar
+    photoURL={owner.photoURL || owner.avatarURL}
+    firstName={owner.firstName}
+    lastName={owner.lastName}
+    name={owner.name}
+    size="xl"
+  />
+)}
                 <div className="flex-grow">
                   <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
                     {wishlist.name}

@@ -1,72 +1,116 @@
+// src/app/search/actions.ts
+
 'use server';
 
 import { z } from 'zod';
 import { adminDb } from '@/lib/server/firebase-admin';
-import { UserProfile } from '@/types/user';
+import type { UserProfile, SubProfile, SearchResult } from '@/types/user';
 
-// Schema voor de zoekparameters
 const SearchQuerySchema = z.object({
   query: z.string().trim().min(1, 'Een zoekterm is verplicht.'),
 });
 
-// Helper om leeftijd te berekenen, veilig op de server
+function serializeData(data: any): any {
+  if (!data) return null;
+  const serialized: { [key: string]: any } = {};
+  for (const key in data) {
+    if (data[key] && typeof data[key].toDate === 'function') {
+      serialized[key] = data[key].toDate().toISOString();
+    } else if (typeof data[key] === 'object' && data[key] !== null && !Array.isArray(data[key])) {
+      serialized[key] = serializeData(data[key]);
+    } else {
+      serialized[key] = data[key];
+    }
+  }
+  return serialized;
+}
+
 const calculateAge = (birthdate?: string | null): number | undefined => {
   if (!birthdate) return undefined;
-  const birthYear = new Date(birthdate).getFullYear();
-  if (isNaN(birthYear)) return undefined;
-  const age = new Date().getFullYear() - birthYear;
+  const birthDate = (birthdate as any).toDate ? (birthdate as any).toDate() : new Date(birthdate);
+  if (isNaN(birthDate.getTime())) return undefined;
+  
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
   return age;
-};
-
-// CORRECTIE 1: Het SearchResult type expliciet gedefinieerd zonder 'Pick'
-// Dit lost de fout op omdat we nu correct omgaan met geneste properties.
-export type SearchResult = {
-  id: string;
-  displayName: string;
-  username?: string | null;
-  photoURL?: string | null;
-  city?: string | null;
-  gender?: string | null;
-  age?: number;
 };
 
 export async function performSearchAction(params: { query: string }): Promise<{ success: true, data: SearchResult[] } | { success: false, error: string }> {
   const validation = SearchQuerySchema.safeParse(params);
-
-  // CORRECTIE 2: Zod error handling via de 'issues' array
   if (!validation.success) {
-    const errorMessage = validation.error.issues[0]?.message || 'Ongeldige zoekopdracht.';
-    return { success: false, error: errorMessage };
+    return { success: false, error: validation.error.issues[0]?.message || 'Ongeldige zoekopdracht.' };
   }
   
   const { query: searchTerm } = validation.data;
   const lowerCaseQuery = searchTerm.toLowerCase();
 
   try {
-    const nameQuery = adminDb.collection('users')
+    const usersQuery = adminDb.collection('users')
       .where('isPublic', '==', true)
-      .where('displayName_lowercase', '>=', lowerCaseQuery)
-      .where('displayName_lowercase', '<=', lowerCaseQuery + '\uf8ff')
-      .limit(20);
+      .orderBy('firstName_lower')
+      .startAt(lowerCaseQuery)
+      .endAt(lowerCaseQuery + '\uf8ff')
+      .limit(15);
+      
+    const profilesQuery = adminDb.collection('profiles')
+      .where('isPublic', '==', true)
+      .orderBy('firstName_lower')
+      .startAt(lowerCaseQuery)
+      .endAt(lowerCaseQuery + '\uf8ff')
+      .limit(15);
 
-    const querySnapshot = await nameQuery.get();
+    const [userSnapshots, profileSnapshots] = await Promise.all([
+      usersQuery.get(),
+      profilesQuery.get(),
+    ]);
     
-    if (querySnapshot.empty) {
-      return { success: true, data: [] };
-    }
+    const results: SearchResult[] = [];
+    const foundUserIds = new Set<string>();
 
-    const results: SearchResult[] = querySnapshot.docs.map(doc => {
-      const data = doc.data() as UserProfile;
-      return {
-        id: doc.id,
-        displayName: data.displayName,
-        username: data.username,
-        photoURL: data.photoURL,
-        // We halen 'city' nu veilig uit het 'address' object
-        city: data.address?.city, 
-        gender: data.gender,
-        age: calculateAge(data.birthdate),
-      };
+    // ✅ Verwerk 'users' resultaten met firstName & lastName
+    userSnapshots.forEach(doc => {
+      if (!foundUserIds.has(doc.id)) {
+        const data = serializeData(doc.data()) as UserProfile;
+        results.push({
+          id: doc.id,
+          displayName: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
+          firstName: data.firstName,      // ✅ ADDED
+          lastName: data.lastName,        // ✅ ADDED
+          username: data.username,
+          photoURL: data.photoURL,
+          city: data.address?.city, 
+          gender: data.gender,
+          age: calculateAge(data.birthdate),
+          type: 'user'
+        });
+        foundUserIds.add(doc.id);
+      }
+    });
+
+    // ✅ Verwerk 'profiles' (SubProfile) resultaten met firstName & lastName
+    profileSnapshots.forEach(doc => {
+      const data = serializeData(doc.data()) as SubProfile;
+      const ownerId = data.userId || data.parentId;
+
+      if (ownerId && !foundUserIds.has(ownerId)) {
+        results.push({
+          id: doc.id,
+          displayName: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
+          firstName: data.firstName,      // ✅ ADDED
+          lastName: data.lastName,        // ✅ ADDED
+          username: undefined,
+          photoURL: data.photoURL,
+          city: undefined,
+          gender: data.gender,
+          age: calculateAge(data.birthdate),
+          type: 'profile'
+        });
+        foundUserIds.add(ownerId);
+      }
     });
 
     return { success: true, data: results };

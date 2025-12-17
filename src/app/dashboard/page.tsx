@@ -1,4 +1,3 @@
-// src/app/dashboard/page.tsx
 import { getCurrentUser } from '@/lib/auth/actions';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
@@ -29,7 +28,8 @@ export default async function DashboardPage() {
       title: 'Maak een Event',
       description: 'Organiseer een verjaardag, feest of ander evenement',
       icon: Calendar,
-      href: '/events/create',
+      // FIX 1: Het pad gecorrigeerd naar de juiste locatie.
+      href: '/dashboard/events/create',
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
     },
@@ -106,7 +106,8 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Geen aankomende events. <Link href="/events/create" className="text-primary hover:underline">Maak er één aan!</Link>
+              {/* FIX 2: Ook deze link gecorrigeerd. */}
+              Geen aankomende events. <Link href="/dashboard/events/create" className="text-primary hover:underline">Maak er één aan!</Link>
             </p>
           </CardContent>
         </Card>

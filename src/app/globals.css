@@ -1,13 +1,20 @@
+/* src/app/globals.css - FINALE VERSIE */
+
+/* ========================================================================= */
+/*  1. Tailwind Directives & Plugins
+/* ========================================================================= */
 @tailwind base;
-
-@plugin "tailwindcss-animate";
-
-@custom-variant dark (&:is(.dark *));
 @tailwind components;
 @tailwind utilities;
 
+@plugin "tailwindcss-animate";
+@custom-variant dark (&:is(.dark *));
+
+/* ========================================================================= */
+/*  2. Base Layer: Variabelen & Body Stijl
+/* ========================================================================= */
 @layer base {
-  /* Theme variables */
+  /* --- Kleurvariabelen voor Light Mode (jouw 'warm-olive' thema) --- */
   :root {
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
@@ -21,30 +28,22 @@
     --secondary-foreground: 240 5.9% 10%;
     --muted: 84 67% 74%;
     --muted-foreground: 240 3.8% 46.1%;
-    --accent: var(--chart-4);
+    --accent: 72 72% 28%;
     --accent-foreground: 88 76% 94%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 84 67% 74%;
     --input: 84 67% 74%;
     --ring: 75 85% 40%;
-    --radius: 0.5rem;
+    --radius: 0.625rem;
     --chart-1: 82 68% 64%;
     --chart-2: 80 72% 54%;
     --chart-3: 75 85% 40%;
     --chart-4: 72 72% 28%;
     --chart-5: 70 59% 22%;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: var(--chart-5);
-    --sidebar-primary: var(--chart-5);
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: var(--primary-foreground);
-    --sidebar-accent-foreground: 89.3 80.4% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
-  /* Dark mode overrides */
+  /* --- Kleurvariabelen voor Dark Mode --- */
   .dark {
     --background: 20 14.3% 4.1%;
     --foreground: 0 0% 95%;
@@ -70,255 +69,78 @@
     --chart-3: 75 85% 40%;
     --chart-4: 72 72% 28%;
     --chart-5: 70 59% 22%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
-  /* Tailwind base overrides */
-  body {
-    @apply bg-background text-foreground;
-    /* 👇 ACHTERGROND TOEGEVOEGD */
+  /* --- Globale Body Stijl (DEFINITIEVE VERSIE) --- */
+body {
+    /* 1. Stel de dynamische achtergrondkleur en tekstkleur in */
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    
+    /* 2. Voeg de patroon-afbeelding toe (ligt bovenop de achtergrondkleur) */
     background-image: url('/pattern-bg.svg');
-    background-repeat: repeat;
-    background-size: auto;
-    background-attachment: fixed;
-  }
+    background-repeat: no-repeat;
+    background-position: top center;
+    background-size: 100% auto;
+    background-attachment: fixed; /* Zorgt dat de achtergrond niet meescrollt */
+    min-height: 100vh;
+}
 }
 
-/* Custom Utilities & Animations */
+/* ========================================================================= */
+/*  3. Custom Utilities & Animations
+/* ========================================================================= */
 @layer utilities {
-  /* Custom scrollbar styles (now using theme variables!) */
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
+  /* Scrollbar stijlen */
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background-color: hsl(var(--primary) / 0.3); border-radius: 3px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover { background-color: hsl(var(--primary) / 0.5); }
+  .scrollbar-thin { scrollbar-width: thin; scrollbar-color: hsl(var(--primary) / 0.3) transparent; }
+
+  /* Animaties voor knoppen */
+  .add-event-button { overflow: hidden; position: relative; z-index: 10; }
+  .add-event-button .slide-in-image1,
+  .add-event-button .slide-in-image2,
+  .add-event-button .slide-in-image3,
+  .add-event-button .b2-slide-in-image1,
+  .add-event-button .b2-slide-in-image2,
+  .add-event-button .b2-slide-in-image3 {
+    background-size: contain; background-repeat: no-repeat; background-position: center;
+    transition: transform 0.5s ease-in-out;
   }
+  .add-event-button .slide-in-image1 { transform: translateY(-100%); }
+  .add-event-button:hover .slide-in-image1 { transform: translateY(-45%); }
+  .add-event-button .slide-in-image2 { transform: translateX(100%); }
+  .add-event-button:hover .slide-in-image2 { transform: translateX(40%); }
+  .add-event-button .slide-in-image3 { transform: translateY(-100%); }
+  .add-event-button:hover .slide-in-image3 { transform: translateY(-30%); }
+  .add-event-button .b2-slide-in-image1 { transform: translateX(-100%); }
+  .add-event-button:hover .b2-slide-in-image1 { transform: translateX(-40%); }
+  .add-event-button .b2-slide-in-image2 { transform: translateX(100%); }
+  .add-event-button:hover .b2-slide-in-image2 { transform: translateX(45%); }
+  .add-event-button .b2-slide-in-image3 { transform: translateY(100%); }
+  .add-event-button:hover .b2-slide-in-image3 { transform: translateY(50%); }
 
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
+  /* Codepen knop stijl */
+  .codepen-button {
+    display: block; cursor: pointer; margin: 0 auto; position: relative;
+    text-decoration: none; font-weight: 600; border-radius: 100px;
+    overflow: hidden; padding: 2px; isolation: isolate; background: transparent;
+    border: 2px solid transparent;
   }
-
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--primary) / 0.3);
-    border-radius: 3px;
+  .codepen-button::before {
+    content: ""; position: absolute; top: 0; left: 0; width: 400%; height: 100%;
+    background: linear-gradient(115deg, #d1d1d1, #2c7b02, #a7bfde);
+    background-size: 25% 100%; animation: border-animation 0.8s linear infinite;
   }
-
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: hsl(var(--primary) / 0.5);
+  .codepen-button span {
+    position: relative; display: flex; padding: 1rem; font-size: 1.1rem;
+    background: #ffffff; border-radius: 100px; height: 100%;
+    color: rgb(37, 113, 53);
   }
-
-  /* Firefox scrollbar styles */
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: hsl(var(--primary) / 0.3) transparent;
-  }
-}
-
-/* --- De rest van je custom classes en animaties kunnen hieronder --- */
-/* Slide-in button animations */
-.add-event-button {
-  overflow: hidden;
-  position: relative;
-  z-index: 10;
-}
-
-.add-event-button .slide-in-image1,
-.add-event-button .slide-in-image2,
-.add-event-button .slide-in-image3,
-.add-event-button .b2-slide-in-image1,
-.add-event-button .b2-slide-in-image2,
-.add-event-button .b2-slide-in-image3 {
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
-  transition: transform 0.5s ease-in-out;
-}
-
-/* Individual transforms on hover */
-.add-event-button .slide-in-image1 { transform: translateY(-100%); }
-.add-event-button:hover .slide-in-image1 { transform: translateY(-45%); }
-
-.add-event-button .slide-in-image2 { transform: translateX(100%); }
-.add-event-button:hover .slide-in-image2 { transform: translateX(40%); }
-
-.add-event-button .slide-in-image3 { transform: translateY(-100%); }
-.add-event-button:hover .slide-in-image3 { transform: translateY(-30%); }
-
-.add-event-button .b2-slide-in-image1 { transform: translateX(-100%); }
-.add-event-button:hover .b2-slide-in-image1 { transform: translateX(-40%); }
-
-.add-event-button .b2-slide-in-image2 { transform: translateX(100%); }
-.add-event-button:hover .b2-slide-in-image2 { transform: translateX(45%); }
-
-.add-event-button .b2-slide-in-image3 { transform: translateY(100%); }
-.add-event-button:hover .b2-slide-in-image3 { transform: translateY(50%); }
-
-/* Codepen button */
-.codepen-button {
-  display: block;
-  cursor: pointer;
-  margin: 0 auto;
-  position: relative;
-  text-decoration: none;
-  font-weight: 600;
-  border-radius: 100px;
-  overflow: hidden;
-  padding: 2px;
-  isolation: isolate;
-  background: transparent;
-  border: 2px solid transparent;
-}
-.codepen-button::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 400%;
-  height: 100%;
-  background: linear-gradient(115deg, #d1d1d1, #2c7b02, #a7bfde);
-  background-size: 25% 100%;
-  animation: border-animation 0.8s linear infinite;
-}
-.codepen-button span {
-  position: relative;
-  display: flex;
-  padding: 1rem;
-  font-size: 1.1rem;
-  background: #ffffff;
-  border-radius: 100px;
-  height: 100%;
-  color: rgb(37, 113, 53);
-}
-@keyframes border-animation {
-  to { transform: translateX(-25%); }
-}
-
-@theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-}
-
-:root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-}
-
-/* Hide scrollbar maar behoud scroll functionaliteit */
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  @keyframes border-animation { to { transform: translateX(-25%); } }
 }

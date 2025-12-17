@@ -21,7 +21,6 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Separator } from "@/components/ui/separator";
 
-// Dit type combineert beide profielsoorten voor onze selectielijst
 type ProfileOption = (UserProfile | SubProfile) & { id: string };
 
 export default function EventParticipationPage() {
@@ -61,20 +60,19 @@ export default function EventParticipationPage() {
         
         const validation = eventSchema.safeParse({ id: eventSnap.id, ...eventSnap.data() });
         if (!validation.success) {
-            console.error("Zod validation error:", validation.error.flatten());
-            throw new Error("De data van het evenement is corrupt.");
+          console.error("Zod validation error:", validation.error.flatten());
+          throw new Error("De data van het evenement is corrupt.");
         }
         const eventData = validation.data;
         setEvent(eventData);
 
-        // Check of de gebruiker al deelneemt
         const isAlreadyParticipant = Object.keys(eventData.participants || {}).some(
           (pId) => pId === currentUser.id
         );
         if (isAlreadyParticipant) {
-           toast.info(`Je neemt al deel aan "${eventData.name}".`);
-           router.push(`/dashboard/event/${eventId}`);
-           return;
+          toast.info(`Je neemt al deel aan "${eventData.name}".`);
+          router.push(`/dashboard/event/${eventId}`);
+          return;
         }
 
         const profilesQuery = query(collection(db, "profiles"), where("userId", "==", currentUser.id));
@@ -86,8 +84,8 @@ export default function EventParticipationPage() {
         }));
 
         setProfiles([
-          { ...currentUser, id: currentUser.id }, // Hoofdprofiel
-          ...userProfiles // Subprofielen
+          { ...currentUser, id: currentUser.id },
+          ...userProfiles
         ]);
 
       } catch (err) {
@@ -211,7 +209,12 @@ export default function EventParticipationPage() {
                     disabled={isJoining}
                     className="flex h-auto items-center justify-start gap-4 p-4"
                   >
-                    <UserAvatar profile={profile} className="h-10 w-10" />
+                    <UserAvatar 
+                      photoURL={profile.photoURL}
+                      firstName={profile.firstName}
+                      lastName={profile.lastName}
+                      size="md"
+                    />
                     <span className="font-medium">{profile.firstName} {profile.lastName}</span>
                   </Button>
                 ))}

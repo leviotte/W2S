@@ -236,6 +236,22 @@ export const subProfileConverter = {
 };
 
 // ============================================
+// SEARCH RESULT TYPE (Centralized)
+// ============================================
+export type SearchResult = {
+  id: string;
+  displayName: string;
+  firstName: string;
+  lastName: string;
+  username?: string | null;
+  photoURL?: string | null;
+  city?: string | null;
+  gender?: string | null;
+  age?: number;
+  type: 'user' | 'profile';
+};
+
+// ============================================
 // ROLE HELPERS
 // ============================================
 

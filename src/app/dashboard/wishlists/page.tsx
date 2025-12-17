@@ -12,23 +12,29 @@ import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { WishlistGrid } from './_components/wishlist-grid';
 
+// FIX: Aangepaste functie om de correcte veldnamen te gebruiken
 async function loadWishlists(userId: string): Promise<Wishlist[]> {
   try {
+    // FIX: 'ownerId' veranderd naar 'userId' om overeen te komen met je datamodel
     const snapshot = await adminDb.collection('wishlists')
-      .where('ownerId', '==', userId)
+      .where('userId', '==', userId) 
       .orderBy('createdAt', 'desc')
       .get();
       
     if (snapshot.empty) return [];
 
     return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate().toISOString() || new Date().toISOString(),
-      updatedAt: doc.data().updatedAt?.toDate().toISOString() || new Date().toISOString(),
-    })) as Wishlist[];
+  id: doc.id,
+  ...doc.data(),
+  // Omdat 'createdAt' al een string is, gebruiken we die gewoon direct.
+  createdAt: doc.data().createdAt || new Date().toISOString(),
+  updatedAt: doc.data().updatedAt || new Date().toISOString(),
+})) as Wishlist[];
   } catch (error) {
     console.error("Failed to load wishlists on server:", error);
+    // BELANGRIJK: Omdat de index-fout een error gooit, moet je de Firebase console link volgen!
+    // De foutmelding in je terminal bevat de link om de juiste index aan te maken:
+    // Query: WHERE userId == ??? ORDER BY createdAt DESC
     return [];
   }
 }

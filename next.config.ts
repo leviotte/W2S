@@ -8,14 +8,21 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
 
   // ============================================================
-  // IMAGE OPTIMIZATION ⚡
+  // IMAGE OPTIMIZATION ⚡ (AANGEPAST MET ALLE HOSTNAMES)
   // ============================================================
   images: {
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'firebasestorage.googleapis.com',
-        pathname: '/v0/b/wish2share4u.firebasestorage.app/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com', // Voor Google Sign-In avatars
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.pravatar.cc', // Voor dummy data avatars
       },
       {
         protocol: 'https',
@@ -23,12 +30,16 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 'media.s-bol.com', // Gevonden in je Firestore data
+      },
+      {
+        protocol: 'https',
         hostname: 'm.media-amazon.com',
       },
       {
         protocol: 'https',
-        hostname: 'lh3.googleusercontent.com',
-      },
+        hostname: 'upload.wikimedia.org', // Voor partner logos
+      }
     ],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
@@ -83,35 +94,17 @@ const nextConfig: NextConfig = {
       {
         source: '/:path*',
         headers: [
-          {
-            key: 'X-DNS-Prefetch-Control',
-            value: 'on',
-          },
-          {
-            key: 'Strict-Transport-Security',
-            value: 'max-age=63072000; includeSubDomains; preload',
-          },
-          {
-            key: 'X-Frame-Options',
-            value: 'SAMEORIGIN',
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'origin-when-cross-origin',
-          },
+          { key: 'X-DNS-Prefetch-Control', value: 'on' },
+          { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'origin-when-cross-origin' },
         ],
       },
       {
         source: '/images/:path*',
         headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
     ];
@@ -130,7 +123,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
 
   // ============================================================
-  // TYPESCRIPT (GEEN ESLINT KEY!)
+  // TYPESCRIPT
   // ============================================================
   typescript: {
     ignoreBuildErrors: false,

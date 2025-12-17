@@ -4,7 +4,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-// DE FIX: De extensie .tsx weghalen.
 import type { NavItem } from '@/lib/config/dashboard';
 
 interface DashboardNavProps {

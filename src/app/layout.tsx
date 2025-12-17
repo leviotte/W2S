@@ -9,7 +9,7 @@ import { AuthProvider } from '@/components/providers/auth-provider';
 import { Navbar } from '@/components/layout/navbar'; // ✅ NIEUWE NAVBAR
 import { AuthModalManager } from '@/components/auth/auth-modal-manager';
 import { Toaster } from 'sonner';
-import Footer from '@/components/layout/Footer';
+import { Footer } from '@/components/layout/Footer';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -28,8 +28,8 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="light"
+          enableSystem={false}
           disableTransitionOnChange
         >
           <AuthProvider>

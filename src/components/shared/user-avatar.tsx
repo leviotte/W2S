@@ -1,53 +1,56 @@
 // src/components/shared/user-avatar.tsx
-'use client';
-
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
 interface UserAvatarProps {
-  profile?: {
-    photoURL?: string | null;
-    displayName?: string;
-    firstName?: string;
-    lastName?: string;
-  };
-  src?: string | null;
-  name?: string;
+  photoURL?: string | null;
   firstName?: string;
   lastName?: string;
-  photoURL?: string | null;
+  name?: string;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
-  size?: string;
 }
 
 export function UserAvatar({ 
-  profile,
-  src, 
-  name,
-  firstName,
-  lastName,
-  photoURL,
-  className,
-  size = 'h-10 w-10'
+  photoURL, 
+  firstName = '',
+  lastName = '',
+  name, 
+  size = 'md', 
+  className = '' 
 }: UserAvatarProps) {
-  const actualPhotoURL = src || photoURL || profile?.photoURL;
-  const actualName = name || profile?.displayName || 
-    (firstName && lastName ? `${firstName} ${lastName}` : '') ||
-    (profile?.firstName && profile?.lastName ? `${profile.firstName} ${profile.lastName}` : '');
+  const getInitials = () => {
+    if (name) {
+      const [firstWord, secondWord] = name.split(' ');
+      const firstInitial = firstWord?.[0]?.toUpperCase() || '';
+      const secondInitial = secondWord?.[0]?.toUpperCase() || '';
+      return `${firstInitial}${secondInitial}`;
+    } else {
+      const firstInitial = firstName?.[0]?.toUpperCase() || '';
+      const lastInitial = lastName?.[0]?.toUpperCase() || '';
+      return `${firstInitial}${lastInitial}`;
+    }
+  };
 
-  const initials = actualName
-    ? actualName
-        .split(' ')
-        .map(n => n[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2)
-    : '??';
+  const sizeClasses = {
+    sm: 'h-8 w-8 text-sm',
+    md: 'h-10 w-10 text-base',
+    lg: 'h-12 w-12 text-lg',
+    xl: 'h-16 w-16 text-xl'
+  };
 
   return (
-    <Avatar className={cn(size, className)}>
-      {actualPhotoURL && <AvatarImage src={actualPhotoURL} alt={actualName || 'User'} />}
-      <AvatarFallback>{initials}</AvatarFallback>
-    </Avatar>
+    <div className={cn('flex-shrink-0 rounded-full overflow-hidden', sizeClasses[size], className)}>
+      {photoURL ? (
+        <img
+          src={photoURL}
+          alt={name || `${firstName} ${lastName}`}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <div className="h-full w-full bg-warm-olive flex items-center justify-center text-white font-medium">
+          {getInitials()}
+        </div>
+      )}
+    </div>
   );
 }

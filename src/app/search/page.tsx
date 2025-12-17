@@ -1,32 +1,31 @@
+// src/app/search/page.tsx
+
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { performSearchAction, type SearchResult } from './actions';
+import { performSearchAction } from './actions';
 import { SearchForm } from './_components/search-form';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import type { SearchResult } from '@/types/user';
 
 interface SearchPageProps {
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
 export default function SearchPage({ searchParams }: SearchPageProps) {
-  // Haal de zoekterm veilig uit de URL parameters
   const query = typeof searchParams.query === 'string' ? searchParams.query : '';
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 min-h-screen space-y-8">
       <header>
         <h1 className="text-3xl font-bold tracking-tight">Zoeken</h1>
-        <p className="text-muted-foreground">Vind publieke profielen op Wish2Share.</p>
+        <p className="text-muted-foreground">Vind publieke profielen en wenslijsten op Wish2Share.</p>
       </header>
       
       <SearchForm />
 
       <main>
         <Suspense key={query} fallback={<SearchSkeleton />}>
-          {/* We tonen de resultaten alleen als er een zoekopdracht is.
-              Het 'key={query}' attribuut op Suspense is een pro-tip: 
-              het zorgt ervoor dat de fallback opnieuw toont bij elke *nieuwe* zoekopdracht. */}
           {query ? <SearchResults query={query} /> : <InitialPrompt />}
         </Suspense>
       </main>
@@ -34,7 +33,6 @@ export default function SearchPage({ searchParams }: SearchPageProps) {
   );
 }
 
-// Een apart asynchroon component voor het ophalen en tonen van de resultaten
 async function SearchResults({ query }: { query: string }) {
   const result = await performSearchAction({ query });
 
@@ -42,7 +40,7 @@ async function SearchResults({ query }: { query: string }) {
     return <div className="text-center py-12 text-destructive">{result.error}</div>;
   }
 
-  const data = result.data;
+  const data: SearchResult[] = result.data ?? [];
 
   if (data.length === 0) {
     return (
@@ -58,15 +56,17 @@ async function SearchResults({ query }: { query: string }) {
       <h2 className="text-xl font-semibold">Resultaten voor &quot;{query}&quot;</h2>
       {data.map((user) => (
         <Link 
-          href={user.username ? `/profile/${user.username}` : '#'}
+          href={`/profile/${user.username || user.id}`}
           key={user.id}
           className="p-4 rounded-lg border bg-card text-card-foreground shadow-sm flex items-center gap-4 cursor-pointer transition-colors hover:bg-muted/50"
           aria-label={`Bekijk het profiel van ${user.displayName}`}
         >
-          <UserAvatar
-            src={user.photoURL}
+          <UserAvatar 
+            photoURL={user.photoURL}
+            firstName={user.firstName}
+            lastName={user.lastName}
             name={user.displayName}
-            className="h-14 w-14"
+            size="lg"
           />
           <div className="flex-grow">
             <p className="font-semibold text-lg">{user.displayName}</p>
@@ -82,17 +82,15 @@ async function SearchResults({ query }: { query: string }) {
   );
 }
 
-// Component dat wordt getoond voordat er een zoekopdracht is
 function InitialPrompt() {
   return (
     <div className="text-center py-12">
       <h3 className="font-semibold">Start met zoeken</h3>
-      <p className="text-muted-foreground">Voer een naam in om te beginnen met zoeken.</p>
+      <p className="text-muted-foreground">Voer een naam in om te beginnen.</p>
     </div>
-  )
+  );
 }
 
-// Een simpele skeleton loader voor een betere UX
 function SearchSkeleton() {
   return (
     <div className="text-center py-12 flex justify-center items-center gap-3">

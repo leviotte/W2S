@@ -1,3 +1,4 @@
+// src/components/layout/SearchButton.tsx
 "use client";
 
 import { Search } from "lucide-react";
