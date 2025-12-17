@@ -58,16 +58,16 @@ export function Navbar() {
   };
 
   const menuItems = isAuthenticated
-    ? [
-        { label: 'Dashboard', path: '/dashboard', icon: Home },
-        isAdmin && { 
-          label: 'Admin', 
-          path: '/admin-dashboard?tab=metrics', 
-          icon: Home 
-        },
-        { label: 'Zoek vrienden', path: '/search', icon: Search },
-      ].filter(Boolean)
-    : [];
+  ? [
+      { label: 'Dashboard', path: '/dashboard', icon: Home },
+      isAdmin && { 
+        label: 'Admin', 
+        path: '/admin',  // ✅ GEFIXED (was /admin-dashboard?tab=metrics)
+        icon: Home 
+      },
+      { label: 'Zoek vrienden', path: '/search', icon: Search },
+    ].filter(Boolean)
+  : [];
 
   return (
     <nav className="bg-gray-100 shadow-sm">
@@ -313,46 +313,31 @@ export function Navbar() {
                   <DropdownMenuSeparator />
                   
                   <DropdownMenuItem
-                    onClick={() => handleProfileSwitch('main-account')}
-                    className={`gap-2 p-2 font-bold text-accent ${
-                      activeProfileId === 'main-account' ? 'bg-accent/10' : ''
-                    }`}
-                  >
-                    <div className="flex items-center space-x-2">
-                      {currentUser.photoURL ? (
-                        <img
-                          src={currentUser.photoURL}
-                          alt={`${currentUser.firstName} ${currentUser.lastName}`}
-                          className="h-6 w-6 object-cover rounded-full"
-                        />
-                      ) : (
-                        <CircleUserRound className="h-6 w-6" />
-                      )}
-                      <span>{`${currentUser.firstName} ${currentUser.lastName}`}</span>
-                    </div>
-                  </DropdownMenuItem>
+  onClick={() =>
+    router.push(
+      isAdmin
+        ? '/admin'  // ✅ GEFIXED (was /admin-dashboard?tab=profile)
+        : '/dashboard?tab=profile'
+    )
+  }
+  className="gap-2 p-2"
+>
+  Instellingen
+</DropdownMenuItem>
                   
                   {filteredProfiles.map((profile) => (
                     <DropdownMenuItem
-                      key={profile.id}
-                      onClick={() => handleProfileSwitch(profile.id)}
-                      className={`gap-2 p-2 ${
-                        activeProfileId === profile.id ? 'bg-accent/10' : ''
-                      }`}
-                    >
-                      <div className="flex items-center space-x-2">
-                        {profile.avatarURL ? (
-                          <img
-                            src={profile.avatarURL}
-                            alt={profile.name}
-                            className="h-6 w-6 object-cover rounded-full"
-                          />
-                        ) : (
-                          <CircleUserRound className="h-6 w-6" />
-                        )}
-                        <span>{profile.name}</span>
-                      </div>
-                    </DropdownMenuItem>
+  onClick={() =>
+    router.push(
+      isAdmin
+        ? '/admin'  // ✅ GEFIXED
+        : '/dashboard?tab=profile'
+    )
+  }
+  className="gap-2 p-2"
+>
+  Instellingen
+</DropdownMenuItem>
                   ))}
                   
                   <DropdownMenuSeparator />

@@ -1,5 +1,4 @@
 // src/app/search/actions.ts
-
 'use server';
 
 import { z } from 'zod';
@@ -49,6 +48,7 @@ export async function performSearchAction(params: { query: string }): Promise<{ 
   const lowerCaseQuery = searchTerm.toLowerCase();
 
   try {
+    // ✅ Users query (gebruikt firstName_lower)
     const usersQuery = adminDb.collection('users')
       .where('isPublic', '==', true)
       .orderBy('firstName_lower')
@@ -56,9 +56,10 @@ export async function performSearchAction(params: { query: string }): Promise<{ 
       .endAt(lowerCaseQuery + '\uf8ff')
       .limit(15);
       
+    // ✅ Profiles query (gebruikt name_lower zoals oude site!)
     const profilesQuery = adminDb.collection('profiles')
       .where('isPublic', '==', true)
-      .orderBy('firstName_lower')
+      .orderBy('name_lower')  // ✅ CHANGED: name_lower ipv firstName_lower
       .startAt(lowerCaseQuery)
       .endAt(lowerCaseQuery + '\uf8ff')
       .limit(15);
@@ -71,15 +72,15 @@ export async function performSearchAction(params: { query: string }): Promise<{ 
     const results: SearchResult[] = [];
     const foundUserIds = new Set<string>();
 
-    // ✅ Verwerk 'users' resultaten met firstName & lastName
+    // ✅ Verwerk 'users' resultaten
     userSnapshots.forEach(doc => {
       if (!foundUserIds.has(doc.id)) {
         const data = serializeData(doc.data()) as UserProfile;
         results.push({
           id: doc.id,
           displayName: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
-          firstName: data.firstName,      // ✅ ADDED
-          lastName: data.lastName,        // ✅ ADDED
+          firstName: data.firstName,
+          lastName: data.lastName,
           username: data.username,
           photoURL: data.photoURL,
           city: data.address?.city, 
@@ -91,7 +92,7 @@ export async function performSearchAction(params: { query: string }): Promise<{ 
       }
     });
 
-    // ✅ Verwerk 'profiles' (SubProfile) resultaten met firstName & lastName
+    // ✅ Verwerk 'profiles' resultaten
     profileSnapshots.forEach(doc => {
       const data = serializeData(doc.data()) as SubProfile;
       const ownerId = data.userId || data.parentId;
@@ -100,8 +101,8 @@ export async function performSearchAction(params: { query: string }): Promise<{ 
         results.push({
           id: doc.id,
           displayName: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
-          firstName: data.firstName,      // ✅ ADDED
-          lastName: data.lastName,        // ✅ ADDED
+          firstName: data.firstName,
+          lastName: data.lastName,
           username: undefined,
           photoURL: data.photoURL,
           city: undefined,

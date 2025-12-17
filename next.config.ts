@@ -39,7 +39,27 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'upload.wikimedia.org', // Voor partner logos
-      }
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com', // Voor guide pagina afbeeldingen
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.freebiesupply.com', // Voor Bol.com logo
+      },
+      {
+        protocol: 'https',
+        hostname: 'static.vecteezy.com', // Voor Amazon logo
+      },
+      {
+        protocol: 'https',
+        hostname: 'douglas.group', // Voor Douglas logo
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.travelbags.nl', // Voor Travelbags logo
+      },
     ],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],

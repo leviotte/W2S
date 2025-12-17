@@ -18,8 +18,8 @@ export default function SearchButton() {
           onClick={handleClick}
           className="w-full px-6 py-3 flex items-center justify-center bg-warm-olive hover:bg-cool-olive text-white text-lg font-semibold rounded-full shadow-md transition-all duration-300 ease-in-out sm:py-3 py-2"
         >
-          <Search className="h-5 w-5 mr-3" />
-          <span>Zoek Vrienden</span>
+          <Search className="h-5 w-5 mr-3" /> {/* Search icon with space */}
+          <span>Zoek Vrienden</span> {/* Button text */}
         </button>
       </div>
     </div>

@@ -1,3 +1,4 @@
+// src/app/search/_components/search-form.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,7 +13,6 @@ export function SearchForm() {
   const initialQuery = searchParams.get('query') || '';
   const [searchTerm, setSearchTerm] = useState(initialQuery);
 
-  // Zorg ervoor dat het inputveld update als de gebruiker de back/forward knoppen gebruikt
   useEffect(() => {
     setSearchTerm(searchParams.get('query') || '');
   }, [searchParams]);
@@ -23,25 +23,29 @@ export function SearchForm() {
     
     const newParams = new URLSearchParams(searchParams.toString());
     newParams.set('query', searchTerm.trim());
-    
-    // We gebruiken router.push om een nieuwe entry in de browsergeschiedenis te maken
-    // en de pagina te laten herladen met de nieuwe searchParams.
     router.push(`/search?${newParams.toString()}`);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2 items-center">
-      <Input
-        type="search"
-        placeholder="Zoek naar personen..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        className="flex-grow"
-      />
-      <Button type="submit">
-        <SearchIcon className="h-4 w-4 mr-2" />
-        Zoeken
-      </Button>
+    <form onSubmit={handleSubmit} className="w-full">
+      <div className="flex gap-3 items-center">
+        <div className="flex-grow relative">
+          <Input
+            type="search"
+            placeholder="Zoek naar personen..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="h-12 pl-4 pr-4 text-base border-gray-300 focus:border-green-700 focus:ring-green-700"
+          />
+        </div>
+        <Button 
+          type="submit"
+          className="h-12 px-6 bg-green-700 hover:bg-green-800 text-white font-medium"
+        >
+          <SearchIcon className="h-5 w-5 mr-2" />
+          Zoeken
+        </Button>
+      </div>
     </form>
   );
 }

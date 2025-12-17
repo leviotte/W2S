@@ -1,3 +1,4 @@
+// src/app/partners/page.tsx
 import Image from "next/image";
 
 const partners = [
@@ -18,7 +19,7 @@ const partners = [
   },
   {
     name: "Travelbags",
-    logo: "https://jouw.nl/wp-content/uploads/2019/08/travelbags-blauw.png",
+    logo: "https://www.travelbags.nl/themes/custom/travelbags/logo.svg",
   },
   {
     name: "Ebay",

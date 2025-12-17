@@ -1,4 +1,4 @@
-// app/guides/subscription/page.tsx
+// src/app/guides/subscription/page.tsx
 import Image from "next/image";
 import { Search, Bell, Settings, Mail } from "lucide-react";
 

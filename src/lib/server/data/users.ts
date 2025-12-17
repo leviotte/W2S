@@ -56,7 +56,7 @@ export async function getUserProfileByUsername(username: string): Promise<(UserP
       try {
         const usersSnapshot = await adminDb
           .collection('users')
-          .where('displayName', '==', username)
+          .where('username', '==', username)
           .limit(1)
           .get();
 

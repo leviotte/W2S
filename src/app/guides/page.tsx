@@ -1,3 +1,4 @@
+// src/app/dashboard/guides/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -5,13 +6,13 @@ import dynamic from "next/dynamic";
 import { PenTool, Calendar, Gift, Heart, Ticket } from "lucide-react";
 
 const userGuideSVG = "/user_guide.svg";
-const DrawingGuidePage = dynamic(() => import("../../guides/drawing/page"));
-const EventGuidePage = dynamic(() => import("../../guides/event/page"));
+const DrawingGuidePage = dynamic(() => import("./drawing/page"));
+const EventGuidePage = dynamic(() => import("./event/page"));
 const SubscriptionGuidePage = dynamic(
-  () => import("../../guides/subscription/page")
+  () => import("./subscription/page")
 );
 const WishlistGuidePage = dynamic(
-  () => import("../../guides/wishlist/page")
+  () => import("./wishlist/page")
 );
 
 export default function GuidesPage() {

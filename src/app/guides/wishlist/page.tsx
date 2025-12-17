@@ -1,4 +1,4 @@
-// app/guides/wishlist/page.tsx
+// src/app/guides/wishlist/page.tsx
 import Image from "next/image";
 import { Gift, Share2, Bell, List } from "lucide-react";
 

@@ -1,4 +1,4 @@
-// app/guides/event/page.tsx
+// src/app/guides/event/page.tsx
 import Image from "next/image";
 import { Gift, Users, Settings, CalendarPlus } from "lucide-react";
 

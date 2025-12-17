@@ -1,22 +1,17 @@
-/**
- * components/landing/how-it-works.tsx
- * AANGEPAST OM DE OUDE LAYOUT TE EVENAREN.
- */
+// src/components/landing/HowItWorks.tsx
 'use client';
 
 import { Gift, Share2, Heart, Users, CalendarPlus } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import IntroVideo from './intro-video'; // We gebruiken de nieuwe IntroVideo
+import IntroVideo from './intro-video';
 
-// Data voor de feature secties (typo gecorrigeerd)
 const featureSections = [
-    {
+  {
     id: 'profiles',
     icon: Users,
     title: 'Profielen beheren',
-    imageUrl:
-      'https://firebasestorage.googleapis.com/v0/b/wish2share4u.firebasestorage.app/o/public%2Fimages%2FProfileSwitcher.svg?alt=media&token=d8479670-e18e-4143-9691-b6f7b7a24f7a',
+    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/wish2share4u.firebasestorage.app/o/public%2Fimages%2FProfileSwitcher.svg?alt=media&token=d8479670-e18e-4143-9691-b6f7b7a24f7a',
     alt: 'Illustratie van het wisselen tussen gebruikersprofielen op Wish2Share',
     points: [
       'Creëer eerst jouw eigen profiel',
@@ -30,22 +25,20 @@ const featureSections = [
     id: 'wishlists',
     icon: Gift,
     title: 'WishLists maken',
-    imageUrl:
-      'https://firebasestorage.googleapis.com/v0/b/wish2share4u.firebasestorage.app/o/public%2Fimages%2FCreateWishlist.svg?alt=media&token=675dcc74-0ab2-4476-a676-2111d60af4ec',
+    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/wish2share4u.firebasestorage.app/o/public%2Fimages%2FCreateWishlist.svg?alt=media&token=675dcc74-0ab2-4476-a676-2111d60af4ec',
     alt: 'Illustratie van het aanmaken van een wishlist op Wish2Share',
     points: [
       'Kies voor wie je een Wishlist wil maken',
       'Voeg je favorieten items toe',
       'Deel de WishList met anderen of koppel de WishList aan een event',
-      'Iedereen behalve de eigenaar ziet wanneer een item wordt afgevinkt',
+      'Iedereen behalve de eigenaar van de WishList ziet wanneer een item wordt afgevinkt', // ✅ GEFIXED
     ],
   },
   {
     id: 'events',
     icon: CalendarPlus,
     title: 'Evenementen Organiseren',
-    imageUrl:
-      'https://firebasestorage.googleapis.com/v0/b/wish2share4u.firebasestorage.app/o/public%2Fimages%2FCreateEvent.svg?alt=media&token=108ec19d-c59c-421c-b8fc-6215620c',
+    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/wish2share4u.firebasestorage.app/o/public%2Fimages%2FCreateEvent.svg?alt=media&token=108ec19d-c59c-421c-b8fc-6215620c',
     alt: 'Illustratie van het organiseren van een evenement op Wish2Share',
     points: [
       'Stel de datum, locatie en budget in',
@@ -59,8 +52,7 @@ const featureSections = [
     id: 'following',
     icon: Share2,
     title: 'Vrienden Volgen',
-    imageUrl:
-      'https://firebasestorage.googleapis.com/v0/b/wish2share4u.firebasestorage.app/o/public%2Fimages%2FFollowFriends.svg?alt=media&token=16a3dcb1-e208-44f1-bbd3-733aa37a6729',
+    imageUrl: 'https://firebasestorage.googleapis.com/v0/b/wish2share4u.firebasestorage.app/o/public%2Fimages%2FFollowFriends.svg?alt=media&token=16a3dcb1-e208-44f1-bbd3-733aa37a6729',
     alt: 'Illustratie van het volgen van vrienden op Wish2Share',
     points: [
       'Zoek vrienden via de knop "Zoek Vrienden"',
@@ -75,7 +67,6 @@ export default function HowItWorks() {
   return (
     <div className="bg-white py-5">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Introductie */}
         <div className="text-center">
           <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
             Hoe werkt Wish2Share?
@@ -86,12 +77,10 @@ export default function HowItWorks() {
         </div>
 
         <div className="mt-6 flex w-full flex-col items-center gap-4 md:gap-20 lg:flex-row-reverse">
-          {/* Video Sectie */}
           <div className="w-full">
             <IntroVideo />
           </div>
 
-          {/* Stappen Sectie */}
           <div className="mt-8 w-full md:mt-0 lg:mt-0">
             <div className="grid grid-cols-1 gap-10 xs:grid-cols-3 xs:gap-y-10 lg:grid-cols-1">
               <Step icon={Gift} title="Maak een event of wishlist" description="Start door het maken van een persoonlijk event of wishlist." />
@@ -101,13 +90,12 @@ export default function HowItWorks() {
           </div>
         </div>
 
-        {/* Feature Gidsen */}
         <div className="mt-32 space-y-24 px-4 sm:mb-3 sm:px-6 lg:px-10">
           {featureSections.map((feature, index) => (
             <FeatureSection
               key={feature.id}
               {...feature}
-              imageFirst={index % 2 !== 0} // Wisselt de afbeelding van kant
+              imageFirst={index % 2 !== 0}
             />
           ))}
         </div>
@@ -116,8 +104,7 @@ export default function HowItWorks() {
   );
 }
 
-// Sub-component voor de stappen
-const Step = ({ icon: Icon, title, description }: { icon: React.ElementType; title: string; description: string; }) => (
+const Step = ({ icon: Icon, title, description }: { icon: React.ElementType; title: string; description: string }) => (
   <div className="flex flex-col items-center gap-2 text-center lg:flex-row lg:gap-20">
     <div className="flex justify-center">
       <div className="relative">
@@ -136,7 +123,6 @@ const Step = ({ icon: Icon, title, description }: { icon: React.ElementType; tit
   </div>
 );
 
-// Sub-component voor de feature sections
 const FeatureSection = ({ id, icon: Icon, title, imageUrl, alt, points, imageFirst }: (typeof featureSections)[0] & { imageFirst: boolean }) => (
   <section id={id} className="scroll-mt-16">
     <div className="grid grid-cols-1 items-center gap-16 sm:grid-cols-2">
@@ -160,7 +146,7 @@ const FeatureSection = ({ id, icon: Icon, title, imageUrl, alt, points, imageFir
           {points.map(point => <li key={point}>{point}</li>)}
         </ol>
         <div className="ml-6 mt-4">
-          <Link href="/user-guide" className="text-warm-olive hover:underline">
+          <Link href="/guides" className="text-warm-olive hover:underline">
             Meer info
           </Link>
         </div>

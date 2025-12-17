@@ -1,3 +1,4 @@
+// src/app/api/search/route.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import admin from "firebase-admin";

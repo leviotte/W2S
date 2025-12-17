@@ -1,4 +1,4 @@
-// app/about/page.tsx
+// src/app/about/page.tsx
 import Image from "next/image";
 
 export default function AboutPage() {
@@ -40,7 +40,7 @@ export default function AboutPage() {
       <section className="mb-16 flex justify-center">
         <div className="relative w-full max-w-4xl h-80 rounded-lg overflow-hidden shadow-lg">
           <Image
-            src="https://ktfcu.org/wp-content/uploads/2023/03/Christmas-800x566-1.png"
+            src="https://images.unsplash.com/photo-1513885535751-8b9238bd345a?w=1200&h=800&fit=crop"
             alt="Gifting Made Easy"
             fill
             className="object-cover"
