@@ -1,3 +1,4 @@
+// src/components/wishlist/WishlistsSection.tsx
 'use client';
 
 import { useMemo } from 'react';
@@ -28,8 +29,8 @@ export default function WishlistsSection({ wishlists, isOwnProfile = false }: Wi
 
   const displayWishlists = isOwnProfile ? wishlistArray : publicWishlists;
 
-  const handleViewWishlist = (wishlistId: string) => {
-    router.push(`/wishlist/${wishlistId}`);
+  const handleViewWishlist = (wishlistSlug: string) => { // ✅ FIXED: slug parameter
+    router.push(`/wishlist/${wishlistSlug}`); // ✅ FIXED: gebruik slug
   };
 
   const handleCreateWishlist = () => {
@@ -78,7 +79,7 @@ export default function WishlistsSection({ wishlists, isOwnProfile = false }: Wi
               <div
                 key={wishlist.id}
                 className="border rounded-lg p-4 hover:bg-accent/5 transition-colors cursor-pointer"
-                onClick={() => handleViewWishlist(wishlist.id)}
+                onClick={() => handleViewWishlist(wishlist.slug || wishlist.id)} // ✅ FIXED: gebruik slug met fallback
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">

@@ -1,94 +1,97 @@
-/* src/app/globals.css - FINALE VERSIE */
+/* src/app/globals.css - TAILWIND V4 */
 
 /* ========================================================================= */
-/*  1. Tailwind Directives & Plugins
+/*  1. Tailwind v4 Import + Plugins
 /* ========================================================================= */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
+/* Officiële Tailwind plugins */
+@plugin "@tailwindcss/typography";
+@plugin "@tailwindcss/forms";
+
+/* Community plugin */
 @plugin "tailwindcss-animate";
-@custom-variant dark (&:is(.dark *));
 
 /* ========================================================================= */
-/*  2. Base Layer: Variabelen & Body Stijl
+/*  2. Theme Variabelen
+/* ========================================================================= */
+@layer theme {
+  :root {
+    /* Light Mode - jouw 'warm-olive' thema */
+    --color-background: 0 0% 100%;
+    --color-foreground: 240 10% 3.9%;
+    --color-card: 0 0% 100%;
+    --color-card-foreground: 240 10% 3.9%;
+    --color-popover: 0 0% 100%;
+    --color-popover-foreground: 240 10% 3.9%;
+    --color-primary: 75 85% 40%;
+    --color-primary-foreground: 88 76% 94%;
+    --color-secondary: 84 67% 74%;
+    --color-secondary-foreground: 240 5.9% 10%;
+    --color-muted: 84 67% 74%;
+    --color-muted-foreground: 240 3.8% 46.1%;
+    --color-accent: 72 72% 28%;
+    --color-accent-foreground: 88 76% 94%;
+    --color-destructive: 0 84.2% 60.2%;
+    --color-destructive-foreground: 0 0% 98%;
+    --color-border: 84 67% 74%;
+    --color-input: 84 67% 74%;
+    --color-ring: 75 85% 40%;
+    --radius: 0.625rem;
+    --color-chart-1: 82 68% 64%;
+    --color-chart-2: 80 72% 54%;
+    --color-chart-3: 75 85% 40%;
+    --color-chart-4: 72 72% 28%;
+    --color-chart-5: 70 59% 22%;
+  }
+
+  .dark {
+    /* Dark Mode */
+    --color-background: 20 14.3% 4.1%;
+    --color-foreground: 0 0% 95%;
+    --color-card: 24 9.8% 10%;
+    --color-card-foreground: 0 0% 95%;
+    --color-popover: 0 0% 9%;
+    --color-popover-foreground: 0 0% 95%;
+    --color-primary: 74 83% 35%;
+    --color-primary-foreground: 88 76% 94%;
+    --color-secondary: 84 67% 74%;
+    --color-secondary-foreground: 0 0% 98%;
+    --color-muted: 84 67% 74%;
+    --color-muted-foreground: 88 76% 94%;
+    --color-accent: 82 68% 64%;
+    --color-accent-foreground: 88 76% 94%;
+    --color-destructive: 0 62.8% 30.6%;
+    --color-destructive-foreground: 0 85.7% 97.3%;
+    --color-border: 84 67% 74%;
+    --color-input: 84 67% 74%;
+    --color-ring: 74 83% 35%;
+    --color-chart-1: 82 68% 64%;
+    --color-chart-2: 80 72% 54%;
+    --color-chart-3: 75 85% 40%;
+    --color-chart-4: 72 72% 28%;
+    --color-chart-5: 70 59% 22%;
+  }
+}
+
+/* ========================================================================= */
+/*  3. Base Layer - Body Stijl
 /* ========================================================================= */
 @layer base {
-  /* --- Kleurvariabelen voor Light Mode (jouw 'warm-olive' thema) --- */
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 75 85% 40%;
-    --primary-foreground: 88 76% 94%;
-    --secondary: 84 67% 74%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 84 67% 74%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 72 72% 28%;
-    --accent-foreground: 88 76% 94%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 84 67% 74%;
-    --input: 84 67% 74%;
-    --ring: 75 85% 40%;
-    --radius: 0.625rem;
-    --chart-1: 82 68% 64%;
-    --chart-2: 80 72% 54%;
-    --chart-3: 75 85% 40%;
-    --chart-4: 72 72% 28%;
-    --chart-5: 70 59% 22%;
-  }
-
-  /* --- Kleurvariabelen voor Dark Mode --- */
-  .dark {
-    --background: 20 14.3% 4.1%;
-    --foreground: 0 0% 95%;
-    --card: 24 9.8% 10%;
-    --card-foreground: 0 0% 95%;
-    --popover: 0 0% 9%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 74 83% 35%;
-    --primary-foreground: 88 76% 94%;
-    --secondary: 84 67% 74%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 84 67% 74%;
-    --muted-foreground: 88 76% 94%;
-    --accent: 82 68% 64%;
-    --accent-foreground: 88 76% 94%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 85.7% 97.3%;
-    --border: 84 67% 74%;
-    --input: 84 67% 74%;
-    --ring: 74 83% 35%;
-    --chart-1: 82 68% 64%;
-    --chart-2: 80 72% 54%;
-    --chart-3: 75 85% 40%;
-    --chart-4: 72 72% 28%;
-    --chart-5: 70 59% 22%;
-  }
-
-  /* --- Globale Body Stijl (DEFINITIEVE VERSIE) --- */
-body {
-    /* 1. Stel de dynamische achtergrondkleur en tekstkleur in */
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
-    
-    /* 2. Voeg de patroon-afbeelding toe (ligt bovenop de achtergrondkleur) */
+  body {
+    background-color: hsl(var(--color-background));
+    color: hsl(var(--color-foreground));
     background-image: url('/pattern-bg.svg');
     background-repeat: no-repeat;
     background-position: top center;
     background-size: 100% auto;
-    background-attachment: fixed; /* Zorgt dat de achtergrond niet meescrollt */
+    background-attachment: fixed;
     min-height: 100vh;
-}
+  }
 }
 
 /* ========================================================================= */
-/*  3. Custom Utilities & Animations
+/*  4. Custom Utilities & Animations (BLIJVEN EXACT HETZELFDE)
 /* ========================================================================= */
 @layer utilities {
   /* Scrollbar stijlen */
@@ -97,9 +100,9 @@ body {
 
   .scrollbar-thin::-webkit-scrollbar { width: 6px; }
   .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-  .scrollbar-thin::-webkit-scrollbar-thumb { background-color: hsl(var(--primary) / 0.3); border-radius: 3px; }
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover { background-color: hsl(var(--primary) / 0.5); }
-  .scrollbar-thin { scrollbar-width: thin; scrollbar-color: hsl(var(--primary) / 0.3) transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background-color: hsl(var(--color-primary) / 0.3); border-radius: 3px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover { background-color: hsl(var(--color-primary) / 0.5); }
+  .scrollbar-thin { scrollbar-width: thin; scrollbar-color: hsl(var(--color-primary) / 0.3) transparent; }
 
   /* Animaties voor knoppen */
   .add-event-button { overflow: hidden; position: relative; z-index: 10; }

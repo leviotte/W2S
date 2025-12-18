@@ -4,6 +4,7 @@
 import { adminDb } from '@/lib/server/firebase-admin';
 import { revalidatePath } from 'next/cache';
 import type { Wishlist, WishlistItem } from '@/types/wishlist';
+import { toDate, nowTimestamp } from '@/lib/utils/time';
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -54,12 +55,16 @@ export async function getUserWishlistsAction(userId: string): Promise<ActionResu
       .orderBy('createdAt', 'desc')
       .get();
 
-    const wishlists = wishlistsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate() || new Date(),
-      updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-    })) as Wishlist[];
+    const wishlists = wishlistsSnapshot.docs.map((doc) => {
+      const data = doc.data();
+      
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: toDate(data.createdAt).toISOString(), // ✅ FIXED
+        updatedAt: toDate(data.updatedAt).toISOString(), // ✅ FIXED
+      } as Wishlist;
+    });
 
     return { success: true, data: wishlists };
   } catch (error) {
@@ -82,11 +87,13 @@ export async function getWishlistByIdAction(wishlistId: string): Promise<ActionR
       return { success: false, error: 'Wishlist niet gevonden' };
     }
 
+    const data = doc.data();
+    
     const wishlist = {
       id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data()?.createdAt?.toDate() || new Date(),
-      updatedAt: doc.data()?.updatedAt?.toDate() || new Date(),
+      ...data,
+      createdAt: toDate(data?.createdAt).toISOString(), // ✅ FIXED
+      updatedAt: toDate(data?.updatedAt).toISOString(), // ✅ FIXED
     } as Wishlist;
 
     return { success: true, data: wishlist };
@@ -115,11 +122,13 @@ export async function getWishlistBySlugAction(slug: string): Promise<ActionResul
     }
 
     const doc = snapshot.docs[0];
+    const data = doc.data();
+    
     const wishlist = {
       id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data()?.createdAt?.toDate() || new Date(),
-      updatedAt: doc.data()?.updatedAt?.toDate() || new Date(),
+      ...data,
+      createdAt: toDate(data?.createdAt).toISOString(), // ✅ FIXED
+      updatedAt: toDate(data?.updatedAt).toISOString(), // ✅ FIXED
     } as Wishlist;
 
     return { success: true, data: wishlist };
@@ -204,8 +213,8 @@ export async function createWishlistAction(
       maxPrice: data.maxPrice || 0,
       items: [],
       sharedWith: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: nowTimestamp(), // ✅ Already correct
+      updatedAt: nowTimestamp(), // ✅ Already correct
     };
 
     const docRef = await adminDb.collection('wishlists').add(wishlistData);
@@ -233,7 +242,7 @@ export async function updateWishlistAction(
   try {
     const updateData: any = {
       ...updates,
-      updatedAt: new Date().toISOString(),
+      updatedAt: nowTimestamp(), // ✅ Already correct
     };
 
     await adminDb.collection('wishlists').doc(wishlistId).update(updateData);
@@ -309,21 +318,21 @@ export async function addItemToWishlistAction(
       title: item.title || '',
       description: item.description || '',
       url: item.url || '',
-      imageUrl: item.imageUrl || (item as any).image || '', // ✅ Support both imageUrl and image
+      imageUrl: item.imageUrl || (item as any).image || '',
       price: item.price || 0,
       quantity: item.quantity || 1,
       isReserved: false,
       source: item.source || 'Internal',
       platforms: item.platforms || {},
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: nowTimestamp(), // ✅ Already correct
+      updatedAt: nowTimestamp(), // ✅ Already correct
     };
 
     items.push(newItem);
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
       items,
-      updatedAt: new Date().toISOString(),
+      updatedAt: nowTimestamp(), // ✅ Already correct
     });
 
     const slug = wishlistData?.slug;
@@ -381,12 +390,12 @@ export async function updateWishlistItemAction({
     items[itemIndex] = {
       ...items[itemIndex],
       ...updates,
-      updatedAt: new Date().toISOString(),
+      updatedAt: nowTimestamp(), // ✅ Already correct
     };
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
       items,
-      updatedAt: new Date().toISOString(),
+      updatedAt: nowTimestamp(), // ✅ Already correct
     });
 
     const slug = wishlistData?.slug;
@@ -428,7 +437,7 @@ export async function deleteWishlistItemAction(
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
       items: filteredItems,
-      updatedAt: new Date().toISOString(),
+      updatedAt: nowTimestamp(), // ✅ Already correct
     });
 
     const slug = wishlistData?.slug;
@@ -497,13 +506,13 @@ export async function reserveItemAction(
       isReserved: true,
       reservedBy: userId,
       reservedByName: userName,
-      reservedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      reservedAt: nowTimestamp(), // ✅ Already correct
+      updatedAt: nowTimestamp(), // ✅ Already correct
     };
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
       items,
-      updatedAt: new Date().toISOString(),
+      updatedAt: nowTimestamp(), // ✅ Already correct
     });
 
     const slug = wishlistData?.slug;
@@ -553,12 +562,12 @@ export async function unreserveItemAction(
       reservedBy: null,
       reservedByName: null,
       reservedAt: null,
-      updatedAt: new Date().toISOString(),
+      updatedAt: nowTimestamp(), // ✅ Already correct
     };
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
       items,
-      updatedAt: new Date().toISOString(),
+      updatedAt: nowTimestamp(), // ✅ Already correct
     });
 
     const slug = wishlistData?.slug;
@@ -606,7 +615,7 @@ export async function shareWishlistAction(
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
       sharedWith,
-      updatedAt: new Date().toISOString(),
+      updatedAt: nowTimestamp(), // ✅ Already correct
     });
 
     const slug = wishlistData?.slug;
@@ -646,7 +655,7 @@ export async function unshareWishlistAction(
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
       sharedWith: filteredSharedWith,
-      updatedAt: new Date().toISOString(),
+      updatedAt: nowTimestamp(), // ✅ Already correct
     });
 
     const slug = wishlistData?.slug;
@@ -679,7 +688,7 @@ export async function updateWishlistBackgroundAction(
   try {
     await adminDb.collection('wishlists').doc(wishlistId).update({
       backgroundImage,
-      updatedAt: new Date().toISOString(),
+      updatedAt: nowTimestamp(), // ✅ Already correct
     });
 
     const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
@@ -736,7 +745,7 @@ export async function getBackgroundCategoriesAction(): Promise<ActionResult<any[
       }))
       .filter((cat: any) => cat.type === 'wishlist');
 
-    return { success: true, data: categories }; // ✅ Removed duplicate 'categories'
+    return { success: true, data: categories };
   } catch (error) {
     console.error('getBackgroundCategoriesAction error:', error);
     return {
