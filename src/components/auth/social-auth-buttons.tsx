@@ -88,27 +88,13 @@ export function SocialAuthButtons() {
 
   return (
     <div className="grid grid-cols-2 gap-3">
-      <Button
-        type="button"
-        variant="outline"
-        onClick={handleGoogleLogin}
-        disabled={!!isLoading}
-        className="w-full"
-      >
-        {isLoading === 'google' ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <FcGoogle className="mr-2 h-5 w-5" />
-        )}
-        Google
-      </Button>
-
+      {/* ✅ GROENE BORDER - exact als productie */}
       <Button
         type="button"
         variant="outline"
         onClick={handleAppleLogin}
         disabled={!!isLoading}
-        className="w-full"
+        className="w-full bg-white border-[#6B8E23] hover:bg-gray-50"
       >
         {isLoading === 'apple' ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -116,6 +102,21 @@ export function SocialAuthButtons() {
           <FaApple className="mr-2 h-5 w-5" />
         )}
         Apple
+      </Button>
+
+      <Button
+        type="button"
+        variant="outline"
+        onClick={handleGoogleLogin}
+        disabled={!!isLoading}
+        className="w-full bg-white border-[#6B8E23] hover:bg-gray-50"
+      >
+        {isLoading === 'google' ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <FcGoogle className="mr-2 h-5 w-5" />
+        )}
+        Google
       </Button>
     </div>
   );

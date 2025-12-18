@@ -147,15 +147,20 @@ export async function getWishlistBySlugAction(slug: string): Promise<ActionResul
 export async function getWishlistOwnerAction(ownerId: string): Promise<ActionResult<any>> {
   try {
     // Try users first
-    const userSnapshot = await adminDb
-      .collection('users')
-      .where('id', '==', ownerId)
-      .limit(1)
-      .get();
+    const userDoc = await adminDb
+  .collection('users')
+  .doc(ownerId)  // ✅ Direct ophalen met document ID
+  .get();
 
-    if (!userSnapshot.empty) {
-      return { success: true, data: userSnapshot.docs[0].data() };
-    }
+if (userDoc.exists) {
+  return { 
+    success: true, 
+    data: { 
+      id: userDoc.id,  // ✅ ID mee teruggeven
+      ...userDoc.data() 
+    } 
+  };
+}
 
     // Try profiles
     const profileSnapshot = await adminDb
@@ -751,6 +756,61 @@ export async function getBackgroundCategoriesAction(): Promise<ActionResult<any[
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Kon categorieën niet ophalen',
+    };
+  }
+}
+
+// ============================================================================
+// DASHBOARD STATS (voor dashboard overview)
+// ============================================================================
+
+export type WishlistStats = {
+  total: number;
+  public: number;
+  private: number;
+};
+
+/**
+ * ✅ Haalt wishlist statistieken op voor een specifieke user of profile
+ * Gebruikt voor dashboard overview cards
+ */
+export async function getWishlistStatsForUser(
+  userId: string,
+  isProfile: boolean = false
+): Promise<WishlistStats> {
+  try {
+    const wishlistsRef = adminDb.collection('wishlists');
+    
+    // Query afhankelijk van of het een profile of user is
+    const query = isProfile
+      ? wishlistsRef.where('profileId', '==', userId)
+      : wishlistsRef.where('userId', '==', userId).where('profileId', '==', null);
+
+    const snapshot = await query.get();
+    
+    let publicCount = 0;
+    let privateCount = 0;
+
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      if (data.isPrivate || !data.isPublic) {
+        privateCount++;
+      } else {
+        publicCount++;
+      }
+    });
+
+    return {
+      total: snapshot.size,
+      public: publicCount,
+      private: privateCount,
+    };
+  } catch (error) {
+    console.error('Error fetching wishlist stats:', error);
+    return {
+      total: 0,
+      public: 0,
+      private: 0,
     };
   }
 }

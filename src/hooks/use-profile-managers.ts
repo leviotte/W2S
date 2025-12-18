@@ -1,3 +1,4 @@
+// src/hooks/use-profile-managers.ts
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
@@ -26,7 +27,7 @@ export function useProfileManagers(profileId: string) {
     if (!profileId) {
         setIsLoading(false);
         return;
-    };
+    }
     const fetchManagers = async () => {
       setIsLoading(true);
       const initialManagers = await getManagersForProfile(profileId);
@@ -47,16 +48,13 @@ export function useProfileManagers(profileId: string) {
       setIsSearching(true);
       const result = await searchUsersAction(debouncedSearchQuery);
       
-      // CORRECTIE: Eerst controleren op 'success'
       if (result.success) {
-        // Filter gebruikers die al manager zijn of de huidige gebruiker
         const existingManagerIds = new Set(managers.map(m => m.id));
-        existingManagerIds.add(profileId); // Voeg de profieleigenaar zelf toe
+        existingManagerIds.add(profileId);
         
         const filteredData = result.data?.filter(user => !existingManagerIds.has(user.id)) || [];
         setSearchResults(filteredData);
       } else {
-        // In deze 'else'-blok weet TypeScript dat 'result.error' MOET bestaan.
         toast.error(result.error || 'Fout bij het zoeken naar gebruikers.');
       }
       setIsSearching(false);
@@ -67,7 +65,6 @@ export function useProfileManagers(profileId: string) {
 
   const addManager = (user: UserProfile) => {
     startMutation(async () => {
-      // Optimistic update
       setManagers((prev) => [...prev, user]);
       setSearchQuery('');
       setSearchResults((prev) => prev.filter(u => u.id !== user.id));
@@ -75,7 +72,6 @@ export function useProfileManagers(profileId: string) {
       const result = await addManagerAction(profileId, user.id);
       if (!result.success) {
         toast.error(result.error);
-        // Rollback
         setManagers((prev) => prev.filter((m) => m.id !== user.id));
       } else {
         toast.success(`${user.displayName} is nu een beheerder.`);
@@ -88,14 +84,15 @@ export function useProfileManagers(profileId: string) {
     if (!managerToRemove) return;
     
     startMutation(async () => {
-      // Optimistic update
       setManagers((prev) => prev.filter((m) => m.id !== managerId));
       
       const result = await removeManagerAction(profileId, managerId);
       if (!result.success) {
         toast.error(result.error);
-        // Rollback
-        setManagers((prev) => [...prev, managerToRemove].sort((a,b) => a.displayName.localeCompare(b.displayName)));
+        // ✅ FIXED: null check voor displayName
+        setManagers((prev) => [...prev, managerToRemove].sort((a, b) => 
+          (a.displayName || '').localeCompare(b.displayName || '')
+        ));
       } else {
         toast.success(`${managerToRemove.displayName} is geen beheerder meer.`);
       }

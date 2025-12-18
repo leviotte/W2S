@@ -1,3 +1,4 @@
+// src/lib/utils/followActions.ts
 import { doc, collection, setDoc, deleteDoc, onSnapshot, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/client/firebase";
 

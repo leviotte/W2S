@@ -1,63 +1,45 @@
-// src/app/dashboard/add-profile/page.tsx
-'use client'; // Dit bestand bevat formulierinteractie
+// src/app/dashboard/page.tsx
+import { getCurrentUser } from "@/lib/auth/actions";
+import { redirect } from "next/navigation";
+import { DashboardClientWrapper } from "@/components/dashboard/dashboard-client-wrapper";
+import { getEventStatsForUser, getWishlistStatsForUser, getFollowStatsForUser } from "@/lib/server/data/dashboard-stats";
 
-import { useEffect } from 'react';
-import { useFormState } from 'react-dom';
-import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
-
-import { addProfile, type AddProfileFormState } from './actions';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { SubmitButton } from '@/components/ui/submit-button';
-
-const initialState: AddProfileFormState = {
-  success: false,
-  message: "",
+export const metadata = {
+  title: "Dashboard | Wish2Share",
+  description: "Jouw persoonlijk dashboard",
 };
 
-export default function AddProfilePage() {
-  const router = useRouter();
-  const [state, formAction] = useFormState(addProfile, initialState);
+export default async function DashboardPage() {
+  const user = await getCurrentUser();
 
-  useEffect(() => {
-    if (state.success) {
-      toast.success("Succes!", { description: state.message });
-      // Stuur gebruiker terug naar het dashboard waar ze het nieuwe profiel kunnen zien
-      router.push('/dashboard'); 
-    } else if (state.message && state.message !== "") {
-      toast.error("Fout", { description: state.message });
-    }
-  }, [state, router]);
+  if (!user) {
+    redirect("/?auth=login");
+  }
+
+  // Fetch initial stats server-side
+  const [eventStats, wishlistStats, followStats] = await Promise.all([
+    getEventStatsForUser(user.id),
+    getWishlistStatsForUser(user.id),
+    getFollowStatsForUser(user.id),
+  ]);
+
+  const profileName = user.firstName || user.displayName || "User";
 
   return (
-    <div className="container mx-auto max-w-xl p-4 sm:p-8">
-      <form action={formAction}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Nieuw Profiel Toevoegen</CardTitle>
-            <CardDescription>
-              Maak een sub-profiel aan dat je kunt beheren. Dit is handig voor familieleden zonder eigen account.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">Voornaam</Label>
-              <Input id="firstName" name="firstName" placeholder="Jan" required />
-              {state.errors?.firstName && <p className="text-sm text-destructive">{state.errors.firstName}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Achternaam</Label>
-              <Input id="lastName" name="lastName" placeholder="Peeters" required />
-               {state.errors?.lastName && <p className="text-sm text-destructive">{state.errors.lastName}</p>}
-            </div>
-          </CardContent>
-          <CardFooter>
-            <SubmitButton>Profiel Aanmaken</SubmitButton>
-          </CardFooter>
-        </Card>
-      </form>
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
+      {/* Dashboard Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-accent mb-2">
+          {profileName}'s Dashboard
+        </h1>
+      </div>
+
+      {/* Stats Cards */}
+      <DashboardClientWrapper
+        initialEvents={eventStats}
+        initialWishlists={wishlistStats}
+        initialFollows={followStats}
+      />
     </div>
   );
 }

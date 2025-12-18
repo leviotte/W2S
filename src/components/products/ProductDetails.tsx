@@ -1,66 +1,39 @@
+// src/components/products/ProductDetails.tsx
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
 import DOMPurify from "dompurify";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/client/firebase";
-import { X } from "lucide-react";
+import { X, Heart } from "lucide-react";
 import { Button } from '@/components/ui/button';
+import type { Product, ProductWithInclusion, PlatformSpecificData } from '@/types/product';
 
-interface Platform {
-  URL: string;
-  Price: number;
-  Source: string;
-}
-
-interface Product {
-  id?: string;
-  ID?: string;
-  title: string;
-  description?: string;
-  imageUrl?: string;
-  ImageURL?: string;
-  ean?: string;
-  url?: string;
-  URL?: string;
-  price?: number;
-  Price?: number;
-  source?: string;
-  Source?: string;
-  platforms?: Record<string, Platform>;
-  isIncluded?: boolean;
-}
-
-interface ProductDetailCardProps {
-  product: Product;
+interface ProductDetailsProps {
+  product: ProductWithInclusion;
   setModal: (val: boolean) => void;
-  setActiveProduct: (product: Product | null) => void;
-  removeItemFromList?: (product: Product) => void;
+  setActiveProduct: (product: ProductWithInclusion | null) => void;
   addItemToWishlist?: (product: Product) => void;
-  handleDeleteItem?: (id: string) => void;
+  handleDeleteItem?: (id: string | number) => void;
 }
 
 const CHARACTER_LIMIT = 150;
 
-export default function ProductDetailCard({
+export default function ProductDetails({
   product,
   setModal,
   setActiveProduct,
-  removeItemFromList,
   addItemToWishlist,
   handleDeleteItem,
-}: ProductDetailCardProps) {
+}: ProductDetailsProps) {
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState(
     product.platforms ? Object.keys(product.platforms)[0] : null
   );
 
   const title = product.title;
-  const imageUrl = product.imageUrl || product.ImageURL;
+  const imageUrl = product.imageUrl;
   const description = product.description || "";
-  const price = product.price ?? product.Price;
-  const url = product.url || product.URL;
-  const source = product.source || product.Source;
 
   const platforms = product.platforms ? Object.keys(product.platforms) : [];
   const hasMultiplePlatforms = platforms.length > 1;
@@ -70,23 +43,27 @@ export default function ProductDetailCard({
       return product.platforms[selectedPlatform];
     }
     return {
-      URL: url || "#",
-      Price: price || 0,
-      Source: source || "unknown",
+      URL: product.url || "#",
+      Price: product.price || 0,
+      Source: product.source || "unknown",
     };
-  }, [product, selectedPlatform, url, price, source]);
+  }, [product, selectedPlatform]);
 
   const toggleDescription = () => setShowFullDescription((prev) => !prev);
 
   const onDeleteClick = useCallback(() => {
-    const idToDelete = product.id || product.ID;
-    if (idToDelete && handleDeleteItem) {
-      handleDeleteItem(idToDelete);
+    if (handleDeleteItem) {
+      handleDeleteItem(product.id);
     }
-    if (removeItemFromList) {
-      removeItemFromList(product);
+  }, [product.id, handleDeleteItem]);
+
+  const onAddClick = useCallback(() => {
+    if (addItemToWishlist) {
+      // ✅ Stuur alleen de base Product properties (zonder isIncluded)
+      const { isIncluded, ...baseProduct } = product;
+      addItemToWishlist(baseProduct as Product);
     }
-  }, [product, handleDeleteItem, removeItemFromList]);
+  }, [product, addItemToWishlist]);
 
   const getShopImage = useCallback((source: string | null) => {
     if (!source) return "/logos/bol.png";
@@ -99,7 +76,7 @@ export default function ProductDetailCard({
     async (platformName: string | null) => {
       try {
         await addDoc(collection(db, "clicks"), {
-          productId: product.id || product.ID,
+          productId: product.id,
           source: platformName?.toUpperCase() || "UNKNOWN",
           title: product.title,
           timestamp: serverTimestamp(),
@@ -111,29 +88,36 @@ export default function ProductDetailCard({
     [product]
   );
 
+  const handleClose = () => {
+    setActiveProduct(null);
+    setModal(false);
+  };
+
   return (
     <div
-      onClick={() => setModal(false)}
+      onClick={handleClose}
       className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
     >
       <div
         onClick={(e) => e.stopPropagation()}
         className="bg-white relative rounded-lg shadow-xl flex flex-col md:flex-row w-full max-w-4xl max-h-[90vh] overflow-hidden"
       >
+        {/* Close button */}
         <button
-          onClick={() => setModal(false)}
+          onClick={handleClose}
           className="absolute top-2 right-2 z-20 text-gray-400 hover:text-gray-600 transition-colors"
           aria-label="Sluit productdetails"
         >
           <X size={28} />
         </button>
 
-        <div className="md:w-1/2 p-8 flex items-center justify-center bg-gray-100">
+        {/* Image Section */}
+        <div className="md:w-1/2 p-8 flex items-center justify-center bg-gray-50">
           {imageUrl ? (
             <img
               src={imageUrl}
               alt={title}
-              className="max-w-full max-h-full object-contain"
+              className="max-w-full max-h-[400px] object-contain"
             />
           ) : (
             <div className="text-gray-400 text-center">
@@ -142,6 +126,7 @@ export default function ProductDetailCard({
           )}
         </div>
 
+        {/* Details Section */}
         <div className="md:w-1/2 p-6 flex flex-col overflow-y-auto">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">{title}</h1>
 
@@ -149,6 +134,7 @@ export default function ProductDetailCard({
             <p className="text-xs text-gray-500 mb-4">EAN: {product.ean}</p>
           )}
 
+          {/* Platform Selection */}
           {hasMultiplePlatforms && (
             <div className="mb-4">
               <p className="text-sm font-medium mb-2 text-gray-600">
@@ -172,6 +158,7 @@ export default function ProductDetailCard({
             </div>
           )}
 
+          {/* Price Link */}
           <a
             href={currentPlatform.URL}
             target="_blank"
@@ -193,6 +180,37 @@ export default function ProductDetailCard({
             </div>
           </a>
 
+          {/* Price Comparison */}
+          {hasMultiplePlatforms && product.platforms && (
+            <div className="mb-4 p-3 bg-gray-50 rounded-md">
+              <p className="text-sm font-medium mb-2 text-gray-600">
+                Prijsvergelijking:
+              </p>
+              <div className="space-y-1">
+                {platforms.map((platform) => (
+                  <div key={platform} className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600">{platform.toUpperCase()}</span>
+                    <span className="font-medium">
+                      €{product.platforms![platform].Price?.toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {platforms.length > 1 && (
+                <div className="mt-2 pt-2 border-t border-gray-200">
+                  <p className="text-xs text-[#606c38] font-medium">
+                    Bespaar tot €
+                    {Math.abs(
+                      Math.max(...platforms.map(p => product.platforms![p].Price)) -
+                      Math.min(...platforms.map(p => product.platforms![p].Price))
+                    ).toFixed(2)} door te vergelijken!
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Description */}
           {description && (
             <div className="prose prose-sm max-w-none text-gray-600 mb-4">
               {description.length > CHARACTER_LIMIT && !showFullDescription ? (
@@ -200,7 +218,7 @@ export default function ProductDetailCard({
                   <p>{description.substring(0, CHARACTER_LIMIT)}...</p>
                   <button
                     onClick={toggleDescription}
-                    className="text-blue-600 font-semibold text-sm hover:underline"
+                    className="text-[#606c38] font-semibold text-sm hover:underline mt-2"
                   >
                     Lees meer
                   </button>
@@ -215,7 +233,7 @@ export default function ProductDetailCard({
                   {description.length > CHARACTER_LIMIT && (
                     <button
                       onClick={toggleDescription}
-                      className="text-blue-600 font-semibold text-sm hover:underline"
+                      className="text-[#606c38] font-semibold text-sm hover:underline mt-2"
                     >
                       Toon minder
                     </button>
@@ -225,18 +243,25 @@ export default function ProductDetailCard({
             </div>
           )}
 
+          {/* Action Button */}
           <div className="mt-auto pt-4">
             <Button
               onClick={() => {
                 if (product.isIncluded) {
                   onDeleteClick();
                 } else {
-                  addItemToWishlist?.(product);
+                  onAddClick();
                 }
               }}
-              variant={product.isIncluded ? "destructive" : "default"}
-              className="w-full"
+              className={`w-full ${
+                product.isIncluded 
+                  ? "bg-red-500 hover:bg-red-600" 
+                  : "bg-[#606c38] hover:bg-[#4a5526]"
+              }`}
             >
+              <Heart 
+                className={`mr-2 h-5 w-5 ${product.isIncluded ? "fill-current" : ""}`} 
+              />
               {product.isIncluded
                 ? "Verwijder van wenslijst"
                 : "Voeg toe aan wenslijst"}

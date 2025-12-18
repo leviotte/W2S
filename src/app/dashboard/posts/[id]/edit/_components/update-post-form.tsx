@@ -19,7 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { AffiliateProductSearchDialog } from '@/components/products/affiliate-product-search-dialog';
+import AffiliateProductSearch from '@/components/products/AffiliateProductSearch'; // ✅ FIXED import
 
 interface UpdatePostFormProps {
   post: any;
@@ -45,7 +45,6 @@ export function UpdatePostForm({ post }: UpdatePostFormProps) {
   const [sections, setSections] = useState<Section[]>(post.sections || []);
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
-  const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -76,7 +75,6 @@ export function UpdatePostForm({ post }: UpdatePostFormProps) {
 
   const handleAddProductToSection = (sectionId: string) => {
     setActiveSection(sectionId);
-    setIsSearchDialogOpen(true);
   };
 
   const handleProductSelect = (product: Product) => {
@@ -148,6 +146,9 @@ export function UpdatePostForm({ post }: UpdatePostFormProps) {
       }
     });
   };
+
+  // ✅ Find active section for inline product search
+  const activeSectionData = sections.find(s => s.id === activeSection);
 
   return (
     <>
@@ -268,11 +269,33 @@ export function UpdatePostForm({ post }: UpdatePostFormProps) {
         </div>
       </form>
 
-      <AffiliateProductSearchDialog
-        open={isSearchDialogOpen}
-        onOpenChange={setIsSearchDialogOpen}
-        onProductSelect={handleProductSelect}
-      />
+      {/* ✅ Inline Product Search for Active Section */}
+      {activeSection && activeSectionData && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-auto p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Producten toevoegen</h3>
+              <Button variant="ghost" size="icon" onClick={() => setActiveSection(null)}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <AffiliateProductSearch
+              items={activeSectionData.items.map(p => ({
+                ...p,
+                quantity: 1,
+                isReserved: false,
+                reservedBy: null,
+                claimedBy: null,
+                addedAt: new Date().toISOString(),
+              }))}
+              setItems={(newItems) => {
+                const products = newItems.map(({ quantity, isReserved, reservedBy, claimedBy, addedAt, ...product }) => product as Product);
+                handleUpdateSection(activeSection, 'items', products);
+              }}
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -1,3 +1,4 @@
+// src/lib/utils/product-helpers.ts
 import type { Product } from '@/types/product';
 import type { WishlistItem } from '@/types/wishlist';
 
@@ -55,11 +56,11 @@ export function formatPrice(price: number | string): string {
  * ✅ Get cheapest price across platforms
  */
 export function getCheapestPrice(product: Product): number {
-  if (!product.platforms || product.platforms.length === 0) {
+  if (!product.platforms || Object.keys(product.platforms).length === 0) {
     return product.price;
   }
 
-  const allPrices = [product.price, ...product.platforms.map((p) => p.price)];
+  const allPrices = [product.price, ...Object.values(product.platforms).map((p) => p.Price)];
   return Math.min(...allPrices);
 }
 
@@ -67,7 +68,7 @@ export function getCheapestPrice(product: Product): number {
  * ✅ Check if product has multiple platforms
  */
 export function hasMultipleSources(product: Product): boolean {
-  return !!product.platforms && product.platforms.length > 0;
+  return !!product.platforms && Object.keys(product.platforms).length > 0;
 }
 
 /**
@@ -79,7 +80,7 @@ export function getPriceSavings(product: Product): number | null {
   const cheapest = getCheapestPrice(product);
   const highest = Math.max(
     product.price,
-    ...(product.platforms?.map((p) => p.price) || [])
+    ...(Object.values(product.platforms || {}).map((p) => p.Price))
   );
 
   return highest - cheapest;
@@ -89,7 +90,7 @@ export function getPriceSavings(product: Product): number | null {
  * ✅ Get best platform (cheapest price)
  */
 export function getBestPlatform(product: Product) {
-  if (!product.platforms || product.platforms.length === 0) {
+  if (!product.platforms || Object.keys(product.platforms).length === 0) {
     return {
       source: product.source,
       url: product.url,
@@ -99,10 +100,10 @@ export function getBestPlatform(product: Product) {
 
   const allOptions = [
     { source: product.source, url: product.url, price: product.price },
-    ...product.platforms.map((p) => ({
-      source: p.source,
-      url: p.url,
-      price: p.price,
+    ...Object.entries(product.platforms).map(([name, p]) => ({
+      source: name,
+      url: p.URL,
+      price: p.Price,
     })),
   ];
 

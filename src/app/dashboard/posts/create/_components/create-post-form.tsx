@@ -1,4 +1,4 @@
-// src/app/create-post/_components/create-post-form.tsx
+// src/app/dashboard/posts/create/_components/create-post-form.tsx
 'use client';
 
 import { useState, useTransition } from 'react';
@@ -36,21 +36,21 @@ const quillModules = {
   toolbar: [
     [{ header: [1, 2, 3, false] }],
     ['bold', 'italic', 'underline', 'strike'],
-    [{ list: 'ordered' }, { list: 'bullet' }],
+    [{ list: 'ordered' }, { list: 'bullet' }], // ✅ Toolbar config: OK
     [{ color: [] }, { background: [] }],
     ['link', 'image'],
     ['clean'],
   ],
 };
 
+// ✅ FIXED: Verwijder 'bullet' uit formats
 const quillFormats = [
   'header',
   'bold',
   'italic',
   'underline',
   'strike',
-  'list',
-  'bullet',
+  'list',        // ✅ Dit handelt zowel ordered als bullet af
   'color',
   'background',
   'link',
@@ -196,10 +196,11 @@ export function CreatePostForm() {
 
       if (result.success) {
         toast.success('Post succesvol aangemaakt! 🎉');
-      if (result.data?.id)
-        router.push(`/post/${result.data.id}`);
+        if (result.data?.id) {
+          router.push(`/blog/${result.data.id}`);
+        }
       } else {
-        toast.error(result.error);
+        toast.error(result.error || 'Er is een fout opgetreden');
       }
     });
   };
@@ -406,9 +407,7 @@ export function CreatePostForm() {
                 Bezig met publiceren...
               </>
             ) : (
-              <>
-                Post Publiceren
-              </>
+              'Post Publiceren'
             )}
           </Button>
         </div>

@@ -1,150 +1,173 @@
+// src/app/dashboard/page.tsx
 import { getCurrentUser } from '@/lib/auth/actions';
 import { redirect } from 'next/navigation';
+import { getEventCountsAction } from '@/lib/server/actions/event-actions';
+import { getWishlistStatsForUser } from '@/lib/server/actions/wishlist-actions';
+import { getFollowCountsAction, getFollowersAction, getFollowingAction } from '@/lib/server/actions/follow-actions';
+import DashEventCards from '@/components/dashboard/dash-event-cards';
+import FollowersFollowingCards from '@/components/followers/followers-following-cards';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { UserAvatar } from '@/components/shared/user-avatar';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { 
-  Calendar,
-  Gift,
-  Users,
-  Settings,
-  Sparkles
-} from 'lucide-react';
 
 export const metadata = {
   title: 'Dashboard | Wish2Share',
   description: 'Jouw persoonlijk dashboard',
 };
 
-export default async function DashboardPage() {
+interface Props {
+  searchParams: { tab?: string; subTab?: string };
+}
+
+export default async function DashboardPage({ searchParams }: Props) {
   const user = await getCurrentUser();
 
   if (!user) {
     redirect('/?auth=login');
   }
 
-  const quickActions = [
-    {
-      title: 'Maak een Event',
-      description: 'Organiseer een verjaardag, feest of ander evenement',
-      icon: Calendar,
-      // FIX 1: Het pad gecorrigeerd naar de juiste locatie.
-      href: '/dashboard/events/create',
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
-    },
-    {
-      title: 'Maak een Wishlist',
-      description: 'Deel je wensen met vrienden en familie',
-      icon: Gift,
-      href: '/dashboard/wishlists/create',
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-    },
-    {
-      title: 'Zoek Vrienden',
-      description: 'Vind en volg vrienden op Wish2Share',
-      icon: Users,
-      href: '/search',
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
-    },
-    {
-      title: 'Instellingen',
-      description: 'Beheer je profiel en voorkeuren',
-      icon: Settings,
-      href: '/dashboard/settings',
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50',
-    },
-  ];
+  const { tab, subTab } = searchParams;
+
+  // TODO: Implementeer activeProfile logic (uit cookies of session)
+  // Voor nu gebruiken we gewoon de main account
+  const activeProfileId = 'main-account';
+  const isProfile = activeProfileId !== 'main-account';
+  const userId = isProfile ? activeProfileId : user.id;
+  const profileName = isProfile ? 'Profile' : user.firstName || user.displayName;
+
+  // ========================================================================
+  // FOLLOWERS TAB
+  // ========================================================================
+  if (tab === 'user' && subTab === 'followers') {
+    const result = await getFollowersAction(userId);
+    
+    if (!result.success) {
+      return <div className="container p-4">Error: {result.error}</div>;
+    }
+
+    return (
+      <div className="container max-w-2xl mx-auto p-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Volgers</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {result.data.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                Niet followers gevonden.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {result.data.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={`/profile/${item.username || item.id}`}
+                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted transition-colors"
+                  >
+                    <UserAvatar
+                      photoURL={item.photoURL}
+                      name={item.displayName}
+                      className="h-12 w-12"
+                    />
+                    <div className="flex-1">
+                      <p className="font-medium">{item.displayName}</p>
+                      {item.address?.city && (
+                        <p className="text-sm text-muted-foreground">
+                          {item.address.city}
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ========================================================================
+  // FOLLOWING TAB
+  // ========================================================================
+  if (tab === 'user' && subTab === 'following') {
+    const result = await getFollowingAction(userId);
+    
+    if (!result.success) {
+      return <div className="container p-4">Error: {result.error}</div>;
+    }
+
+    return (
+      <div className="container max-w-2xl mx-auto p-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Volgend</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {result.data.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                Niet volgend gevonden.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {result.data.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={`/profile/${item.username || item.id}`}
+                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted transition-colors"
+                  >
+                    <UserAvatar
+                      photoURL={item.photoURL}
+                      name={item.displayName}
+                      className="h-12 w-12"
+                    />
+                    <div className="flex-1">
+                      <p className="font-medium">{item.displayName}</p>
+                      {item.address?.city && (
+                        <p className="text-sm text-muted-foreground">
+                          {item.address.city}
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ========================================================================
+  // DEFAULT DASHBOARD (JOUW BESTAANDE CODE)
+  // ========================================================================
+  // Haal alle stats op parallel
+  const [eventStats, wishlistStats, followCounts] = await Promise.all([
+    getEventCountsAction(userId),
+    getWishlistStatsForUser(userId, isProfile),
+    getFollowCountsAction(userId),
+  ]);
+
+  const followStats = followCounts.success
+    ? {
+        followers: followCounts.data.followersCount,
+        following: followCounts.data.followingCount,
+      }
+    : { followers: 0, following: 0 };
 
   return (
-    <div className="space-y-8">
-      {/* Welcome Header */}
-      <div className="space-y-2">
-        <h1 className="text-4xl font-bold tracking-tight">
-          Welkom terug, {user.firstName || user.displayName}! 👋
-        </h1>
-        <p className="text-muted-foreground text-lg">
-          Wat wil je vandaag doen?
-        </p>
-      </div>
+    <div className="container max-w-6xl mx-auto p-4 sm:p-6">
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">
+        {profileName}'s Dashboard
+      </h1>
 
-      {/* Quick Actions */}
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">Snelle Acties</h2>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {quickActions.map((action) => {
-            const Icon = action.icon;
-            return (
-              <Link key={action.href} href={action.href}>
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
-                  <CardHeader>
-                    <div className={`w-12 h-12 rounded-lg ${action.bgColor} flex items-center justify-center mb-2`}>
-                      <Icon className={`h-6 w-6 ${action.color}`} />
-                    </div>
-                    <CardTitle className="text-lg">{action.title}</CardTitle>
-                    <CardDescription className="text-sm">{action.description}</CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
+      <DashEventCards events={eventStats} wishlists={wishlistStats} />
 
-      {/* Recent Activity */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Aankomende Events
-            </CardTitle>
-            <CardDescription>Je aankomende evenementen</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              {/* FIX 2: Ook deze link gecorrigeerd. */}
-              Geen aankomende events. <Link href="/dashboard/events/create" className="text-primary hover:underline">Maak er één aan!</Link>
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Gift className="h-5 w-5" />
-              Jouw Wishlists
-            </CardTitle>
-            <CardDescription>Beheer je wenslijsten</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/dashboard/wishlists">Bekijk alle wishlists →</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tips */}
-      <Card className="border-primary/20 bg-primary/5">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            Tip van de dag
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm">
-            Wist je dat je meerdere profielen kunt aanmaken? Perfect voor kinderen of huisdieren! 
-            <Link href="/dashboard/settings" className="text-primary hover:underline ml-1">
-              Probeer het nu →
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
+      <FollowersFollowingCards
+        followersCount={followStats.followers}
+        followingCount={followStats.following}
+      />
     </div>
   );
 }

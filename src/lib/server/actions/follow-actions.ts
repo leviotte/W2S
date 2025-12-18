@@ -1,3 +1,4 @@
+// src/lib/server/actions/follow-actions.ts
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -9,7 +10,102 @@ type ActionResult<T> =
   | { success: false; error: string };
 
 // ============================================================================
-// GET FOLLOWERS
+// FOLLOW USER OR PROFILE (NIEUWE FUNCTIE - MERGED UIT OUDE CODE)
+// ============================================================================
+
+export async function followUserOrProfileAction(
+  currentUserUid: string,
+  followTargetId: string,
+  isTargetProfile: boolean,
+  isCurrentUserProfile: boolean
+): Promise<ActionResult<void>> {
+  try {
+    const currentUserType = isCurrentUserProfile ? 'profiles' : 'users';
+    const targetType = isTargetProfile ? 'profiles' : 'users';
+
+    const batch = adminDb.batch();
+
+    // Add to current user's following
+    const followingRef = adminDb
+      .collection(currentUserType)
+      .doc(currentUserUid)
+      .collection('following')
+      .doc(followTargetId);
+
+    // Add to target's followers
+    const followerRef = adminDb
+      .collection(targetType)
+      .doc(followTargetId)
+      .collection('followers')
+      .doc(currentUserUid);
+
+    batch.set(followingRef, {
+      createdAt: new Date().toISOString(),
+      type: targetType,
+    });
+
+    batch.set(followerRef, {
+      createdAt: new Date().toISOString(),
+      type: currentUserType,
+    });
+
+    await batch.commit();
+
+    revalidatePath('/profile');
+    revalidatePath('/search');
+    
+    return { success: true, data: undefined };
+  } catch (error) {
+    console.error('Error following user or profile:', error);
+    return { success: false, error: 'Kon niet volgen' };
+  }
+}
+
+// ============================================================================
+// UNFOLLOW USER OR PROFILE (NIEUWE FUNCTIE - MERGED UIT OUDE CODE)
+// ============================================================================
+
+export async function unfollowUserOrProfileAction(
+  currentUserUid: string,
+  followTargetId: string,
+  isTargetProfile: boolean,
+  isCurrentUserProfile: boolean
+): Promise<ActionResult<void>> {
+  try {
+    const currentUserType = isCurrentUserProfile ? 'profiles' : 'users';
+    const targetType = isTargetProfile ? 'profiles' : 'users';
+
+    const batch = adminDb.batch();
+
+    const followingRef = adminDb
+      .collection(currentUserType)
+      .doc(currentUserUid)
+      .collection('following')
+      .doc(followTargetId);
+
+    const followerRef = adminDb
+      .collection(targetType)
+      .doc(followTargetId)
+      .collection('followers')
+      .doc(currentUserUid);
+
+    batch.delete(followingRef);
+    batch.delete(followerRef);
+
+    await batch.commit();
+
+    revalidatePath('/profile');
+    revalidatePath('/search');
+    
+    return { success: true, data: undefined };
+  } catch (error) {
+    console.error('Error unfollowing user or profile:', error);
+    return { success: false, error: 'Kon niet ontvolgen' };
+  }
+}
+
+// ============================================================================
+// GET FOLLOWERS (BESTAAND - BLIJFT HETZELFDE)
 // ============================================================================
 
 export async function getFollowersAction(userId: string): Promise<ActionResult<UserProfile[]>> {
@@ -37,7 +133,7 @@ export async function getFollowersAction(userId: string): Promise<ActionResult<U
 }
 
 // ============================================================================
-// GET FOLLOWING
+// GET FOLLOWING (BESTAAND - BLIJFT HETZELFDE)
 // ============================================================================
 
 export async function getFollowingAction(userId: string): Promise<ActionResult<UserProfile[]>> {
@@ -65,7 +161,7 @@ export async function getFollowingAction(userId: string): Promise<ActionResult<U
 }
 
 // ============================================================================
-// FOLLOW USER
+// FOLLOW USER (BESTAAND - BLIJFT HETZELFDE)
 // ============================================================================
 
 export async function followUserAction(
@@ -75,14 +171,12 @@ export async function followUserAction(
   try {
     const batch = adminDb.batch();
 
-    // Add to follower's following
     const followingRef = adminDb
       .collection('users')
       .doc(followerId)
       .collection('following')
       .doc(targetId);
 
-    // Add to target's followers
     const followerRef = adminDb
       .collection('users')
       .doc(targetId)
@@ -101,7 +195,7 @@ export async function followUserAction(
 
     await batch.commit();
 
-    revalidatePath(`/profile`);
+    revalidatePath('/profile');
     
     return { success: true, data: undefined };
   } catch (error) {
@@ -111,7 +205,7 @@ export async function followUserAction(
 }
 
 // ============================================================================
-// UNFOLLOW USER
+// UNFOLLOW USER (BESTAAND - BLIJFT HETZELFDE)
 // ============================================================================
 
 export async function unfollowUserAction(
@@ -138,7 +232,7 @@ export async function unfollowUserAction(
 
     await batch.commit();
 
-    revalidatePath(`/profile`);
+    revalidatePath('/profile');
     
     return { success: true, data: undefined };
   } catch (error) {
@@ -148,7 +242,7 @@ export async function unfollowUserAction(
 }
 
 // ============================================================================
-// CHECK IF FOLLOWING
+// CHECK IF FOLLOWING (BESTAAND - BLIJFT HETZELFDE)
 // ============================================================================
 
 export async function isFollowingAction(
@@ -171,7 +265,7 @@ export async function isFollowingAction(
 }
 
 // ============================================================================
-// GET FOLLOW COUNTS
+// GET FOLLOW COUNTS (BESTAAND - BLIJFT HETZELFDE)
 // ============================================================================
 
 export async function getFollowCountsAction(userId: string): Promise<ActionResult<{
@@ -198,7 +292,7 @@ export async function getFollowCountsAction(userId: string): Promise<ActionResul
 }
 
 // ============================================================================
-// GET FOLLOW STATS (voor dashboard)
+// GET FOLLOW STATS (BESTAAND - BLIJFT HETZELFDE)
 // ============================================================================
 
 export async function getFollowStatsAction(userId: string): Promise<{

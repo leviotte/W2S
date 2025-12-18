@@ -14,7 +14,7 @@ export default function TermsAndConditions() {
                 </p>
 
                 <p className="text-gray-700 leading-relaxed mb-6 font-sans font-semibold text-xl">
-                    Welkom bij <a href="http://wish2share.com" className="text-blue-600 hover:underline">Wish2Share.com</a>, een service geleverd door Leliflow ("wij," "ons," "onze"). Door de website te openen of te gebruiken, gaat u akkoord met deze Algemene Voorwaarden ("Voorwaarden") en verplicht u zich deze na te leven. Lees ze zorgvuldig door. Als u niet akkoord gaat met deze Voorwaarden, gebruik de website dan niet.
+                    Welkom bij <a href="http://wish2share.com" className="text-blue-600 hover:underline">Wish2Share.com</a>, een service geleverd door Leliflow. Door de website te openen of te gebruiken, gaat u akkoord met deze Algemene Voorwaarden en verplicht u zich deze na te leven. Lees ze zorgvuldig door. Als u niet akkoord gaat met deze Voorwaarden, gebruik de website dan niet.
                 </p>
 
                 <div className="space-y-8">
@@ -48,7 +48,7 @@ export default function TermsAndConditions() {
                     <section>
                         <h2 className="text-xl font-semibold text-gray-800 mb-2">4. Verlanglijstjes en evenementen</h2>
                         <p className="text-gray-700 leading-relaxed">
-                        Gebruikers kunnen ervoor kiezen om hun verlanglijsten privé of openbaar te maken. Privé-verlanglijsten zijn alleen toegankelijk via links die door de gebruiker worden gedeeld. Openbare verlanglijsten kunnen worden gevonden met de zoekfunctie op de website.
+                        Gebruikers kunnen ervoor kiezen om hun verlanglijsten privé of openbaar te maken. Privé-verlanglijsten zijn alleen toegankelijk via links die door de gebruiker worden gedeeld. Openbare verlanglijsten en profielen kunnen worden gevonden met de zoekfunctie op de website.
                         </p>
                         <p className="text-gray-700 leading-relaxed">
                         Items in verlanglijsten worden ingekocht bij affiliate winkels. Leliflow ontvangt een percentage van de verkoop die wordt gegenereerd via deze affiliate links.
@@ -61,7 +61,7 @@ export default function TermsAndConditions() {
                         Leliflow is niet aansprakelijk voor problemen met betrekking tot de aankoop, retourneren of levering van items die zijn gekocht bij affiliate winkels. Wij adverteren deze items alleen op de website.
                         </p>
                         <p className="text-gray-700 leading-relaxed">
-                        Leliflow is niet verantwoordelijk voor geschillen tussen gebruikers. We kunnen niet ingrijpen in of deze geschillen oplossen.
+                        Leliflow is niet verantwoordelijk voor geschillen tussen gebruikers. We kunnen niet ingrijpen, noch deze geschillen oplossen.
                         </p>
                     </section>
 
@@ -90,14 +90,14 @@ export default function TermsAndConditions() {
                     <section>
                         <h2 className="text-xl font-semibold text-gray-800 mb-2">9. Contact</h2>
                         <p className="text-gray-700 leading-relaxed">
-                        Gebruikers kunnen de sitebeheerder contacteren via een speciaal contactformulier dat beschikbaar is op de website voor vragen of problemen.
+                        Gebruikers kunnen de sitebeheerder contacteren via een speciaal contactformulier dat beschikbaar is op de website voor vragen, suggesties of problemen.
                         </p>
                     </section>
 
                     <section>
                          {/* FIX 3: Structuur verbeterd, <a> tag staat nu binnen de tekst. */}
                         <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                            Door gebruik te maken van <a href="http://wish2share.com" className="text-blue-600 hover:underline">Wish2Share.com</a>, gaat u akkoord met deze Algemene Voorwaarden. Wij behouden ons het recht voor om deze Voorwaarden op elk moment te wijzigen, en dergelijke wijzigingen zijn onmiddellijk van kracht zodra ze op de website zijn geplaatst. Het voortdurende gebruik van de website na wijzigingen geeft aan dat u akkoord gaat met de gewijzigde Voorwaarden.
+                            Door gebruik te maken van <a href="http://wish2share.com" className="text-blue-600 hover:underline">Wish2Share.com</a>, gaat u akkoord met deze Algemene Voorwaarden. Wij behouden ons het recht voor om deze Voorwaarden op elk moment te wijzigen. Dergelijke wijzigingen zijn onmiddellijk van kracht zodra ze op de website zijn geplaatst. Het voortdurende gebruik van de website na wijzigingen geeft aan dat u akkoord gaat met de gewijzigde Voorwaarden.
                         </h2>
                     </section>
 

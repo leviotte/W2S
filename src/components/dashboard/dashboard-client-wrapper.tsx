@@ -1,4 +1,5 @@
-'use client';
+// src/components/dashboard/dashboard-client-wrapper.tsx
+"use client";
 
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';

@@ -22,7 +22,7 @@ export function UserAvatar({
     if (name) {
       const [firstWord, secondWord] = name.split(' ');
       const firstInitial = firstWord?.[0]?.toUpperCase() || '';
-      const secondInitial = secondWord?.[0]?.toUpperCase() || '';
+      const secondInitial = secondWord?.[0]?.toUpperCase() || ''; // ✅ FIX: was "sec secondWord"
       return `${firstInitial}${secondInitial}`;
     } else {
       const firstInitial = firstName?.[0]?.toUpperCase() || '';

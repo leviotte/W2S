@@ -1,4 +1,4 @@
-// src/app/wishlist/[slug]/_components/wishlist-detail-client
+// src/app/wishlist/[slug]/_components/wishlist-detail-client.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Gift, Edit2, Save, Trash2, Plus, X, Image as ImageIcon, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { UserAvatar } from '@/components/shared/user-avatar';
-import { AffiliateProductSearchDialog } from '@/components/products/affiliate-product-search-dialog';
+import AffiliateProductSearch from '@/components/products/AffiliateProductSearch'; // ✅ FIXED import
 import {
   updateWishlistItemAction,
   deleteWishlistItemAction,
@@ -16,8 +16,9 @@ import {
   getBackgroundCategoriesAction,
 } from '@/lib/server/actions/wishlist-actions';
 import type { WishlistItem } from '@/types/wishlist';
-import type { BackgroundImage, BackgroundCategory } from '@/types/background'
+import type { BackgroundImage, BackgroundCategory } from '@/types/background';
 import type { UserProfile } from '@/types/user';
+import type { Product } from '@/types/product';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,7 +59,7 @@ export function WishlistDetailClient({
     price: 0,
   });
   const [showAddForm, setShowAddForm] = useState(false);
-  const [showProductDialog, setShowProductDialog] = useState(false); // ✅ NEW
+  const [showProductDialog, setShowProductDialog] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
@@ -81,11 +82,11 @@ export function WishlistDetailClient({
     ]);
 
     if (categoriesResult.success && categoriesResult.data) {
-      setCategories(categoriesResult.data); // ✅ Use .data instead of .categories
+      setCategories(categoriesResult.data);
     }
 
     if (imagesResult.success && imagesResult.data) {
-      setBackgroundImages(imagesResult.data); // ✅ Use .data instead of .images
+      setBackgroundImages(imagesResult.data);
     }
 
     setIsLoadingBackgrounds(false);
@@ -116,14 +117,14 @@ export function WishlistDetailClient({
 
   // ===== ITEM ACTIONS =====
   const handleEditItem = (item: WishlistItem) => {
-    setEditingItem(String(item.id)); // ✅ Convert to string
+    setEditingItem(String(item.id));
     setEditedItem(item);
   };
 
   const handleSaveItem = async (itemId: string | number) => {
     const result = await updateWishlistItemAction({
       wishlistId: wishlist.id,
-      itemId: String(itemId), // ✅ Convert to string
+      itemId: String(itemId),
       updates: editedItem,
     });
 
@@ -141,7 +142,7 @@ export function WishlistDetailClient({
   };
 
   const confirmDeleteItem = (itemId: string | number) => {
-    setItemToDelete(String(itemId)); // ✅ Convert to string
+    setItemToDelete(String(itemId));
     setIsAlertOpen(true);
   };
 
@@ -165,13 +166,13 @@ export function WishlistDetailClient({
     setItemToDelete(null);
   };
 
-  const addItemToWishlist = async (product: any) => {
+  const addItemToWishlist = async (product: Product) => {
     const result = await addWishlistItemAction(wishlist.id, product);
 
     if (result.success) {
       toast.success('Item toegevoegd');
       router.refresh();
-      setShowAddForm(false);
+      setShowProductDialog(false);
     } else {
       toast.error(result.error || 'Toevoegen mislukt');
     }
@@ -208,14 +209,14 @@ export function WishlistDetailClient({
             <div className="p-4 sm:p-6 shadow-md">
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 {owner && (
-  <UserAvatar
-    photoURL={owner.photoURL || owner.avatarURL}
-    firstName={owner.firstName}
-    lastName={owner.lastName}
-    name={owner.name}
-    size="xl"
-  />
-)}
+                  <UserAvatar
+                    photoURL={owner.photoURL || owner.avatarURL}
+                    firstName={owner.firstName}
+                    lastName={owner.lastName}
+                    name={owner.name}
+                    size="xl"
+                  />
+                )}
                 <div className="flex-grow">
                   <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
                     {wishlist.name}
@@ -259,7 +260,7 @@ export function WishlistDetailClient({
 
                   {wishlist.items?.map((item: WishlistItem) => (
                     <div key={item.id} className="p-3 sm:p-4 bg-white/60 rounded-md">
-                      {editingItem === item.id ? (
+                      {editingItem === String(item.id) ? (
                         // Edit Mode
                         <div className="space-y-4">
                           <div className="flex items-center space-x-4">
@@ -397,15 +398,27 @@ export function WishlistDetailClient({
         )}
 
         {/* Add Items Dialog */}
-        {isOwner && (
-          <AffiliateProductSearchDialog
-            open={showProductDialog}
-            onOpenChange={setShowProductDialog}
-            onProductSelect={async (product) => {
-              await addItemToWishlist(product);
-              setShowProductDialog(false);
-            }}
-          />
+        {isOwner && showProductDialog && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-auto p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Producten toevoegen</h3>
+                <button onClick={() => setShowProductDialog(false)}>
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <AffiliateProductSearch
+                items={wishlist.items || []}
+                setItems={(newItems) => {
+                  newItems.forEach(item => {
+                    const product = item as unknown as Product;
+                    addItemToWishlist(product);
+                  });
+                }}
+                eventBudget={maxPrice}
+              />
+            </div>
+          </div>
         )}
 
         {/* Background Modal */}

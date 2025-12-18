@@ -23,10 +23,9 @@ export const productSourceSchema = z.enum(["Amazon", "Bol.com", "Internal", "dum
 
 // Schema voor platform-specifieke data (prijsvergelijking)
 export const platformSpecificDataSchema = z.object({
-  source: productSourceSchema,
-  url: z.string().url(),
-  price: z.number(),
-  imageUrl: z.string().url().optional(),
+  URL: z.string().url(),
+  Price: z.number(),
+  Source: z.string(),
 });
 
 /**
@@ -34,7 +33,7 @@ export const platformSpecificDataSchema = z.object({
  * Bevat GEEN wishlist-specifieke velden (claimedBy, isReserved, etc.)
  */
 export const productSchema = z.object({
-  id: z.union([z.string(), z.number()]), // ASIN (string) of EAN (number)
+  id: z.union([z.string(), z.number()]), // ✅ VERPLICHT - ASIN (string) of EAN (number)
   source: productSourceSchema,
   title: z.string(),
   url: z.string().url(),
@@ -52,7 +51,7 @@ export const productSchema = z.object({
   tags: z.array(z.string()).optional(),
   
   // Prijsvergelijking over platforms
-  platforms: z.array(platformSpecificDataSchema).optional(),
+  platforms: z.record(z.string(), platformSpecificDataSchema).optional(), // ✅ FIXED: 2 argumenten
   hasMultiplePlatforms: z.boolean().optional(),
 });
 
@@ -65,6 +64,9 @@ export type Product = z.infer<typeof productSchema>;
 export type ProductSource = z.infer<typeof productSourceSchema>;
 export type PlatformSpecificData = z.infer<typeof platformSpecificDataSchema>;
 
+// ✅ Extended type voor UI state (met isIncluded flag)
+export type ProductWithInclusion = Product & { isIncluded?: boolean };
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
@@ -73,30 +75,39 @@ export type PlatformSpecificData = z.infer<typeof platformSpecificDataSchema>;
  * Vindt de goedkoopste prijs over alle platforms
  */
 export function getCheapestPrice(product: Product): number {
-  if (!product.platforms || product.platforms.length === 0) {
+  if (!product.platforms || Object.keys(product.platforms).length === 0) {
     return product.price;
   }
   
-  const prices = [product.price, ...product.platforms.map(p => p.price)];
+  const prices = [product.price, ...Object.values(product.platforms).map(p => p.Price)];
   return Math.min(...prices);
 }
 
 /**
  * Vindt het platform met de laagste prijs
  */
-export function getCheapestPlatform(product: Product): PlatformSpecificData | null {
-  if (!product.platforms || product.platforms.length === 0) {
+export function getCheapestPlatform(product: Product): { name: string; data: PlatformSpecificData } | null {
+  if (!product.platforms || Object.keys(product.platforms).length === 0) {
     return null;
   }
   
-  return product.platforms.reduce((cheapest, current) => 
-    current.price < cheapest.price ? current : cheapest
-  );
+  let cheapest = { 
+    name: Object.keys(product.platforms)[0], 
+    data: Object.values(product.platforms)[0] 
+  };
+  
+  Object.entries(product.platforms).forEach(([name, data]) => {
+    if (data.Price < cheapest.data.Price) {
+      cheapest = { name, data };
+    }
+  });
+  
+  return cheapest;
 }
 
 /**
  * Check of een product op meerdere platforms beschikbaar is
  */
 export function hasMultiplePlatforms(product: Product): boolean {
-  return !!(product.platforms && product.platforms.length > 0);
+  return !!(product.platforms && Object.keys(product.platforms).length > 1);
 }

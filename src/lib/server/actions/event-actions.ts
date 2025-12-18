@@ -20,12 +20,14 @@ type ActionResult<T = void> =
 const DeleteEventSchema = z.string().min(1, "Event ID is verplicht");
 
 // ============================================================================
-// GET EVENT COUNTS (voor dashboard)
+// GET EVENT COUNTS (voor dashboard) - UITGEBREID
 // ============================================================================
 
 export async function getEventCountsAction(userId: string): Promise<{
   upcoming: number;
   past: number;
+  onGoing: number; // Alias voor upcoming (backwards compatibility)
+  all: number;
 }> {
   try {
     const now = new Date();
@@ -49,10 +51,15 @@ export async function getEventCountsAction(userId: string): Promise<{
       }
     });
 
-    return { upcoming, past };
+    return { 
+      upcoming, 
+      past,
+      onGoing: upcoming, // Alias
+      all: eventsSnapshot.size 
+    };
   } catch (error) {
     console.error('Error getting event counts:', error);
-    return { upcoming: 0, past: 0 };
+    return { upcoming: 0, past: 0, onGoing: 0, all: 0 };
   }
 }
 
@@ -137,6 +144,7 @@ export async function deleteEventAction(eventId: string): Promise<ActionResult> 
     revalidatePath('/dashboard/event/past');
     revalidatePath('/dashboard/event/upcoming');
     revalidatePath('/dashboard/info');
+    revalidatePath('/dashboard');
     revalidatePath(`/event/${eventId}`);
 
     return { success: true, data: undefined };
@@ -219,6 +227,7 @@ export async function updateEventAction(
     revalidatePath(`/event/${eventId}`);
     revalidatePath('/dashboard/event/past');
     revalidatePath('/dashboard/event/upcoming');
+    revalidatePath('/dashboard');
 
     return { success: true, data: undefined };
 

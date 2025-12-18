@@ -112,21 +112,8 @@ export function LoginForm({
     <div className="flex flex-col gap-4">
       {/* Header */}
       <div className="flex flex-col items-center text-center gap-1">
-        <h1 className="text-2xl font-bold">Welkom terug</h1>
-        <p className="text-sm text-muted-foreground">Log in op je Wish2Share-account</p>
-      </div>
-
-      {/* Social Login Buttons */}
-      <SocialAuthButtons />
-
-      {/* Divider */}
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">Of met email</span>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Welkom Terug</h1>
+        <p className="text-sm text-gray-600">Log in bij Wish2Share</p>
       </div>
 
       {/* Form */}
@@ -138,14 +125,15 @@ export function LoginForm({
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>E-mailadres</FormLabel>
+                <FormLabel className="text-gray-700">E-mail</FormLabel>
                 <FormControl>
                   <Input 
                     type="email" 
-                    placeholder="leviotte@icloud.com" 
+                    placeholder="naam@voorbeeld.com" 
                     {...field} 
                     autoComplete="email"
                     disabled={isPending}
+                    className="bg-gray-50 border-gray-200 focus:bg-white"
                   />
                 </FormControl>
                 <FormMessage />
@@ -153,13 +141,26 @@ export function LoginForm({
             )}
           />
 
-          {/* Wachtwoord */}
+          {/* Wachtwoord met "Vergeten?" */}
           <FormField
             control={form.control}
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Wachtwoord</FormLabel>
+                {/* ✅ Label met "Vergeten?" rechts - EXACT als productie */}
+                <div className="flex items-center justify-between">
+                  <FormLabel className="text-gray-700">Wachtwoord</FormLabel>
+                  {onSwitchToForgotPassword && (
+                    <button
+                      type="button"
+                      onClick={onSwitchToForgotPassword}
+                      className="text-sm text-[#6B8E23] hover:underline"
+                      disabled={isPending}
+                    >
+                      Vergeten?
+                    </button>
+                  )}
+                </div>
                 <FormControl>
                   <div className="relative">
                     <Input 
@@ -168,7 +169,7 @@ export function LoginForm({
                       {...field} 
                       autoComplete="current-password"
                       disabled={isPending}
-                      className="pr-10"
+                      className="pr-10 bg-gray-50 border-gray-200 focus:bg-white"
                     />
                     <Button
                       type="button"
@@ -180,9 +181,9 @@ export function LoginForm({
                       aria-label={showPassword ? 'Verberg wachtwoord' : 'Toon wachtwoord'}
                     >
                       {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        <EyeOff className="h-4 w-4 text-gray-500" />
                       ) : (
-                        <Eye className="h-4 w-4 text-muted-foreground" />
+                        <Eye className="h-4 w-4 text-gray-500" />
                       )}
                     </Button>
                   </div>
@@ -192,46 +193,58 @@ export function LoginForm({
             )}
           />
 
-          {/* Wachtwoord vergeten */}
-          {onSwitchToForgotPassword && (
-            <div className="flex justify-end -mt-2">
-              <button
-                type="button"
-                onClick={onSwitchToForgotPassword}
-                className="text-sm text-primary hover:underline"
-                disabled={isPending}
-              >
-                Wachtwoord vergeten?
-              </button>
-            </div>
-          )}
-
-          {/* Submit Button */}
+          {/* Login Button */}
           <Button 
             type="submit" 
-            className="w-full mt-2" 
+            className="w-full bg-[#6B8E23] hover:bg-[#5a7a1c] text-white" 
             disabled={isPending}
-            style={{ backgroundColor: '#6B8E23' }}
           >
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Log in
+            Login
           </Button>
         </form>
       </Form>
 
+      {/* ✅ DIVIDER - FIXED! Lijntje stopt bij tekst */}
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-[#6B8E23]" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          {/* ✅ bg-slate-50 zorgt dat tekst NIET doorstreept wordt */}
+          <span className="bg-slate-50 px-2 text-gray-500">of log in met</span>
+        </div>
+      </div>
+
+      {/* Social Login */}
+      <SocialAuthButtons />
+
       {/* Switch to Register */}
       {onSwitchToRegister && (
-        <div className="text-center text-sm">
+        <div className="text-center text-sm text-gray-600">
           Nog geen account?{' '}
           <button 
             onClick={onSwitchToRegister} 
-            className="text-primary font-medium hover:underline"
+            className="text-[#6B8E23] font-medium hover:underline"
             disabled={isPending}
           >
-            Registreer nu
+            Registreer
           </button>
         </div>
       )}
+
+      {/* Footer */}
+      <div className="text-center text-xs text-gray-500">
+        Door in te loggen ga je akkoord met onze{' '}
+        <a 
+          href="/terms-and-conditions" 
+          className="underline hover:text-[#6B8E23]"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          gebruiksvoorwaarden
+        </a>
+      </div>
     </div>
   );
 }

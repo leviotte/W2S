@@ -5,55 +5,72 @@ import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from 'firebase/auth';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 
-import { getClientAuth } from '@/lib/client/firebase';
-import { completeRegistrationAction } from '@/lib/server/actions/auth';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SocialAuthButtons } from './social-auth-buttons';
+import { 
+  Form, 
+  FormControl, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormMessage 
+} from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { getClientAuth, getClientFirestore } from '@/lib/client/firebase';
 
-const registerSchema = z.object({
-  firstName: z.string().min(1, 'Voornaam is verplicht'),
-  lastName: z.string().min(1, 'Achternaam is verplicht'),
-  birthdate: z.string().optional(),
-  gender: z.string().optional(),
+const registerFormSchema = z.object({
+  firstName: z.string().min(1, 'Voornaam is verplicht.'),
+  lastName: z.string().min(1, 'Achternaam is verplicht.'),
+  birthDate: z.string().min(1, 'Geboortedatum is verplicht.'),
+  gender: z.string().min(1, 'Gender is verplicht.'),
   country: z.string().optional(),
   location: z.string().optional(),
-  email: z.string().email('Ongeldig e-mailadres'),
-  password: z.string().min(6, 'Wachtwoord moet minimaal 6 karakters bevatten'),
-  confirmPassword: z.string(),
+  email: z.string().email('Ongeldig e-mailadres.'),
+  password: z.string().min(6, 'Wachtwoord moet minstens 6 tekens bevatten.'),
+  confirmPassword: z.string().min(1, 'Bevestig je wachtwoord.'),
 }).refine((data) => data.password === data.confirmPassword, {
-  message: "Wachtwoorden komen niet overeen",
-  path: ["confirmPassword"],
+  message: 'Wachtwoorden komen niet overeen.',
+  path: ['confirmPassword'],
 });
 
-type RegisterFormValues = z.infer<typeof registerSchema>;
+type RegisterFormValues = z.infer<typeof registerFormSchema>;
 
 interface RegisterFormProps {
   onSuccess?: () => void;
   onSwitchToLogin?: () => void;
 }
 
-export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) {
+export function RegisterForm({ 
+  onSuccess, 
+  onSwitchToLogin,
+}: RegisterFormProps) {
   const [isPending, startTransition] = useTransition();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
 
   const form = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
+    resolver: zodResolver(registerFormSchema),
+    defaultValues: { 
       firstName: '',
       lastName: '',
-      birthdate: '',
+      birthDate: '',
       gender: '',
       country: '',
       location: '',
-      email: '',
+      email: '', 
       password: '',
       confirmPassword: '',
     },
@@ -63,6 +80,9 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
     startTransition(async () => {
       try {
         const auth = getClientAuth();
+        const db = getClientFirestore();
+        
+        // Create user in Firebase Auth
         const userCredential = await createUserWithEmailAndPassword(
           auth, 
           data.email, 
@@ -71,60 +91,52 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
         
         const user = userCredential.user;
 
-        await updateProfile(user, {
-          displayName: `${data.firstName} ${data.lastName}`,
-        });
-
-        await sendEmailVerification(user);
-
-        const idToken = await user.getIdToken();
-
-        const result = await completeRegistrationAction({
-          idToken,
+        // Create user document in Firestore
+        await setDoc(doc(db, 'users', user.uid), {
+          email: data.email,
           firstName: data.firstName,
           lastName: data.lastName,
-          birthdate: data.birthdate,
+          birthDate: data.birthDate,
           gender: data.gender,
-          country: data.country,
-          location: data.location,
+          country: data.country || '',
+          location: data.location || '',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
         });
 
-        if (result.success) {
-          toast.success('Account succesvol aangemaakt!', {
-            description: 'Controleer je e-mail voor de verificatie link.',
-          });
-          
-          await auth.signOut();
-          
-          if (onSuccess) {
-            onSuccess();
-          }
-          
-          if (onSwitchToLogin) {
-            onSwitchToLogin();
-          } else {
-            router.push('/');
-          }
-        } else {
-          toast.error('Registratie mislukt', { 
-            description: result.error || 'Er ging iets mis bij het aanmaken van je profiel.' 
-          });
+        // Send email verification
+        await sendEmailVerification(user);
+
+        toast.success('Account aangemaakt!', {
+          description: 'Controleer je inbox om je e-mail te verifiëren.',
+        });
+
+        // Sign out user until email is verified
+        await auth.signOut();
+
+        if (onSuccess) {
+          onSuccess();
+        }
+
+        // Optioneel: redirect naar login
+        if (onSwitchToLogin) {
+          setTimeout(() => onSwitchToLogin(), 1500);
         }
 
       } catch (error: any) {
-        console.error('Firebase registration error:', error);
+        console.error("Firebase registration error:", error);
         
-        let friendlyMessage = 'Er is een onbekende fout opgetreden.';
+        let errorMessage = 'Er is een onbekende fout opgetreden.';
         
         if (error.code === 'auth/email-already-in-use') {
-          friendlyMessage = 'Dit e-mailadres is al in gebruik.';
+          errorMessage = 'Dit e-mailadres is al in gebruik.';
         } else if (error.code === 'auth/weak-password') {
-          friendlyMessage = 'Wachtwoord is te zwak. Kies een sterker wachtwoord.';
+          errorMessage = 'Wachtwoord is te zwak. Gebruik minstens 6 tekens.';
         } else if (error.code === 'auth/invalid-email') {
-          friendlyMessage = 'Ongeldig e-mailadres.';
+          errorMessage = 'Ongeldig e-mailadres.';
         }
         
-        toast.error('Registratie mislukt', { description: friendlyMessage });
+        toast.error('Registratie mislukt', { description: errorMessage });
       }
     });
   };
@@ -133,35 +145,28 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
     <div className="flex flex-col gap-4">
       {/* Header */}
       <div className="flex flex-col items-center text-center gap-1">
-        <h1 className="text-2xl font-bold">Welkom</h1>
-        <p className="text-sm text-muted-foreground">Creëer een Wish2Share-account</p>
-      </div>
-
-      {/* Social Login Buttons */}
-      <SocialAuthButtons />
-
-      {/* Divider */}
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">Of met email</span>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Welkom</h1>
+        <p className="text-sm text-gray-600">Creëer een Wish2Share-account</p>
       </div>
 
       {/* Form */}
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-3">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          
           {/* Voornaam */}
           <FormField
             control={form.control}
             name="firstName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Voornaam</FormLabel>
+                <FormLabel className="text-gray-700">Voornaam</FormLabel>
                 <FormControl>
-                  <Input placeholder="Voornaam" {...field} disabled={isPending} />
+                  <Input 
+                    placeholder="Voornaam" 
+                    {...field} 
+                    disabled={isPending}
+                    className="bg-gray-50 border-gray-200 focus:bg-white"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -174,9 +179,14 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
             name="lastName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Achternaam</FormLabel>
+                <FormLabel className="text-gray-700">Achternaam</FormLabel>
                 <FormControl>
-                  <Input placeholder="Achternaam" {...field} disabled={isPending} />
+                  <Input 
+                    placeholder="Achternaam" 
+                    {...field} 
+                    disabled={isPending}
+                    className="bg-gray-50 border-gray-200 focus:bg-white"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -186,16 +196,17 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
           {/* Geboortedatum */}
           <FormField
             control={form.control}
-            name="birthdate"
+            name="birthDate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Geboortedatum</FormLabel>
+                <FormLabel className="text-gray-700">Geboortedatum</FormLabel>
                 <FormControl>
                   <Input 
                     type="date" 
                     placeholder="dd-mm-jj" 
                     {...field} 
                     disabled={isPending}
+                    className="bg-gray-50 border-gray-200 focus:bg-white"
                   />
                 </FormControl>
                 <FormMessage />
@@ -209,18 +220,22 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
             name="gender"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Gender</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isPending}>
+                <FormLabel className="text-gray-700">Gender</FormLabel>
+                <Select 
+                  onValueChange={field.onChange} 
+                  defaultValue={field.value}
+                  disabled={isPending}
+                >
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select your gender" />
+                    <SelectTrigger className="bg-gray-50 border-gray-200 focus:bg-white">
+                      <SelectValue placeholder="Geslacht" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="male">Man</SelectItem>
                     <SelectItem value="female">Vrouw</SelectItem>
-                    <SelectItem value="other">Ander</SelectItem>
-                    <SelectItem value="prefer-not-to-say">Liever niet zeggen</SelectItem>
+                    <SelectItem value="other">Andere</SelectItem>
+                    <SelectItem value="prefer-not-to-say">Zeg ik liever niet</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -228,30 +243,42 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
             )}
           />
 
-          {/* Land + Locatie */}
+          {/* ✅ Land + Locatie - 2 KOLOMMEN zoals productie */}
           <div className="grid grid-cols-2 gap-3">
+            {/* Land */}
             <FormField
               control={form.control}
               name="country"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Land</FormLabel>
+                  <FormLabel className="text-gray-700">Land</FormLabel>
                   <FormControl>
-                    <Input placeholder="Land" {...field} disabled={isPending} />
+                    <Input 
+                      placeholder="Land" 
+                      {...field} 
+                      disabled={isPending}
+                      className="bg-gray-50 border-gray-200 focus:bg-white"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            {/* Locatie */}
             <FormField
               control={form.control}
               name="location"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Locatie</FormLabel>
+                  <FormLabel className="text-gray-700">Locatie</FormLabel>
                   <FormControl>
-                    <Input placeholder="Locatie" {...field} disabled={isPending} />
+                    <Input 
+                      placeholder="Locatie" 
+                      {...field} 
+                      disabled={isPending}
+                      className="bg-gray-50 border-gray-200 focus:bg-white"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -265,14 +292,15 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>E-mail</FormLabel>
+                <FormLabel className="text-gray-700">E-mail</FormLabel>
                 <FormControl>
                   <Input 
                     type="email" 
-                    placeholder="leviotte@icloud.com" 
+                    placeholder="naam@voorbeeld.com" 
                     {...field} 
-                    disabled={isPending}
                     autoComplete="email"
+                    disabled={isPending}
+                    className="bg-gray-50 border-gray-200 focus:bg-white"
                   />
                 </FormControl>
                 <FormMessage />
@@ -286,15 +314,32 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Wachtwoord</FormLabel>
+                <FormLabel className="text-gray-700">Wachtwoord</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="password" 
-                    placeholder="•••••••" 
-                    {...field} 
-                    disabled={isPending}
-                    autoComplete="new-password"
-                  />
+                  <div className="relative">
+                    <Input 
+                      type={showPassword ? 'text' : 'password'} 
+                      placeholder="••••••••" 
+                      {...field} 
+                      autoComplete="new-password"
+                      disabled={isPending}
+                      className="pr-10 bg-gray-50 border-gray-200 focus:bg-white"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute inset-y-0 right-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                      disabled={isPending}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-gray-500" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-gray-500" />
+                      )}
+                    </Button>
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -307,48 +352,73 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
             name="confirmPassword"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Bevestig Wachtwoord</FormLabel>
+                <FormLabel className="text-gray-700">Bevestig Wachtwoord</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="password" 
-                    placeholder="•••••••" 
-                    {...field} 
-                    disabled={isPending}
-                    autoComplete="new-password"
-                  />
+                  <div className="relative">
+                    <Input 
+                      type={showConfirmPassword ? 'text' : 'password'} 
+                      placeholder="••••••••" 
+                      {...field} 
+                      autoComplete="new-password"
+                      disabled={isPending}
+                      className="pr-10 bg-gray-50 border-gray-200 focus:bg-white"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute inset-y-0 right-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      disabled={isPending}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-4 w-4 text-gray-500" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-gray-500" />
+                      )}
+                    </Button>
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          {/* Submit Button */}
+          {/* Create Account Button */}
           <Button 
-            disabled={isPending} 
             type="submit" 
-            className="w-full mt-2"
-            style={{ backgroundColor: '#6B8E23' }}
+            className="w-full bg-[#6B8E23] hover:bg-[#5a7a1c] text-white" 
+            disabled={isPending}
           >
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Create account
           </Button>
         </form>
       </Form>
-      
+
       {/* Switch to Login */}
       {onSwitchToLogin && (
-        <div className="text-center text-sm">
+        <div className="text-center text-sm text-gray-600">
           Heb je al een account?{' '}
-          <button onClick={onSwitchToLogin} className="text-primary font-medium hover:underline">
+          <button 
+            onClick={onSwitchToLogin} 
+            className="text-[#6B8E23] font-medium hover:underline"
+            disabled={isPending}
+          >
             Log in
           </button>
         </div>
       )}
-      
-      {/* Terms */}
-      <div className="text-center text-xs text-muted-foreground">
+
+      {/* Footer */}
+      <div className="text-center text-xs text-gray-500">
         Door het creëren van een nieuw account ga je akkoord met onze{' '}
-        <a href="/terms-and-conditions" className="underline hover:text-primary">
+        <a 
+          href="/terms-and-conditions" 
+          className="underline hover:text-[#6B8E23]"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           Gebruiksvoorwaarden
         </a>
       </div>
