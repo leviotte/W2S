@@ -12,19 +12,7 @@ const partners = [
     logo:
       "https://static.vecteezy.com/system/resources/previews/019/766/240/non_2x/amazon-logo-amazon-icon-transparent-free-png.png",
   },
-  {
-    name: "Douglas",
-    logo:
-      "https://douglas.group/fileadmin/04_Newsroom/01_Media-Library/01_Logos/DOUGLAS/DOUGLAS_LOGO_L_RGB_black.png",
-  },
-  {
-    name: "Travelbags",
-    logo: "https://www.travelbags.nl/themes/custom/travelbags/logo.svg",
-  },
-  {
-    name: "Ebay",
-    logo: "https://upload.wikimedia.org/wikipedia/commons/4/48/EBay_logo.png",
-  },
+  
 ];
 
 export default function PartnerInfoPage() {
