@@ -1,3 +1,4 @@
+// src/hooks/useScrollToBottom.ts
 import { useEffect, useRef } from 'react';
 
 interface ScrollOptions {
@@ -5,7 +6,10 @@ interface ScrollOptions {
   threshold?: number;
 }
 
-export const useScrollToBottom = (dependencies: any[], options: ScrollOptions = { behavior: 'smooth', threshold: 100 }) => {
+export const useScrollToBottom = (
+  dependencies: any[],
+  options: ScrollOptions = { behavior: 'smooth', threshold: 100 }
+) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
 
@@ -15,7 +19,8 @@ export const useScrollToBottom = (dependencies: any[], options: ScrollOptions = 
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = container;
-      isNearBottomRef.current = scrollHeight - scrollTop - clientHeight <= (options.threshold || 100);
+      isNearBottomRef.current =
+        scrollHeight - scrollTop - clientHeight <= (options.threshold || 100);
     };
 
     container.addEventListener('scroll', handleScroll);
@@ -25,7 +30,11 @@ export const useScrollToBottom = (dependencies: any[], options: ScrollOptions = 
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !isNearBottomRef.current) return;
-    container.scrollTo({ top: container.scrollHeight, behavior: options.behavior });
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: options.behavior,
+    });
   }, [...dependencies]);
 
   return containerRef;

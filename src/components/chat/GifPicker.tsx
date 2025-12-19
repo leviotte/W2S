@@ -1,12 +1,4 @@
-/**
- * components/chat/GifPicker.tsx
- *
- * VERBETERDE VERSIE:
- * - "use client" toegevoegd, essentieel voor hooks en event handlers.
- * - GIPHY API KEY wordt veilig geladen uit environment variables.
- * - Kleine syntaxfouten in JSX (onChange, onClick) gecorrigeerd.
- * - De 'onGifClick' prop van de Giphy Grid wordt correct gebruikt.
- */
+// src/components/chat/GifPicker.tsx
 "use client";
 
 import React, { useState } from 'react';

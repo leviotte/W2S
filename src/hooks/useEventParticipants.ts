@@ -1,3 +1,4 @@
+// src/hooks/useEventParticipants.ts
 import { useState, useEffect } from 'react';
 import type { Event, EventParticipant } from '@/types/event';
 

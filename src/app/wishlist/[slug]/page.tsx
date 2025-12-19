@@ -1,6 +1,6 @@
 // src/app/wishlist/[slug]/page.tsx
 import { notFound } from 'next/navigation';
-import { getWishlistBySlugAction, getWishlistOwnerAction } from '@/lib/server/actions/wishlist-actions';
+import { getWishlistBySlugAction, getWishlistOwnerAction } from '@/lib/server/actions/wishlist';
 import { getCurrentUser } from '@/lib/auth/actions';
 import { WishlistDetailClient } from './_components/wishlist-detail-client';
 import type { Metadata } from 'next';

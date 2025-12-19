@@ -33,7 +33,6 @@ export default function PhotoForm({ profile }: PhotoFormProps) {
     }
   };
 
-  // FIX 1: We gebruiken onSubmit en e.preventDefault() voor client-side logica
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault(); 
     if (!file) {
@@ -46,15 +45,12 @@ export default function PhotoForm({ profile }: PhotoFormProps) {
         const photoURL = await uploadFile(file, `profile-pictures/${profile.id}/${file.name}`);
         const result = await updatePhotoURL(photoURL);
 
-        // FIX 2: Correcte afhandeling van het Server Action resultaat
         if (result.success) {
-          // De server action geeft geen 'message', dus tonen we een eigen bericht.
           toast.success("Profielfoto succesvol bijgewerkt!"); 
           setFile(null);
           setPreviewUrl(null);
           if (fileInputRef.current) fileInputRef.current.value = '';
         } else {
-          // Het error object bevat de 'error' property, niet 'message'.
           toast.error(result.error); 
         }
       } catch (error) {
@@ -65,7 +61,6 @@ export default function PhotoForm({ profile }: PhotoFormProps) {
   };
 
   return (
-    // We gebruiken nu onSubmit omdat onze handler client-side logica bevat
     <form onSubmit={handleSubmit}>
       <Card>
         <CardHeader>
@@ -73,14 +68,16 @@ export default function PhotoForm({ profile }: PhotoFormProps) {
           <CardDescription>Een duidelijke foto helpt anderen je te herkennen.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-4">
-          {/* FIX 3: Correcte props doorgeven aan UserAvatar */}
           <UserAvatar 
             src={previewUrl ?? profile.photoURL} 
             name={profile.displayName}
             className="h-32 w-32" 
           />
-          {/* FIX 4: Correcte JSX syntax voor event handlers */}
-          <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => fileInputRef.current?.click()}
+          >
             <Upload className="mr-2 h-4 w-4" /> Wijzig Foto
           </Button>
           <input
@@ -94,7 +91,6 @@ export default function PhotoForm({ profile }: PhotoFormProps) {
           {file && <p className="text-xs text-muted-foreground">{file.name}</p>}
         </CardContent>
         <CardFooter className="flex justify-end">
-          {/* We gebruiken een gewone SubmitButton. De form's onSubmit vangt dit af. */}
           <SubmitButton pending={isPending} pendingText="Uploaden..." disabled={!file}>
             Upload Foto
           </SubmitButton>

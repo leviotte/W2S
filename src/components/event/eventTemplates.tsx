@@ -1,3 +1,4 @@
+// Event Templates Configuration
 export interface EventIcon {
   url: string;
   position: {

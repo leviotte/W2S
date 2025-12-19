@@ -14,7 +14,7 @@ import {
   updateWishlistBackgroundAction,
   getBackgroundImagesAction,
   getBackgroundCategoriesAction,
-} from '@/lib/server/actions/wishlist-actions';
+} from '@/lib/server/actions/wishlist';
 import type { WishlistItem } from '@/types/wishlist';
 import type { BackgroundImage, BackgroundCategory } from '@/types/background';
 import type { UserProfile } from '@/types/user';

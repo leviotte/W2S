@@ -1,3 +1,4 @@
+// src/components/chat/VirtualizedMessageList.tsx
 'use client';
 
 import React, { useEffect, useRef } from 'react';
@@ -77,25 +78,6 @@ export function VirtualizedMessageList({
         if (!message) return null;
 
         const showDate = shouldShowDate(messages, index);
-        const senderId = message.senderId || message.userId;
-        const senderName = message.senderName || message.userName;
-        const isOwnMessage = senderId === currentUserId;
-
-        // ✅ FIXED: Convert timestamp string to Date
-        const timestamp = typeof message.timestamp === 'string' 
-          ? new Date(message.timestamp)
-          : message.timestamp;
-
-        const transformedMessage = {
-          id: message.id,
-          text: message.text,
-          gifUrl: message.gifUrl,
-          senderId: senderId,
-          senderName: senderName,
-          senderPhotoURL: message.senderAvatar,
-          timestamp: timestamp, // ✅ Now a Date object
-          isGif: !!message.gifUrl,
-        };
 
         return (
           <div className="px-4" key={message.id}>
@@ -106,9 +88,12 @@ export function VirtualizedMessageList({
                 </span>
               </div>
             )}
+            {/* ✅ FIX: Gebruik gewoon message direct */}
             <ChatMessageComponent
-              message={transformedMessage}
+              message={message}
               currentUserId={currentUserId}
+              onEdit={onEdit}
+              onDelete={onDelete}
             />
           </div>
         );

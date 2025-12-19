@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import WishlistSelector from '../wishlist/WishlistSelector';
-import { createWishlistAction } from '@/lib/server/actions/wishlist-actions'; // ✅ Direct import
+import { createWishlistAction } from '@/lib/server/actions/wishlist'; // ✅ Direct import
 import { useSession } from '@/components/providers/auth-provider';
 
 interface EventWishlistSelectorProps {

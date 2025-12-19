@@ -6,7 +6,7 @@ import './globals.css';
 // Providers en Globale Componenten
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { AuthProvider } from '@/components/providers/auth-provider';
-import { Navbar } from '@/components/layout/navbar'; // ✅ NIEUWE NAVBAR
+import { Navbar } from '@/components/layout/navbar';
 import { AuthModalManager } from '@/components/auth/auth-modal-manager';
 import { Toaster } from 'sonner';
 import { Footer } from '@/components/layout/Footer';
@@ -34,7 +34,8 @@ export default function RootLayout({
         >
           <AuthProvider>
             <div className="relative flex min-h-screen flex-col bg-background">
-              <Navbar /> {/* ✅ NIEUWE NAVBAR */}
+              <Navbar />
+              {/* ✅ GOED: flex-1 zonder extra padding */}
               <main className="flex-1">{children}</main>
               <Footer />
             </div>

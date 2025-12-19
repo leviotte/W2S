@@ -1,8 +1,8 @@
 // src/app/dashboard/page.tsx
 import { getCurrentUser } from '@/lib/auth/actions';
 import { redirect } from 'next/navigation';
-import { getEventCountsAction } from '@/lib/server/actions/event-actions';
-import { getWishlistStatsForUser } from '@/lib/server/actions/wishlist-actions';
+import { getEventCountsAction } from '@/lib/server/actions/events';
+import { getWishlistStatsForUser } from '@/lib/server/actions/wishlist';
 import { getFollowCountsAction, getFollowersAction, getFollowingAction } from '@/lib/server/actions/follow-actions';
 import DashEventCards from '@/components/dashboard/dash-event-cards';
 import FollowersFollowingCards from '@/components/followers/followers-following-cards';
@@ -15,8 +15,9 @@ export const metadata = {
   description: 'Jouw persoonlijk dashboard',
 };
 
+// ✅ FIX: searchParams is nu een Promise
 interface Props {
-  searchParams: { tab?: string; subTab?: string };
+  searchParams: Promise<{ tab?: string; subTab?: string }>;
 }
 
 export default async function DashboardPage({ searchParams }: Props) {
@@ -26,7 +27,8 @@ export default async function DashboardPage({ searchParams }: Props) {
     redirect('/?auth=login');
   }
 
-  const { tab, subTab } = searchParams;
+  // ✅ FIX: Await searchParams!
+  const { tab, subTab } = await searchParams;
 
   // TODO: Implementeer activeProfile logic (uit cookies of session)
   // Voor nu gebruiken we gewoon de main account
@@ -54,7 +56,7 @@ export default async function DashboardPage({ searchParams }: Props) {
           <CardContent>
             {result.data.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
-                Niet followers gevonden.
+                Geen followers gevonden.
               </p>
             ) : (
               <div className="space-y-3">
@@ -140,9 +142,8 @@ export default async function DashboardPage({ searchParams }: Props) {
   }
 
   // ========================================================================
-  // DEFAULT DASHBOARD (JOUW BESTAANDE CODE)
+  // DEFAULT DASHBOARD (EXACT ALS OUDE VERSIE!)
   // ========================================================================
-  // Haal alle stats op parallel
   const [eventStats, wishlistStats, followCounts] = await Promise.all([
     getEventCountsAction(userId),
     getWishlistStatsForUser(userId, isProfile),
@@ -157,17 +158,21 @@ export default async function DashboardPage({ searchParams }: Props) {
     : { followers: 0, following: 0 };
 
   return (
-    <div className="container max-w-6xl mx-auto p-4 sm:p-6">
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">
+    <main className="p-2 sm:p-4">
+      {/* ✅ EXACT zoals oude DashboardInfo.tsx */}
+      <h1 className="text-2xl font-bold text-accent my-2">
         {profileName}'s Dashboard
       </h1>
 
-      <DashEventCards events={eventStats} wishlists={wishlistStats} />
+      <DashEventCards
+        events={eventStats}
+        wishlists={wishlistStats}
+      />
 
       <FollowersFollowingCards
         followersCount={followStats.followers}
         followingCount={followStats.following}
       />
-    </div>
+    </main>
   );
 }

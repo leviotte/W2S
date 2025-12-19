@@ -23,6 +23,41 @@ import { Separator } from "@/components/ui/separator";
 
 type ProfileOption = (UserProfile | SubProfile) & { id: string };
 
+// ============================================================================
+// HELPER: Convert Firestore Timestamps to ISO strings
+// ============================================================================
+function convertFirestoreTimestamps(obj: any): any {
+  if (!obj) return obj;
+  
+  // Firestore Timestamp object (has toDate method)
+  if (obj?.toDate && typeof obj.toDate === 'function') {
+    return obj.toDate().toISOString();
+  }
+  
+  // Firestore Timestamp plain object
+  if (obj?._seconds !== undefined) {
+    return new Date(obj._seconds * 1000).toISOString();
+  }
+  
+  // Recursively process arrays
+  if (Array.isArray(obj)) {
+    return obj.map(item => convertFirestoreTimestamps(item));
+  }
+  
+  // Recursively process objects
+  if (typeof obj === 'object') {
+    const converted: any = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        converted[key] = convertFirestoreTimestamps(obj[key]);
+      }
+    }
+    return converted;
+  }
+  
+  return obj;
+}
+
 export default function EventParticipationPage() {
   const params = useParams();
   const router = useRouter();
@@ -58,16 +93,34 @@ export default function EventParticipationPage() {
           return;
         }
         
-        const validation = eventSchema.safeParse({ id: eventSnap.id, ...eventSnap.data() });
+        // ✅ STEP 1: Get raw data
+        const rawData: any = { id: eventSnap.id, ...eventSnap.data() };
+        
+        // ✅ STEP 2: Convert ALL Firestore Timestamps to ISO strings
+        const timestampConverted = convertFirestoreTimestamps(rawData);
+        
+        // ✅ STEP 3: Convert participants from Record to Array
+        if (timestampConverted.participants && typeof timestampConverted.participants === 'object' && !Array.isArray(timestampConverted.participants)) {
+          timestampConverted.participants = Object.entries(timestampConverted.participants).map(([id, participant]: [string, any]) => ({
+            ...participant,
+            id,
+          }));
+        }
+        
+        // ✅ STEP 4: Validate with Zod
+        const validation = eventSchema.safeParse(timestampConverted);
         if (!validation.success) {
-          console.error("Zod validation error:", validation.error.flatten());
+          console.error("❌ Zod validation error:", JSON.stringify(validation.error.format(), null, 2));
+          console.error("❌ Zod issues:", validation.error.issues);
           throw new Error("De data van het evenement is corrupt.");
         }
+        
         const eventData = validation.data;
         setEvent(eventData);
 
-        const isAlreadyParticipant = Object.keys(eventData.participants || {}).some(
-          (pId) => pId === currentUser.id
+        // ✅ Check if already participant (now using array)
+        const isAlreadyParticipant = eventData.participants.some(
+          (p) => p.id === currentUser.id
         );
         if (isAlreadyParticipant) {
           toast.info(`Je neemt al deel aan "${eventData.name}".`);
@@ -75,6 +128,7 @@ export default function EventParticipationPage() {
           return;
         }
 
+        // Fetch profiles
         const profilesQuery = query(collection(db, "profiles"), where("userId", "==", currentUser.id));
         const profilesSnapshot = await getDocs(profilesQuery);
         
@@ -107,19 +161,23 @@ export default function EventParticipationPage() {
     try {
       const eventRef = doc(db, "events", eventId);
 
+      // ✅ FIXED: Added role, status, and addedAt
       const newParticipant: EventParticipant = {
         id: profileToRegister.id,
         firstName: profileToRegister.firstName,
         lastName: profileToRegister.lastName,
         email: 'email' in profileToRegister ? profileToRegister.email : currentUser.email,
         confirmed: true,
+        role: 'participant',
+        status: 'accepted',
+        addedAt: new Date().toISOString(),
         wishlistId: undefined,
         photoURL: profileToRegister.photoURL || null,
       };
 
       await updateDoc(eventRef, {
         [`participants.${profileToRegister.id}`]: newParticipant,
-        participantCount: increment(1),
+        currentParticipantCount: increment(1),
       });
       
       toast.success(`${profileToRegister.firstName} neemt nu deel aan "${event.name}"!`);
@@ -171,7 +229,7 @@ export default function EventParticipationPage() {
         <CardHeader>
           <CardTitle className="text-2xl">Deelnemen aan: {event.name}</CardTitle>
           <CardDescription>
-            Georganiseerd door {event.organizerName} op {format(event.date, "d MMMM yyyy", { locale: nlBE })}
+            Georganiseerd op {format(new Date(event.date), "d MMMM yyyy", { locale: nlBE })}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

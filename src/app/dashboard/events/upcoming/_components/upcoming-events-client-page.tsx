@@ -1,13 +1,15 @@
-// src/app/dashboard/upcoming/_components/upcoming-events-client-page.tsx
-'use client';
+// src/app/dashboard/events/upcoming/_components/upcoming-events-client-page.tsx
+"use client";
 
-import { useState, useMemo } from 'react';
-import type { Event } from '@/types/event';
-import { deleteEventAction } from './actions'; // NIEUWE SERVER ACTION
-import { toast } from 'sonner';
-import EventCard from '@/components/event/event-card'; // We gebruiken een generieke EventCard
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import EventCard from "@/components/events/event-card";
+import { Button } from "@/components/ui/button";
+import type { Event } from "@/types/event";
+import { deleteEventAction } from "@/lib/server/actions/events";
+import { toast } from "sonner";
 
-interface ClientPageProps {
+interface UpcomingEventsClientPageProps {
   initialEvents: Event[];
   userId: string;
 }
@@ -15,82 +17,64 @@ interface ClientPageProps {
 export default function UpcomingEventsClientPage({
   initialEvents,
   userId,
-}: ClientPageProps) {
-  // Lokale state voor de events, zodat we de UI optimistisch kunnen updaten.
-  const [events, setEvents] = useState<Event[]>(initialEvents);
+}: UpcomingEventsClientPageProps) {
+  const router = useRouter();
+  const [events, setEvents] = useState(initialEvents);
 
-  const handleDelete = async (eventId: string, eventName: string) => {
-    if (!confirm(`Weet je zeker dat je het evenement "${eventName}" wilt verwijderen?`)) {
-      return;
-    }
-
-    // Optimistic UI Update: verwijder het event meteen uit de lijst.
-    setEvents((prev) => prev.filter((e) => e.id !== eventId));
-
-    // Roep de server action aan.
-    const result = await deleteEventAction(eventId);
-
-    if (result.success) {
-      toast.success(`Evenement "${eventName}" is verwijderd!`);
+  // Filter upcoming events
+  const upcomingEvents = events.filter((event) => {
+    const now = new Date();
+    const eventDate = new Date(event.date);
+    
+    if (event.time) {
+      const dateTime = new Date(`${event.date}T${event.time}`);
+      return dateTime > now;
     } else {
-      toast.error(`Kon het evenement niet verwijderen: ${result.message}`);
-      // Rollback: voeg het event terug toe als de server-actie faalt.
-      setEvents(initialEvents);
+      eventDate.setDate(eventDate.getDate() + 1);
+      return eventDate > now;
+    }
+  });
+
+  const handleDelete = async (eventId: string) => {
+    try {
+      await deleteEventAction(eventId);
+      setEvents(events.filter((e) => e.id !== eventId));
+      toast.success("Evenement verwijderd");
+      router.refresh();
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      toast.error("Fout bij verwijderen evenement");
     }
   };
 
-  const { upcomingEvents, pastEvents } = useMemo(() => {
-    const now = new Date();
-    return events.reduce(
-      (acc, event) => {
-        const eventDate = new Date(event.date);
-        if (eventDate >= now) {
-          acc.upcomingEvents.push(event);
-        } else {
-          acc.pastEvents.push(event);
-        }
-        return acc;
-      },
-      { upcomingEvents: [] as Event[], pastEvents: [] as Event[] }
-    );
-  }, [events]);
-
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight mb-4">Aankomend</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {upcomingEvents.length > 0 ? (
-            upcomingEvents.map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                currentUserId={userId}
-                onDelete={() => handleDelete(event.id, event.name)}
-              />
-            ))
-          ) : (
-            <p>Geen aankomende evenementen gevonden.</p>
-          )}
-        </div>
+    <div className="container mx-auto p-4">
+      <div className="flex items-center justify-start mb-4">
+        <h1 className="text-2xl font-bold text-accent my-2">
+          Aankomende evenementen
+        </h1>
+        <Button
+          className="bg-warm-olive text-white px-4 py-2 rounded-md hover:bg-cool-olive ml-4"
+          onClick={() => router.push("/dashboard/events/create")}
+        >
+          Nieuw Evenement
+        </Button>
       </div>
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight mb-4">Voorbij</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {pastEvents.length > 0 ? (
-            pastEvents.map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                currentUserId={userId}
-                onDelete={() => handleDelete(event.id, event.name)}
-              />
-            ))
-          ) : (
-            <p>Geen voorbije evenementen gevonden.</p>
-          )}
+
+      {upcomingEvents.length > 0 ? (
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+          {upcomingEvents.map((event) => (
+            <EventCard
+              key={event.id}
+              event={event}
+              currentUserId={userId}
+              onDelete={handleDelete}
+            />
+          ))}
         </div>
-      </div>
+      ) : (
+        <p className="text-accent">Geen aankomende evenementen gevonden.</p>
+      )}
     </div>
   );
 }

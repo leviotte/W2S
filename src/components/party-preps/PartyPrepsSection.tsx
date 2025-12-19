@@ -1,20 +1,48 @@
-'use client';
+// src/components/party-preps/PartyPrepsSection.tsx
+"use client";
 
 import { useState, useTransition } from 'react';
-import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor, DragOverlay } from '@dnd-kit/core';
-import { restrictToWindowEdges } from '@dnd-kit/modifiers';
 import { Plus, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import TaskList from './TaskList';
-import ParticipantList from '../event/ParticipantList';
-import DraggableParticipant from './DraggableParticipant';
-import { updateEventAction } from '@/app/dashboard/events/[id]/actions';
-import type { Event, EventParticipant } from '@/types/event';
-import type { Task } from '@/types/task';
 
-interface PartyPrepsProps {
+import { 
+  updateEventTasksAction,
+  assignParticipantToTaskAction,
+  removeParticipantFromTaskAction,
+  toggleTaskAction 
+} from '@/lib/server/actions/events';
+
+import type { Event, EventParticipant } from '@/types/event';
+import type { TaskFromFirestore, TaskSerialized } from '@/types/task';
+
+// ✅ Type guard for Firestore Timestamp
+function isFirestoreTimestamp(value: any): value is { toDate: () => Date } {
+  return value && typeof value === 'object' && typeof value.toDate === 'function';
+}
+
+// ✅ Serialize tasks to plain objects
+const serializeTasks = (tasks: TaskFromFirestore[]): TaskSerialized[] => {
+  return tasks.map(task => ({
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    completed: task.completed,
+    assignedParticipants: task.assignedParticipants,
+    createdAt: task.createdAt instanceof Date 
+      ? task.createdAt.toISOString()
+      : typeof task.createdAt === 'string'
+      ? task.createdAt
+      : isFirestoreTimestamp(task.createdAt)
+      ? task.createdAt.toDate().toISOString()
+      : new Date().toISOString()
+  }));
+};
+
+interface PartyPrepsSectionProps {
   event: Event;
   isOrganizer: boolean;
   participants: EventParticipant[];
@@ -26,172 +54,174 @@ export function PartyPrepsSection({
   isOrganizer,
   participants,
   currentUserId,
-}: PartyPrepsProps) {
+}: PartyPrepsSectionProps) {
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const tasks = event.tasks || [];
+  const tasks = (event.tasks || []) as TaskFromFirestore[];
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
-  );
+  const handleAddTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTaskTitle.trim()) {
+      toast.error('Geef de taak een titel');
+      return;
+    }
 
-  const handleUpdateTasks = (updatedTasks: Task[]) => {
+    const newTask: TaskSerialized = {
+      id: crypto.randomUUID(),
+      title: newTaskTitle.trim(),
+      completed: false,
+      assignedParticipants: [],
+      createdAt: new Date().toISOString(),
+    };
+
     startTransition(async () => {
-      const result = await updateEventAction(event.id, { tasks: updatedTasks });
-      if (!result.success) {
-        toast.error(result.message);
+      const serializedTasks = serializeTasks([...tasks, newTask]);
+      const result = await updateEventTasksAction(event.id, serializedTasks);
+      
+      if (result.success) {
+        toast.success('Taak toegevoegd!');
+        setNewTaskTitle('');
+        setShowAddTask(false);
+      } else {
+        toast.error(result.message || 'Kon taak niet toevoegen');
       }
     });
   };
 
-  const handleAddTask = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTaskTitle.trim()) return toast.error('Geef de taak een titel');
+  const handleToggleTask = async (taskId: string) => {
+    startTransition(async () => {
+      const result = await toggleTaskAction(event.id, taskId);
+      if (!result.success) {
+        toast.error(result.message || 'Toggle mislukt');
+      }
+    });
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    const updatedTasks = tasks.filter(task => task.id !== taskId);
     
-    // ✅ FIX: createdAt toegevoegd
-    const newTask: Task = {
-      id: crypto.randomUUID(),
-      title: newTaskTitle,
-      completed: false,
-      assignedParticipants: [],
-      createdAt: new Date(),
-    };
-    
-    handleUpdateTasks([...tasks, newTask]);
-    toast.success('Taak succesvol toegevoegd!');
-    setNewTaskTitle('');
-    setShowAddTask(false);
+    startTransition(async () => {
+      const serializedTasks = serializeTasks(updatedTasks);
+      const result = await updateEventTasksAction(event.id, serializedTasks);
+      
+      if (result.success) {
+        toast.success('Taak verwijderd');
+      } else {
+        toast.error(result.message || 'Verwijderen mislukt');
+      }
+    });
   };
 
-  const handleDragEnd = (dragEvent: DragEndEvent) => {
-    setActiveId(null);
-    const { active, over } = dragEvent;
-    if (!active || !over) return;
-
-    const participantId = active.id as string;
-    const taskId = over.id as string;
-
-    const taskToUpdate = tasks.find((t) => t.id === taskId);
-    if (taskToUpdate?.assignedParticipants.includes(participantId)) {
-      return toast.info('Je bent al toegewezen aan deze taak.');
-    }
-
-    const updatedTasks = tasks.map((task) =>
-      task.id === taskId
-        ? { ...task, assignedParticipants: [...task.assignedParticipants, participantId] }
-        : task
-    );
-    handleUpdateTasks(updatedTasks);
-    toast.success('Taak aan jezelf toegewezen!');
+  const handleAssignParticipant = async (taskId: string, participantId: string) => {
+    startTransition(async () => {
+      const result = await assignParticipantToTaskAction(event.id, taskId, participantId);
+      if (result.success) {
+        toast.success(result.message || 'Toegewezen!');
+      } else {
+        toast.error(result.message || 'Toewijzen mislukt');
+      }
+    });
   };
 
-  const handleToggleTask = (taskId: string) => {
-    const updatedTasks = tasks.map((task) =>
-      task.id === taskId ? { ...task, completed: !task.completed } : task
-    );
-    handleUpdateTasks(updatedTasks);
+  const handleRemoveParticipant = async (taskId: string, participantId: string) => {
+    startTransition(async () => {
+      const result = await removeParticipantFromTaskAction(event.id, taskId, participantId);
+      if (!result.success) {
+        toast.error(result.message || 'Verwijderen mislukt');
+      }
+    });
   };
-
-  const handleDeleteTask = (taskId: string) => {
-    const updatedTasks = tasks.filter((task) => task.id !== taskId);
-    handleUpdateTasks(updatedTasks);
-    toast.success('Taak verwijderd');
-  };
-
-  const handleRemoveParticipant = (taskId: string, participantId: string) => {
-    const updatedTasks = tasks.map((task) =>
-      task.id === taskId
-        ? { ...task, assignedParticipants: task.assignedParticipants.filter((id) => id !== participantId) }
-        : task
-    );
-    handleUpdateTasks(updatedTasks);
-  };
-
-  const activeParticipant = participants.find((p) => p.id === activeId);
 
   return (
-    <DndContext
-      sensors={sensors}
-      onDragStart={(e) => setActiveId(e.active.id as string)}
-      onDragEnd={handleDragEnd}
-      onDragCancel={() => setActiveId(null)}
-      modifiers={[restrictToWindowEdges]}
+    <div
+      className="backdrop-blur-sm bg-white/40 rounded-lg p-5 shadow-lg"
+      style={{ boxShadow: '0 0 20px rgba(0,0,0,0.1)' }}
     >
-      <div className="backdrop-blur-sm bg-white/40 rounded-lg p-5 shadow-lg">
-        <div className="flex items-start justify-between mb-6">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-6">
+        <div className="flex-grow">
           <div className="flex items-center space-x-2">
             <h2 className="text-xl font-semibold text-gray-900">PartyPreps</h2>
-            <button className="text-gray-500 hover:text-gray-700" title="Sleep je naam naar een taak om jezelf toe te wijzen.">
+            <button
+              className="hover:text-gray-600"
+              title="Wijs jezelf toe aan een taak door op 'Assign' te klikken."
+            >
               <HelpCircle className="h-5 w-5" />
             </button>
           </div>
+          <p className="text-sm mt-1">Wijs jezelf toe aan een taak</p>
         </div>
+      </div>
 
-        {isOrganizer && (
-          <div className="mb-4">
-            {!showAddTask ? (
-              <button
-                onClick={() => setShowAddTask(true)}
-                className="w-full flex items-center justify-center space-x-2 p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-colors"
-              >
-                <Plus className="h-5 w-5 text-gray-500" />
-                <span className="font-medium text-gray-700">Voeg Taak Toe</span>
-              </button>
-            ) : (
-              <form onSubmit={handleAddTask} className="space-y-3 p-4 bg-white/60 rounded-lg">
-                <input
-                  type="text"
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  placeholder="Beschrijf de taak..."
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-transparent p-2"
-                  autoFocus
-                />
-                <div className="flex justify-end space-x-2">
-                  <Button type="button" variant="ghost" onClick={() => setShowAddTask(false)}>
-                    Annuleren
-                  </Button>
-                  <Button type="submit" disabled={isPending}>
-                    {isPending ? 'Toevoegen...' : 'Voeg Toe'}
-                  </Button>
-                </div>
-              </form>
-            )}
+      {/* Add Task Button */}
+      {isOrganizer && !showAddTask && (
+        <button
+          onClick={() => setShowAddTask(true)}
+          className="w-full flex items-center justify-center space-x-2 p-3 border-[1.5px] border-black rounded-lg hover:bg-white/50 transition-colors mb-4"
+        >
+          <Plus className="h-5 w-5" />
+          <span>Voeg Taak Toe</span>
+        </button>
+      )}
+
+      {/* Add Task Form */}
+      {showAddTask && (
+        <div className="space-y-3 p-4 rounded-lg mb-4">
+          <input
+            type="text"
+            value={newTaskTitle}
+            onChange={(e) => setNewTaskTitle(e.target.value)}
+            placeholder="Beschrijf de taak..."
+            className="w-full rounded-md border-[1.5px] border-black shadow-sm focus:border-black focus:ring-0 bg-transparent placeholder:text-[#000] p-2"
+            autoFocus
+          />
+          <div className="flex justify-end space-x-2">
+            <button
+              onClick={() => {
+                setShowAddTask(false);
+                setNewTaskTitle('');
+              }}
+              className="px-3 py-1.5 rounded hover:bg-white/50 border-black border-[1.5px]"
+            >
+              Annuleer
+            </button>
+            <button
+              onClick={handleAddTask}
+              disabled={isPending}
+              className="px-4 py-1.5 bg-warm-olive text-white rounded-md hover:bg-cool-olive"
+            >
+              Voeg Toe
+            </button>
           </div>
-        )}
-        
-        {/* ✅ FIX: onToggle prop naam */}
+        </div>
+      )}
+
+      {/* Task List */}
+      <div className="space-y-4">
         <TaskList
-          eventId={event.id}
           tasks={tasks}
+          eventId={event.id}
           participants={participants}
           currentUserId={currentUserId}
           isOrganizer={isOrganizer}
-          onToggle={handleToggleTask}
-          onDelete={isOrganizer ? handleDeleteTask : undefined}
+          onToggleTask={handleToggleTask}
+          onDeleteTask={isOrganizer ? handleDeleteTask : undefined}
+          onAssignParticipant={handleAssignParticipant}
           onRemoveParticipant={handleRemoveParticipant}
-        />
-
-        <h3 className="font-bold mt-6 mb-2">Deelnemers</h3>
-        <ParticipantList
-          participants={participants}
-          currentUserId={currentUserId}
         />
       </div>
 
-      <DragOverlay>
-        {activeId && activeParticipant ? (
-          <DraggableParticipant
-            id={activeId}
-            firstName={activeParticipant.firstName}
-            lastName={activeParticipant.lastName}
-            photoURL={activeParticipant.photoURL}
-          />
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+      {/* Empty State */}
+      {tasks.length === 0 && !showAddTask && (
+        <div className="text-center py-6 text-gray-500">
+          <p className="mb-2">Nog geen taken toegevoegd.</p>
+          {isOrganizer && (
+            <p className="text-sm">Klik op "Voeg Taak Toe" om te beginnen.</p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

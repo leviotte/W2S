@@ -21,12 +21,20 @@ export type ClaimedBy = z.infer<typeof claimedBySchema>;
 
 /**
  * WishlistItem = Product + reservation/wishlist metadata
+ * 
+ * purchasedBy format: { "eventId": ["userId1", "userId2"] }
+ * Dit houdt bij welke users een item gekocht hebben voor welk event.
  */
 export const wishlistItemSchema = productSchema.extend({
-  quantity: z.number().min(1).default(1), // ✅ TOEGEVOEGD!
+  quantity: z.number().min(1).default(1),
   isReserved: z.boolean().default(false),
   reservedBy: z.string().optional().nullable(),
   claimedBy: claimedBySchema.optional().nullable(),
+  
+  // ✅ NIEUW - Event purchase tracking
+  purchasedBy: z.record(z.string(), z.array(z.string())).optional().nullable(),
+  // Format: { "event-id-123": ["user-id-1", "user-id-2"] }
+  
   addedAt: z.string().optional(),
   priority: z.number().optional(),
   notes: z.string().optional(),
@@ -34,7 +42,10 @@ export const wishlistItemSchema = productSchema.extend({
 
 export type WishlistItem = z.infer<typeof wishlistItemSchema>;
 
-// Rest van de file blijft hetzelfde...
+// ============================================================================
+// WISHLIST SCHEMA
+// ============================================================================
+
 export const wishlistSchema = z.object({
   id: z.string(),
   name: z.string().min(3, "De naam van de wishlist moet minstens 3 tekens lang zijn."),
@@ -61,7 +72,7 @@ export const wishlistSchema = z.object({
 export type Wishlist = z.infer<typeof wishlistSchema>;
 
 // ============================================================================
-// HELPER FUNCTIONS (blijven hetzelfde)
+// HELPER FUNCTIONS - RESERVATION
 // ============================================================================
 
 export function isItemReserved(item: WishlistItem): boolean {
@@ -80,15 +91,84 @@ export function countAvailableItems(wishlist: Wishlist): number {
   return wishlist.items.filter(item => !isItemReserved(item)).length;
 }
 
+// ============================================================================
+// HELPER FUNCTIONS - PURCHASE TRACKING (✅ NIEUW!)
+// ============================================================================
+
+/**
+ * Check if an item is purchased by ANY user for a specific event
+ */
+export function isItemPurchasedForEvent(item: WishlistItem, eventId: string): boolean {
+  if (!item.purchasedBy) return false;
+  const purchasers = item.purchasedBy[eventId];
+  return purchasers && purchasers.length > 0;
+}
+
+/**
+ * Check if an item is purchased by a SPECIFIC user for a specific event
+ */
+export function isItemPurchasedByUserForEvent(
+  item: WishlistItem, 
+  userId: string, 
+  eventId: string
+): boolean {
+  if (!item.purchasedBy) return false;
+  const purchasers = item.purchasedBy[eventId];
+  return purchasers ? purchasers.includes(userId) : false;
+}
+
+/**
+ * Get all user IDs who purchased an item for a specific event
+ */
+export function getPurchasersForEvent(item: WishlistItem, eventId: string): string[] {
+  if (!item.purchasedBy) return [];
+  return item.purchasedBy[eventId] || [];
+}
+
+/**
+ * Count how many items a user has purchased for a specific event across ALL wishlists
+ */
+export function countItemsPurchasedByUserForEvent(
+  wishlists: Wishlist[], 
+  userId: string, 
+  eventId: string
+): number {
+  let count = 0;
+  
+  for (const wishlist of wishlists) {
+    for (const item of wishlist.items) {
+      if (isItemPurchasedByUserForEvent(item, userId, eventId)) {
+        count++;
+      }
+    }
+  }
+  
+  return count;
+}
+
+// ============================================================================
+// HELPER FUNCTIONS - PRICE CALCULATION
+// ============================================================================
+
 export function calculateTotalPrice(wishlist: Wishlist): number {
-  return wishlist.items.reduce((total, item) => total + item.price, 0);
+  return wishlist.items.reduce((total, item) => total + item.price * item.quantity, 0);
 }
 
 export function calculateReservedPrice(wishlist: Wishlist): number {
   return wishlist.items
     .filter(isItemReserved)
-    .reduce((total, item) => total + item.price, 0);
+    .reduce((total, item) => total + item.price * item.quantity, 0);
 }
+
+export function calculatePurchasedPriceForEvent(wishlist: Wishlist, eventId: string): number {
+  return wishlist.items
+    .filter(item => isItemPurchasedForEvent(item, eventId))
+    .reduce((total, item) => total + item.price * item.quantity, 0);
+}
+
+// ============================================================================
+// HELPER FUNCTIONS - SORTING & FILTERING
+// ============================================================================
 
 export function sortByPriority(items: WishlistItem[]): WishlistItem[] {
   return [...items].sort((a, b) => (a.priority || 999) - (b.priority || 999));
@@ -102,13 +182,28 @@ export function getItemsReservedByUser(wishlist: Wishlist, userId: string): Wish
   return wishlist.items.filter(item => isReservedByUser(item, userId));
 }
 
+export function getItemsPurchasedByUserForEvent(
+  wishlist: Wishlist, 
+  userId: string, 
+  eventId: string
+): WishlistItem[] {
+  return wishlist.items.filter(item => 
+    isItemPurchasedByUserForEvent(item, userId, eventId)
+  );
+}
+
+// ============================================================================
+// HELPER FUNCTIONS - CONVERSION
+// ============================================================================
+
 export function productToWishlistItem(product: Product): WishlistItem {
   return {
     ...product,
-    quantity: 1, // ✅ TOEGEVOEGD!
+    quantity: 1,
     isReserved: false,
     reservedBy: null,
     claimedBy: null,
+    purchasedBy: null, // ✅ TOEGEVOEGD
     addedAt: new Date().toISOString(),
   };
 }

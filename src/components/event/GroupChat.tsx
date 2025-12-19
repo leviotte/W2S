@@ -1,4 +1,4 @@
-// app/components/GroupChat.tsx
+// src/components/event/GroupChat.tsx
 "use client";
 
 import MessageList from "../chat/MessageList";
@@ -40,7 +40,7 @@ export default function GroupChat({
     >
       {/* Header */}
       <div className="border-b-[1.5px] border-black px-5 py-4 flex flex-row justify-between items-center space-x-3 rounded-t-lg">
-        <h2 className="text-lg font-semibold">Group messages</h2>
+        <h2 className="text-lg font-semibold">Groepsberichten</h2>
         <button
           onClick={onClose}
           className="flex flex-row gap-1 items-center text-white focus:outline-none xs:hidden"

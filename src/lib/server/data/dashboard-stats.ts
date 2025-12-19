@@ -1,10 +1,14 @@
-// src/lib/data/dashboard-stats.ts
+// src/lib/server/data/dashboard-stats.ts
 "use server";
 
 import { adminDb } from "@/lib/server/firebase-admin";
-import type { EventStats, WishlistStats } from "@/components/dashboard/dash-event-cards";
-import type { FollowStats } from "@/components/followers/followers-following-cards";
+// ✅ IMPORT TYPES - geen dubbele exports meer!
+import type { EventStats, WishlistStats, FollowStats } from "@/types/dashboard";
 
+/**
+ * ✅ GET EVENT STATISTICS FOR USER
+ * Haalt event counts op: upcoming, past, ongoing, all
+ */
 export async function getEventStatsForUser(userId: string): Promise<EventStats> {
   try {
     const eventsSnapshot = await adminDb
@@ -39,6 +43,10 @@ export async function getEventStatsForUser(userId: string): Promise<EventStats> 
   }
 }
 
+/**
+ * ✅ GET WISHLIST STATISTICS FOR USER
+ * Haalt wishlist counts op: total, public, private
+ */
 export async function getWishlistStatsForUser(userId: string): Promise<WishlistStats> {
   try {
     const wishlistsSnapshot = await adminDb
@@ -66,6 +74,10 @@ export async function getWishlistStatsForUser(userId: string): Promise<WishlistS
   }
 }
 
+/**
+ * ✅ GET FOLLOW STATISTICS FOR USER
+ * Haalt follower/following counts op
+ */
 export async function getFollowStatsForUser(userId: string): Promise<FollowStats> {
   try {
     const [followersSnapshot, followingSnapshot] = await Promise.all([

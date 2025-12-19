@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { deleteEventAction } from "@/app/dashboard/events/[id]/actions";
+import { deleteEventAction } from "@/lib/server/actions/events";
 import type { Event } from "@/types/event";
 import {
   Card,

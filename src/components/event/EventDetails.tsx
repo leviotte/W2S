@@ -1,16 +1,16 @@
+// src/components/event/EventDetails.tsx
 "use client";
 
 import { useState, useCallback, memo } from "react";
-import { Calendar, MapPin, Edit2, Share2 } from "lucide-react";
+import { Calendar, MapPin, Edit2, Share2, Clock, Info, Phone, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { format } from 'date-fns';
-import { nlBE } from 'date-fns/locale';
 
 // --- Types ---
 import type { Event, EventParticipant } from "@/types/event";
 
 // --- Components ---
-import CountdownTimer from "@/components/ui/countdown-timer";
+import CountdownTimer from "@/components/shared/countdown-timer";
 import EventDetailsForm from "./EventDetailsForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +24,7 @@ interface EventDetailsProps {
   updateEvent: (data: Partial<Event>) => void;
 }
 
-// ✅ FIX: isOpen in plaats van open
+// ✅ Confirmation Modal
 const ConfirmationModal = memo(function ConfirmationModal({
   isOpen,
   onClose,
@@ -57,7 +57,7 @@ const ConfirmationModal = memo(function ConfirmationModal({
 });
 ConfirmationModal.displayName = "ConfirmationModal";
 
-export default function EventDetails({ event, isOrganizer, updateEvent }: EventDetailsProps) {
+export default function EventDetails({ event, isOrganizer, updateEvent, participants }: EventDetailsProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -91,7 +91,10 @@ export default function EventDetails({ event, isOrganizer, updateEvent }: EventD
   const handleStartDrawing = useCallback(async () => {
     setIsLoading(true);
     try {
-      await updateEvent({ allowDrawingNames: true });
+      await updateEvent({ 
+        allowDrawingNames: true,
+        maxParticipants: participants.length 
+      });
       toast.success("Namen trekken is geactiveerd!");
     } catch (error) {
       console.error(error);
@@ -100,7 +103,29 @@ export default function EventDetails({ event, isOrganizer, updateEvent }: EventD
       setIsLoading(false);
       setShowConfirmation(false);
     }
-  }, [updateEvent]);
+  }, [updateEvent, participants]);
+
+  // ✅ Format date exactly like production
+  const formatEventDate = () => {
+    if (!event.date) return "";
+    
+    const dateStr = new Date(event.date).toLocaleDateString("en-GB", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+    let timeStr = "";
+    if (event.time) {
+      timeStr = ` from ${event.time}`;
+      if (event.endTime) {
+        timeStr += ` to ${event.endTime}`;
+      }
+    }
+
+    return dateStr + timeStr;
+  };
 
   if (isEditing) {
     return (
@@ -118,7 +143,7 @@ export default function EventDetails({ event, isOrganizer, updateEvent }: EventD
 
   return (
     <>
-      {/* ✅ FIX: isOpen prop */}
+      {/* ✅ Confirmation Modal */}
       <ConfirmationModal
         isOpen={showConfirmation}
         onClose={() => setShowConfirmation(false)}
@@ -140,38 +165,99 @@ export default function EventDetails({ event, isOrganizer, updateEvent }: EventD
                 <Edit2 className="h-5 w-5" />
               </Button>
             )}
+            {/* ✅ Start Drawing Button (zoals productie) */}
+            {isOrganizer && event.allowSelfRegistration && event.isLootjesEvent && (
+              <Button
+                disabled={isLoading || event.allowDrawingNames}
+                onClick={() => setShowConfirmation(true)}
+                className="bg-warm-olive hover:bg-cool-olive text-white disabled:bg-gray-400"
+              >
+                {event.allowDrawingNames ? "Namen trekken is actief" : "Start Drawing"}
+              </Button>
+            )}
           </div>
         </CardHeader>
         
         <CardContent className="p-0">
-          {event.date && <CountdownTimer targetDate={event.date} />}
+          {event.date && <CountdownTimer targetDate={event.date} targetTime={event.time ?? undefined} />}
           
           <div className="mt-3 space-y-1.5">
+            {/* ✅ Date + Time (EXACT zoals productie) */}
             <div className="flex items-center">
               <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span className="text-sm">
-                {format(new Date(event.date), "EEEE d MMMM yyyy", { locale: nlBE })} om {event.time}
-              </span>
+              <span className="text-sm">{formatEventDate()}</span>
             </div>
+
+            {/* ✅ Location */}
             {event.location && (
               <div className="flex items-center">
                 <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
-                <span className="text-sm">{event.location}</span>
+                <span className="text-sm">
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-gray-600 hover:text-warm-olive"
+                  >
+                    {event.location}
+                  </a>
+                </span>
+              </div>
+            )}
+
+            {/* ✅ Theme (NIEUW!) */}
+            {event.theme && (
+              <div className="flex items-center">
+                <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span className="text-sm">{event.theme}</span>
+              </div>
+            )}
+
+            {/* ✅ Additional Info */}
+            {event.additionalInfo && (
+              <div className="flex items-start">
+                <Info className="h-4 w-4 mr-2 flex-shrink-0 mt-0.5" />
+                <p className="whitespace-pre-wrap text-sm">{event.additionalInfo}</p>
+              </div>
+            )}
+
+            {/* ✅ ORGANIZER CONTACT DETAILS (NIEUW! - Exact zoals productie) */}
+            {(event.organizerPhone || event.organizerEmail) && (
+              <div className="mt-2 pt-2 border-t border-gray-200">
+                <h3 className="text-xs font-bold text-gray-700 mb-1">
+                  Organizer contact details:
+                </h3>
+                <div className="space-y-1">
+                  {event.organizerPhone && (
+                    <div className="flex items-center">
+                      <Phone className="h-4 w-4 mr-2 flex-shrink-0 text-gray-600" />
+                      <span className="text-sm">
+                        <a
+                          href={`tel:${event.organizerPhone}`}
+                          className="text-gray-600 hover:text-warm-olive"
+                        >
+                          {event.organizerPhone}
+                        </a>
+                      </span>
+                    </div>
+                  )}
+                  {event.organizerEmail && (
+                    <div className="flex items-center">
+                      <Mail className="h-4 w-4 mr-2 flex-shrink-0 text-gray-600" />
+                      <span className="text-sm">
+                        <a
+                          href={`mailto:${event.organizerEmail}`}
+                          className="text-gray-600 hover:text-warm-olive"
+                        >
+                          {event.organizerEmail}
+                        </a>
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
-
-          {isOrganizer && event.allowSelfRegistration && event.isLootjesEvent && (
-            <div className="mt-4">
-              <Button
-                disabled={isLoading || event.allowDrawingNames}
-                onClick={() => setShowConfirmation(true)}
-                className="w-full"
-              >
-                {event.allowDrawingNames ? "Namen trekken is actief" : "Start Namen Trekken"}
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
     </>

@@ -1,3 +1,6 @@
+// src/hooks/useEventMessages.ts
+'use client';
+
 import { useState, useCallback } from 'react';
 import type { ChatMessage } from '@/types/chat';
 
@@ -25,6 +28,22 @@ export function useEventMessages(initialMessages: ChatMessage[] = []) {
     []
   );
 
+  // ✅ ADD: editMessage function
+  const editMessage = useCallback(async (messageId: string, newText: string) => {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId
+          ? { ...msg, text: newText, edited: true }
+          : msg
+      )
+    );
+  }, []);
+
+  // ✅ ADD: deleteMessage function
+  const deleteMessage = useCallback(async (messageId: string) => {
+    setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+  }, []);
+
   const clearMessages = useCallback(() => {
     setMessages([]);
   }, []);
@@ -32,6 +51,8 @@ export function useEventMessages(initialMessages: ChatMessage[] = []) {
   return {
     messages,
     sendMessage,
+    editMessage,    // ✅ NOW EXPORTED
+    deleteMessage,  // ✅ NOW EXPORTED
     clearMessages,
   };
 }

@@ -83,6 +83,7 @@ function validateSessionPassword(): string {
 // SESSION CONFIGURATION
 // ============================================================================
 
+// ✅ FIX: TYPO gecorrigeerd!
 export const sessionOptions = {
   password: validateSessionPassword(),
   cookieName: 'wish2share_session',
@@ -151,7 +152,7 @@ export async function createSession(userData: {
   
   await session.save();
   
-  // ✅ Cookie size debugging (je had dit al, maar nu ook hier!)
+  // ✅ Cookie size debugging
   const cookieSize = JSON.stringify(session.user).length;
   console.log(`[Session] ✅ Session created for user: ${userData.email}`);
   console.log(`[Session] 📊 Cookie size: ${cookieSize} bytes (max 4096)`);

@@ -6,6 +6,11 @@ interface UserAvatarProps {
   firstName?: string;
   lastName?: string;
   name?: string;
+  src?: string | null; // ✅ ADDED
+  profile?: { // ✅ ADDED
+    displayName?: string | null;
+    photoURL?: string | null;
+  };
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
@@ -14,13 +19,19 @@ export function UserAvatar({
   photoURL, 
   firstName = '',
   lastName = '',
-  name, 
+  name,
+  src, // ✅ ADDED
+  profile, // ✅ ADDED
   size = 'md', 
   className = '' 
 }: UserAvatarProps) {
+  // ✅ FLEXIBLE: gebruik profile OF src/name OR photoURL
+  const avatarSrc = src ?? photoURL ?? profile?.photoURL;
+  const avatarName = name ?? profile?.displayName ?? (firstName && lastName ? `${firstName} ${lastName}` : '');
+
   const getInitials = () => {
-    if (name) {
-      const [firstWord, secondWord] = name.split(' ');
+    if (avatarName) {
+      const [firstWord, secondWord] = avatarName.split(' ');
       const firstInitial = firstWord?.[0]?.toUpperCase() || '';
       const secondInitial = secondWord?.[0]?.toUpperCase() || ''; // ✅ FIX: was "sec secondWord"
       return `${firstInitial}${secondInitial}`;
@@ -40,10 +51,10 @@ export function UserAvatar({
 
   return (
     <div className={cn('flex-shrink-0 rounded-full overflow-hidden', sizeClasses[size], className)}>
-      {photoURL ? (
+      {avatarSrc ? (
         <img
-          src={photoURL}
-          alt={name || `${firstName} ${lastName}`}
+          src={avatarSrc}
+          alt={avatarName || `${firstName} ${lastName}`}
           className="h-full w-full object-cover"
         />
       ) : (

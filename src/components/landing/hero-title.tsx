@@ -4,15 +4,16 @@
  * components/landing/hero-title.tsx
  *
  * Roterende hero titel met animatie
+ * ✅ KLEUREN: cool-olive (#283618) en warm-olive (#606C38) wisselen af
  */
 
 import { useState, useEffect } from 'react';
 
 const titles = [
-  { text: 'Trek Lootjes', id: 1 },
-  { text: 'Organiseer Events', id: 2 },
-  { text: 'Maak WishLists', id: 3 },
-  { text: 'Volg Vrienden', id: 4 },
+  { text: 'Trek Lootjes', id: 1 },        // cool-olive
+  { text: 'Organiseer Events', id: 2 },   // warm-olive
+  { text: 'Maak WishLists', id: 3 },      // cool-olive
+  { text: 'Volg Vrienden', id: 4 },       // warm-olive
 ];
 
 export default function HeroTitle() {
@@ -41,8 +42,8 @@ export default function HeroTitle() {
               <span
                 className={`block ${
                   index === 1 || index === 3
-                    ? 'text-warm-olive'
-                    : 'text-cool-olive'
+                    ? 'text-warm-olive'  // ✅ warm-olive voor index 1,3
+                    : 'text-cool-olive'  // ✅ cool-olive voor index 0,2
                 }`}
               >
                 {title.text}

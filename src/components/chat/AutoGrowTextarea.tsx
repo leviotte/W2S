@@ -1,3 +1,4 @@
+// src/components/chat/AutoGrowTextarea.tsx
 import React, { useRef, useEffect, ChangeEvent } from "react";
 
 interface AutoGrowTextareaProps {

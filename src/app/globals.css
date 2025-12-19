@@ -13,7 +13,24 @@
 @plugin "tailwindcss-animate";
 
 /* ========================================================================= */
-/*  2. Theme Variabelen
+/*  🎨 WISH2SHARE CUSTOM KLEUREN (NIEUW!)
+/* ========================================================================= */
+@theme {
+  /* ✅ Custom kleuren voor Wish2Share platform */
+  --color-warm-beige: #F5F0E6;
+  --color-warm-olive: #606C38;
+  --color-cool-olive: #283618;
+  
+  /* ✅ Custom spacing */
+  --spacing-72: 18rem;
+  --spacing-84: 21rem;
+  
+  /* ✅ Custom breakpoint */
+  --breakpoint-xs: 480px;
+}
+
+/* ========================================================================= */
+/*  2. Theme Variabelen (SHADCN/UI)
 /* ========================================================================= */
 @layer theme {
   :root {
@@ -146,4 +163,21 @@
     color: rgb(37, 113, 53);
   }
   @keyframes border-animation { to { transform: translateX(-25%); } }
+}
+/* Cursor pointer voor alle interactive elements */
+button,
+a,
+[role="button"],
+[role="link"],
+input[type="button"],
+input[type="submit"],
+.cursor-pointer {
+  cursor: pointer;
+}
+
+/* Disabled state */
+button:disabled,
+a:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
 }

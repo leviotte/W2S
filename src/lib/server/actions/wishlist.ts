@@ -1,4 +1,4 @@
-// src/lib/server/actions/wishlist-actions.ts
+// src/lib/server/actions/wishlist.ts
 'use server';
 
 import { adminDb } from '@/lib/server/firebase-admin';
@@ -811,6 +811,77 @@ export async function getWishlistStatsForUser(
       total: 0,
       public: 0,
       private: 0,
+    };
+  }
+}
+// ============================================================================
+// EVENT LINKING OPERATIONS (✅ NIEUW!)
+// ============================================================================
+
+/**
+ * ✅ Link wishlist to event participant
+ */
+export async function linkWishlistToEventAction({
+  eventId,
+  wishlistId,
+  participantId,
+}: {
+  eventId: string;
+  wishlistId: string;
+  participantId: string;
+}): Promise<ActionResult> {
+  try {
+    const eventRef = adminDb.collection('events').doc(eventId);
+    const eventDoc = await eventRef.get();
+    
+    if (!eventDoc.exists) {
+      return { success: false, error: 'Event niet gevonden' };
+    }
+    
+    const eventData = eventDoc.data();
+    const participants = eventData?.participants || {};
+    
+    // Find participant (can be by key or by id in value)
+    let participantKey: string | null = null;
+    
+    // Check if participantId is a direct key
+    if (participants[participantId]) {
+      participantKey = participantId;
+    } else {
+      // Search by id in participant objects
+      for (const [key, participant] of Object.entries(participants)) {
+        if ((participant as any).id === participantId) {
+          participantKey = key;
+          break;
+        }
+      }
+    }
+    
+    if (!participantKey) {
+      return { success: false, error: 'Deelnemer niet gevonden in event' };
+    }
+    
+    // Update participant with wishlistId
+    participants[participantKey] = {
+      ...participants[participantKey],
+      wishlistId,
+    };
+    
+    await eventRef.update({ 
+      participants,
+      updatedAt: nowTimestamp(),
+    });
+    
+    // Revalidate paths
+    revalidatePath(`/dashboard/event/${eventId}`);
+    revalidatePath('/dashboard/wishlists');
+    
+    return { success: true };
+  } catch (error) {
+    console.error('linkWishlistToEventAction error:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Kon wishlist niet koppelen aan event' 
     };
   }
 }

@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { getUserProfileByUsername } from '@/lib/server/data/users';
 import { getUserProfileAction } from '@/lib/server/actions/user-actions';
 import { getSubProfileById } from '@/lib/server/data/profiles'; // ✅ ADDED
-import { getUserWishlistsAction } from '@/lib/server/actions/wishlist-actions';
+import { getUserWishlistsAction } from '@/lib/server/actions/wishlist';
 import { getCurrentUser } from '@/lib/auth/actions';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import FollowButton from '@/components/followers/FollowButton';

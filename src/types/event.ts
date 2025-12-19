@@ -1,228 +1,117 @@
 // src/types/event.ts
 import { z } from 'zod';
-import { Timestamp } from 'firebase/firestore';
-import { chatMessageSchema, type ChatMessage } from './chat';
-import { taskSchema, type Task } from './task';
 
 // ============================================================================
-// TIMESTAMP SCHEMA
-// ============================================================================
-
-export const timestampSchema = z.preprocess(
-  (arg) => {
-    // Handle Firestore Timestamp
-    if (arg instanceof Timestamp) return arg.toDate();
-    
-    // Handle Admin SDK Timestamp
-    if (arg && typeof arg === 'object' && 'toDate' in arg) {
-      return (arg as any).toDate();
-    }
-    
-    // Handle ISO string or timestamp number
-    if (typeof arg === 'string' || typeof arg === 'number') {
-      const date = new Date(arg);
-      if (!isNaN(date.getTime())) return date;
-    }
-    
-    // Handle Date objects
-    if (arg instanceof Date) return arg;
-    
-    return arg;
-  },
-  z.date({
-    message: "Ongeldig datumformaat. Geef een geldige datum op."
-  })
-);
-
-// ============================================================================
-// PARTICIPANT SCHEMA (GEFIXED VOOR NEXT.JS 16)
+// PARTICIPANT SCHEMA (✅ AANGEPAST VOOR ARRAY GEBRUIK)
 // ============================================================================
 
 export const eventParticipantSchema = z.object({
   id: z.string(),
   firstName: z.string().min(1, "Voornaam is verplicht"),
   lastName: z.string().min(1, "Achternaam is verplicht"),
-  
-  // ✅ GEFIXED - email kan leeg zijn of optional
   email: z.string().email("Ongeldig e-mailadres").optional().or(z.literal('')),
   
+  // ✅ TOEGEVOEGD: Fields voor conversie uit Firebase Record
+  role: z.enum(['organizer', 'participant']).default('participant'),
+  status: z.enum(['pending', 'accepted', 'declined']).default('pending'),
+  addedAt: z.string().optional(),
+  
+  // Bestaande velden
   confirmed: z.boolean().default(false),
-  
-  // ✅ GEFIXED - wishlistId kan null zijn
   wishlistId: z.string().optional().nullable(),
-  
-  // ✅ GEFIXED - photoURL kan null zijn
   photoURL: z.string().url().optional().nullable(),
   
-  // Extra fields voor backward compatibility
-  name: z.string().optional(), // Deprecated - use firstName + lastName
+  // Backward compatibility
+  name: z.string().optional(),
   profileId: z.string().optional().nullable(),
 });
 
 export type EventParticipant = z.infer<typeof eventParticipantSchema>;
 
 // ============================================================================
-// EVENT SCHEMA (VOLLEDIG - NEXT.JS 16 COMPATIBLE)
+// EVENT SCHEMA - ✅ PARTICIPANTS NU ARRAY IN PLAATS VAN RECORD
 // ============================================================================
 
 export const eventSchema = z.object({
   // CORE FIELDS
   id: z.string(),
   name: z.string().min(3, "Naam moet minstens 3 tekens bevatten"),
-  organizerId: z.string(),
   
-  // OPTIONAL INFO
-  organizerName: z.string().optional().nullable(),
-  description: z.string().optional().nullable(),
-  imageUrl: z.string().url("Ongeldige URL").optional().nullable(),
-  backgroundImage: z.string().url("Ongeldige URL").optional().nullable(),
-
-  // DATE & TIME
-  date: timestampSchema,
-  time: z.string().optional().nullable(), // ✅ GEFIXED - kan null zijn
+  // ✅ PRIMARY FIELD - matches Firebase
+  organizer: z.string(),
+  // ✅ FALLBACK for new data
+  organizerId: z.string().optional(),
+  
+  // DATE & TIME - ISO STRINGS
+  date: z.string(), // "2025-12-23"
+  time: z.string().nullable().optional(),
   endTime: z.string().optional().nullable(),
   
-  // TIMESTAMPS
-  createdAt: timestampSchema.default(() => new Date()),
-  updatedAt: timestampSchema.default(() => new Date()),
-  registrationDeadline: timestampSchema.optional().nullable(), // ✅ GEFIXED - kan null zijn
+  // TIMESTAMPS - ISO STRINGS
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+  registrationDeadline: z.string().nullable().optional(),
   
-  // LOCATION & THEME
-  location: z.string().optional().nullable(),
-  theme: z.string().optional().nullable(),
-  additionalInfo: z.string().optional().nullable(),
+  // BUDGET & PARTICIPANTS
+  budget: z.number().min(0).default(0),
+  maxParticipants: z.number().positive().int().default(1000),
   
-  // ORGANIZER CONTACT
-  organizerPhone: z.string().optional().nullable(),
-  organizerEmail: z.string().email().optional().nullable(),
-
+  // ✅ CRITICAL FIX: PARTICIPANTS NU ARRAY (werd geconverteerd van Firebase Record)
+  participants: z.array(eventParticipantSchema).default([]),
+  currentParticipantCount: z.number().int().default(0),
+  
+  // LOOTJES/DRAWING
+  isLootjesEvent: z.boolean().default(false),
+  drawnNames: z.record(z.string(), z.string()).default({}),
+  
   // VISIBILITY & REGISTRATION
   isPublic: z.boolean().default(false),
   allowSelfRegistration: z.boolean().default(false),
-  isInvited: z.boolean().optional().default(false),
+  isInvited: z.boolean().default(false),
   
-  // BUDGET & PARTICIPANTS
-  budget: z.number().min(0).optional().default(0),
-  maxParticipants: z.number().positive().int().optional().default(1000),
-  
-  // ✅ PARTICIPANTS AS RECORD (Firestore structure)
-  participants: z.record(z.string(), eventParticipantSchema).default({}),
-  
-  // ✅ PARTICIPANT COUNT
-  currentParticipantCount: z.number().int().default(0),
-  participantCount: z.number().int().optional(), // Deprecated - use currentParticipantCount
-  
-  // CHAT & TASKS (IMPORTED SCHEMAS)
-  messages: z.array(chatMessageSchema).default([]),
+  // CHAT & TASKS
+  messages: z.array(z.any()).default([]),
   lastReadTimestamps: z.record(z.string(), z.number()).default({}),
-  tasks: z.array(taskSchema).default([]),
+  tasks: z.array(z.any()).default([]),
   
-  // LOOTJES/DRAWING FEATURES
-  isLootjesEvent: z.boolean().default(false),
-  namesDrawn: z.boolean().default(false),
-  allowDrawingNames: z.boolean().optional().default(false),
-  drawnNames: z.record(z.string(), z.string()).default({}),
-  exclusions: z.record(z.string(), z.array(z.string())).optional().default({}),
-
-  // STATUS
-  eventComplete: z.boolean().default(false),
+  // OPTIONAL FIELDS
+  profileId: z.string().nullable().optional(),
+  backgroundImage: z.string().optional(),
+  description: z.string().optional(),
+  imageUrl: z.string().optional(),
+  location: z.string().optional().nullable(),
+  theme: z.string().optional().nullable(),
+  eventComplete: z.boolean().optional(),
   
-  // ✅ BACKWARD COMPATIBILITY FIELDS
-  organizer: z.string().optional(), // Deprecated - use organizerId
-  profileId: z.string().optional().nullable(),
+  // LEGACY FIELDS
+  organizerName: z.string().optional().nullable(),
+  organizerPhone: z.string().optional().nullable(),
+  organizerEmail: z.string().email().optional().nullable(),
+  additionalInfo: z.string().optional().nullable(),
+  namesDrawn: z.boolean().optional(),
+  allowDrawingNames: z.boolean().optional(),
+  exclusions: z.record(z.string(), z.array(z.string())).optional(),
+  participantCount: z.number().int().optional(),
 });
 
 export type Event = z.infer<typeof eventSchema>;
 
 // ============================================================================
-// RE-EXPORT IMPORTED TYPES
-// ============================================================================
-
-export type { ChatMessage, Task };
-
-// ============================================================================
-// CREATE/UPDATE SCHEMAS
+// UTILITY FUNCTIONS (✅ AANGEPAST VOOR ARRAY)
 // ============================================================================
 
 /**
- * Schema voor het aanmaken van een nieuw evenement
- * Verwijdert auto-generated fields (id, timestamps, organizerId)
- */
-export const createEventSchema = eventSchema.omit({ 
-  id: true, 
-  createdAt: true, 
-  updatedAt: true,
-  organizerId: true,
-  organizerName: true,
-  currentParticipantCount: true,
-  participantCount: true,
-});
-
-export type CreateEventData = z.infer<typeof createEventSchema>;
-
-/**
- * Schema voor het updaten van een evenement
- * Alle velden zijn optioneel
- */
-export const eventUpdateSchema = eventSchema.partial().omit({
-  id: true,
-});
-
-export type UpdateEventData = z.infer<typeof eventUpdateSchema>;
-
-/**
- * Schema voor evenement formulier validatie
- * ✅ GEFIXED - Zod v4+ syntax
- */
-export const eventFormSchema = z.object({
-  name: z.string().min(3, "Naam moet minstens 3 tekens bevatten"),
-  
-  // ✅ GEFIXED - gebruik .refine() in plaats van required_error
-  date: z.date({
-    message: "Datum is verplicht"
-  }).refine((date) => date !== null && date !== undefined, {
-    message: "Datum is verplicht"
-  }),
-  
-  time: z.string().optional().nullable(),
-  endTime: z.string().optional().nullable(),
-  location: z.string().optional().nullable(),
-  description: z.string().optional().nullable(),
-  budget: z.number().min(0).optional(),
-  maxParticipants: z.number().positive().int().optional(),
-  isLootjesEvent: z.boolean().default(false),
-  allowSelfRegistration: z.boolean().default(false),
-  isPublic: z.boolean().default(false),
-  backgroundImage: z.string().url().optional().nullable(),
-  theme: z.string().optional().nullable(),
-  
-  registrationDeadline: z.date({
-    message: "Ongeldige registratiedeadline"
-  }).optional().nullable(),
-});
-
-export type EventFormData = z.infer<typeof eventFormSchema>;
-
-// ============================================================================
-// UTILITY TYPES
-// ============================================================================
-
-/**
- * Type voor evenement met participant array (voor UI)
- */
-export type EventWithParticipantArray = Omit<Event, 'participants'> & {
-  participants: EventParticipant[];
-};
-
-/**
- * Helper om participants van Record naar Array te converteren
+ * Helper om participants van Record naar Array te converteren (voor Firebase → App)
  */
 export function participantsToArray(participants: Record<string, EventParticipant>): EventParticipant[] {
-  return Object.values(participants);
+  return Object.entries(participants).map(([id, participant]) => ({
+    ...participant,
+    id, // Zorg dat id altijd bestaat
+  }));
 }
 
 /**
- * Helper om participants van Array naar Record te converteren
+ * Helper om participants van Array naar Record te converteren (voor App → Firebase)
  */
 export function participantsToRecord(participants: EventParticipant[]): Record<string, EventParticipant> {
   return participants.reduce((acc, participant) => {
@@ -232,12 +121,95 @@ export function participantsToRecord(participants: EventParticipant[]): Record<s
 }
 
 /**
- * Type guards
+ * Helper om te checken of een user organizer is
+ */
+export function isOrganizer(event: Event, userId: string): boolean {
+  return event.organizer === userId || event.organizerId === userId;
+}
+
+/**
+ * Helper om te checken of een user deelnemer is
+ */
+export function isParticipant(event: Event, userId: string): boolean {
+  return event.participants.some(p => p.id === userId);
+}
+
+/**
+ * Helper om participant count te berekenen
+ */
+export function getParticipantCount(event: Event): number {
+  return event.participants.length;
+}
+
+/**
+ * Helper om confirmed participants te krijgen
+ */
+export function getConfirmedParticipants(event: Event): EventParticipant[] {
+  return event.participants.filter(p => p.confirmed);
+}
+
+/**
+ * Helper om unconfirmed participants te krijgen
+ */
+export function getUnconfirmedParticipants(event: Event): EventParticipant[] {
+  return event.participants.filter(p => !p.confirmed);
+}
+
+/**
+ * Helper om event status te bepalen
+ */
+export function getEventStatus(event: Event): 'upcoming' | 'ongoing' | 'past' {
+  const now = new Date();
+  const eventDate = new Date(event.date);
+  
+  if (eventDate.toDateString() === now.toDateString()) {
+    return 'ongoing';
+  }
+  
+  if (eventDate < now) {
+    return 'past';
+  }
+  
+  return 'upcoming';
+}
+
+/**
+ * Helper om dagen tot event te berekenen
+ */
+export function getDaysUntilEvent(event: Event): number {
+  const now = new Date();
+  const eventDate = new Date(event.date);
+  const diffTime = eventDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
+}
+
+/**
+ * Helper om formatted date string te krijgen
+ */
+export function getFormattedEventDate(event: Event): string {
+  const date = new Date(event.date);
+  return date.toLocaleDateString('nl-BE', { 
+    day: '2-digit', 
+    month: '2-digit', 
+    year: 'numeric' 
+  });
+}
+
+// ============================================================================
+// TYPE GUARDS
+// ============================================================================
+
+/**
+ * Type guard om te checken of een object een Event is
  */
 export function isEvent(obj: any): obj is Event {
   return eventSchema.safeParse(obj).success;
 }
 
+/**
+ * Type guard om te checken of een object een EventParticipant is
+ */
 export function isEventParticipant(obj: any): obj is EventParticipant {
   return eventParticipantSchema.safeParse(obj).success;
 }
@@ -261,58 +233,47 @@ export const EVENT_STATUS = {
 export type EventVisibility = typeof EVENT_VISIBILITY[keyof typeof EVENT_VISIBILITY];
 export type EventStatus = typeof EVENT_STATUS[keyof typeof EVENT_STATUS];
 
-/**
- * Helper om event status te bepalen
- */
-export function getEventStatus(event: Event): EventStatus {
-  const now = new Date();
-  const eventDate = new Date(event.date);
-  
-  // Als het evenement vandaag is
-  if (eventDate.toDateString() === now.toDateString()) {
-    return EVENT_STATUS.ONGOING;
-  }
-  
-  // Als het evenement in het verleden is
-  if (eventDate < now) {
-    return EVENT_STATUS.PAST;
-  }
-  
-  // Anders is het in de toekomst
-  return EVENT_STATUS.UPCOMING;
-}
+// ============================================================================
+// FORM SCHEMA (VOOR CLIENT-SIDE VALIDATIE)
+// ============================================================================
 
-/**
- * Helper om te checken of een user deelnemer is
- */
-export function isParticipant(event: Event, userId: string): boolean {
-  return !!event.participants[userId];
-}
+export const eventFormSchema = z.object({
+  name: z.string().min(3, "Naam moet minstens 3 tekens bevatten"),
+  date: z.date({ message: "Datum is verplicht" }),
+  time: z.string().optional().nullable(),
+  endTime: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  budget: z.number().min(0).optional(),
+  maxParticipants: z.number().positive().int().optional(),
+  isLootjesEvent: z.boolean().default(false),
+  allowSelfRegistration: z.boolean().default(false),
+  isPublic: z.boolean().default(false),
+  backgroundImage: z.string().url().optional().nullable(),
+  theme: z.string().optional().nullable(),
+  registrationDeadline: z.date().optional().nullable(),
+});
 
-/**
- * Helper om te checken of een user de organizer is
- */
-export function isOrganizer(event: Event, userId: string): boolean {
-  return event.organizerId === userId || event.organizer === userId;
-}
+export type EventFormData = z.infer<typeof eventFormSchema>;
 
-/**
- * Helper om participant count te berekenen
- */
-export function getParticipantCount(event: Event): number {
-  return Object.keys(event.participants).length;
-}
+// ============================================================================
+// CREATE/UPDATE SCHEMAS
+// ============================================================================
 
-/**
- * Helper om confirmed participants te krijgen
- */
-export function getConfirmedParticipants(event: Event): EventParticipant[] {
-  return participantsToArray(event.participants).filter(p => p.confirmed);
-}
+export const createEventSchema = eventSchema.omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true,
+  organizer: true,
+  organizerId: true,
+  currentParticipantCount: true,
+  participantCount: true,
+});
 
-/**
- * Helper om unconfirmed participants te krijgen
- */
-export function getUnconfirmedParticipants(event: Event): EventParticipant[] {
-  return participantsToArray(event.participants).filter(p => !p.confirmed);
-}
+export type CreateEventData = z.infer<typeof createEventSchema>;
+
+export const eventUpdateSchema = eventSchema.partial().omit({
+  id: true,
+});
+
+export type UpdateEventData = z.infer<typeof eventUpdateSchema>;

@@ -1,5 +1,10 @@
-// src/components/landing/hero-actions.tsx
 'use client';
+
+/**
+ * components/landing/hero-actions.tsx
+ * 
+ * ✅ GRADIENT BUTTONS met correcte warm-olive/cool-olive kleuren
+ */
 
 import { Gift, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -30,8 +35,8 @@ export default function HeroActions() {
       {/* Event Button */}
       <div className="w-full sm:w-[48%] md:w-[48%]">
         <button
-          onClick={handleCreateEvent} // ✅ FIXED
-          className="z-10 flex h-32 w-full min-w-32 flex-col items-center justify-center overflow-hidden rounded-md border-4 border-transparent bg-gradient-to-r from-warm-olive via-cool-olive to-warm-olive px-2 text-base font-medium text-white transition-all duration-300 hover:scale-105 hover:bg-gradient-to-r hover:from-cool-olive hover:via-warm-olive hover:to-cool-olive hover:shadow-[0_4px_12px_rgba(72,97,64,0.3)] sm:px-6"
+          onClick={handleCreateEvent}
+          className="flex h-32 w-full min-w-32 flex-col items-center justify-center overflow-hidden rounded-md border-4 border-transparent bg-gradient-to-r from-warm-olive via-cool-olive to-warm-olive px-2 text-base font-medium text-white transition-all duration-300 hover:scale-105 hover:bg-gradient-to-r hover:from-cool-olive hover:via-warm-olive hover:to-cool-olive hover:shadow-[0_4px_12px_rgba(72,97,64,0.3)] sm:px-6"
         >
           <Users className="mb-3 h-8 w-8" />
           <span className="px-2 text-md sm:text-lg">Maak een Event</span>
@@ -44,7 +49,7 @@ export default function HeroActions() {
       {/* Wishlist Button */}
       <div className="w-full sm:w-[48%] md:w-[48%]">
         <button
-          onClick={handleCreateWishlist} // ✅ FIXED
+          onClick={handleCreateWishlist}
           className="flex h-32 w-full min-w-32 flex-col items-center justify-center overflow-hidden rounded-md border-4 border-transparent bg-gradient-to-r from-warm-olive via-cool-olive to-warm-olive px-2 text-base font-medium text-white transition-all duration-300 hover:scale-105 hover:bg-gradient-to-r hover:from-cool-olive hover:via-warm-olive hover:to-cool-olive hover:shadow-[0_4px_12px_rgba(72,97,64,0.3)] sm:px-6"
         >
           <Gift className="mb-3 h-8 w-8" />

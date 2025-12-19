@@ -1,4 +1,4 @@
-// src/components/event/ParticipantList.tsx
+// src/components/party-preps/ParticipantList.tsx
 "use client";
 
 import DraggableParticipant from "@/components/party-preps/DraggableParticipant";
