@@ -3,32 +3,19 @@ import type { Product } from '@/types/product';
 import type { WishlistItem } from '@/types/wishlist';
 
 /**
- * ✅ SIMPLIFIED: Convert Product to WishlistItem format
- * Deze functie wordt gebruikt in create wishlist page
+ * ✅ FIXED: Convert Product to WishlistItem met UNIEKE ID
+ * Voorkomt duplicate key errors bij hetzelfde product meerdere keren toevoegen
  */
 export function productToWishlistItem(product: Product): WishlistItem {
   return {
-    id: product.id,
-    source: product.source,
-    title: product.title,
-    url: product.url,
-    imageUrl: product.imageUrl,
-    price: product.price,
-    ean: product.ean,
-    category: product.category,
-    description: product.description,
-    rating: product.rating,
-    reviewCount: product.reviewCount,
-    ageGroup: product.ageGroup,
-    gender: product.gender,
-    tags: product.tags,
-    platforms: product.platforms,
-    hasMultiplePlatforms: product.hasMultiplePlatforms,
-    // Wishlist-specific fields
+    ...product,
+    id: crypto.randomUUID(), // ✅ UNIEKE wishlist item ID
+    productId: product.id,   // ✅ Behoud originele EAN/ASIN
     quantity: 1,
     isReserved: false,
     reservedBy: null,
     claimedBy: null,
+    purchasedBy: null,
     addedAt: new Date().toISOString(),
   };
 }

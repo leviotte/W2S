@@ -12,6 +12,8 @@ import { CSS } from '@dnd-kit/utilities';
 
 import { updatePostAction } from '@/lib/server/actions/blog';
 import type { Product } from '@/types/product';
+import type { WishlistItem } from '@/types/wishlist';
+import { productToWishlistItem } from '@/lib/utils/product-helpers';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -269,7 +271,7 @@ export function UpdatePostForm({ post }: UpdatePostFormProps) {
         </div>
       </form>
 
-      {/* ✅ Inline Product Search for Active Section */}
+      {/* ✅ FIXED: Inline Product Search for Active Section */}
       {activeSection && activeSectionData && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-auto p-6">
@@ -280,17 +282,30 @@ export function UpdatePostForm({ post }: UpdatePostFormProps) {
               </Button>
             </div>
             <AffiliateProductSearch
-              items={activeSectionData.items.map(p => ({
-                ...p,
-                quantity: 1,
-                isReserved: false,
-                reservedBy: null,
-                claimedBy: null,
-                addedAt: new Date().toISOString(),
-              }))}
-              setItems={(newItems) => {
-                const products = newItems.map(({ quantity, isReserved, reservedBy, claimedBy, addedAt, ...product }) => product as Product);
+              items={activeSectionData.items.map(product => productToWishlistItem(product))}
+              setItems={(newItems: WishlistItem[]) => {
+                // ✅ Extract Product fields from WishlistItem (exclude wishlist-specific fields)
+                const products: Product[] = newItems.map(item => ({
+                  id: item.productId || item.id, // ✅ Use original product ID
+                  source: item.source,
+                  title: item.title,
+                  url: item.url,
+                  imageUrl: item.imageUrl,
+                  price: item.price,
+                  ean: item.ean,
+                  category: item.category,
+                  description: item.description,
+                  rating: item.rating,
+                  reviewCount: item.reviewCount,
+                  ageGroup: item.ageGroup,
+                  gender: item.gender,
+                  tags: item.tags,
+                  platforms: item.platforms,
+                  hasMultiplePlatforms: item.hasMultiplePlatforms,
+                }));
+                
                 handleUpdateSection(activeSection, 'items', products);
+                setActiveSection(null); // ✅ Close modal after adding
               }}
             />
           </div>

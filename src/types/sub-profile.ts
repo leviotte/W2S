@@ -1,3 +1,4 @@
+// src/types/sub-profile.ts
 export type SubProfile = {
   id: string;
   userId: string;

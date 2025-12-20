@@ -302,7 +302,7 @@ export async function deleteWishlistAction(wishlistId: string): Promise<ActionRe
 // ============================================================================
 
 /**
- * ✅ Add item to wishlist
+ * ✅ Add item to wishlist - FIXED voor duplicate keys
  */
 export async function addItemToWishlistAction(
   wishlistId: string,
@@ -318,8 +318,11 @@ export async function addItemToWishlistAction(
     const wishlistData = doc.data();
     const items = wishlistData?.items || [];
 
+    // ✅ FIXED: Genereer altijd een UNIEKE ID, zelfs als item.id al bestaat
     const newItem = {
-      id: item.id || `item-${Date.now()}`,
+      ...item,
+      id: crypto.randomUUID(), // ✅ UNIEKE ID per wishlist item
+      productId: item.productId || item.id, // ✅ Behoud originele product ID
       title: item.title || '',
       description: item.description || '',
       url: item.url || '',
@@ -329,15 +332,15 @@ export async function addItemToWishlistAction(
       isReserved: false,
       source: item.source || 'Internal',
       platforms: item.platforms || {},
-      createdAt: nowTimestamp(), // ✅ Already correct
-      updatedAt: nowTimestamp(), // ✅ Already correct
+      createdAt: nowTimestamp(),
+      updatedAt: nowTimestamp(),
     };
 
     items.push(newItem);
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
       items,
-      updatedAt: nowTimestamp(), // ✅ Already correct
+      updatedAt: nowTimestamp(),
     });
 
     const slug = wishlistData?.slug;

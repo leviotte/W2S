@@ -22,16 +22,22 @@ export type ClaimedBy = z.infer<typeof claimedBySchema>;
 /**
  * WishlistItem = Product + reservation/wishlist metadata
  * 
- * purchasedBy format: { "eventId": ["userId1", "userId2"] }
- * Dit houdt bij welke users een item gekocht hebben voor welk event.
+ * ✅ BELANGRIJK: 
+ * - `id` = UNIEKE wishlist item ID (crypto.randomUUID)
+ * - `productId` = Originele EAN/ASIN van het product
+ * 
+ * Dit voorkomt duplicate key errors wanneer hetzelfde product meerdere keren wordt toegevoegd.
  */
 export const wishlistItemSchema = productSchema.extend({
+  id: z.string(), // ✅ UNIEKE wishlist item ID
+  productId: z.union([z.string(), z.number()]).optional(), // ✅ Originele product EAN/ASIN
+  
   quantity: z.number().min(1).default(1),
   isReserved: z.boolean().default(false),
   reservedBy: z.string().optional().nullable(),
   claimedBy: claimedBySchema.optional().nullable(),
   
-  // ✅ NIEUW - Event purchase tracking
+  // Event purchase tracking
   purchasedBy: z.record(z.string(), z.array(z.string())).optional().nullable(),
   // Format: { "event-id-123": ["user-id-1", "user-id-2"] }
   
@@ -92,7 +98,7 @@ export function countAvailableItems(wishlist: Wishlist): number {
 }
 
 // ============================================================================
-// HELPER FUNCTIONS - PURCHASE TRACKING (✅ NIEUW!)
+// HELPER FUNCTIONS - PURCHASE TRACKING
 // ============================================================================
 
 /**
@@ -193,17 +199,23 @@ export function getItemsPurchasedByUserForEvent(
 }
 
 // ============================================================================
-// HELPER FUNCTIONS - CONVERSION
+// HELPER FUNCTIONS - CONVERSION (✅ FIXED!)
 // ============================================================================
 
+/**
+ * ✅ FIXED: Genereert een UNIEKE ID voor elk wishlist item
+ * Voorkomt duplicate key errors bij hetzelfde product meerdere keren toevoegen
+ */
 export function productToWishlistItem(product: Product): WishlistItem {
   return {
     ...product,
+    id: crypto.randomUUID(), // ✅ UNIEKE wishlist item ID
+    productId: product.id,   // ✅ Behoud originele EAN/ASIN
     quantity: 1,
     isReserved: false,
     reservedBy: null,
     claimedBy: null,
-    purchasedBy: null, // ✅ TOEGEVOEGD
+    purchasedBy: null,
     addedAt: new Date().toISOString(),
   };
 }

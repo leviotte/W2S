@@ -313,23 +313,3 @@ export async function removeManagerAction(profileId: string, managerId: string):
         return { success: false, error: 'Kon beheerder niet verwijderen.' };
     }
 }
-
-// ✅ NEW: Get all profiles for a user (for forms, team switcher, etc.)
-export async function getUserProfilesAction(userId: string): Promise<ActionResponse<UserProfile[]>> {
-  try {
-    const snapshot = await adminDb
-      .collection('users')
-      .where('userId', '==', userId)
-      .get();
-
-    const profiles = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as UserProfile[];
-
-    return { success: true, data: profiles };
-  } catch (error) {
-    console.error('Error fetching user profiles:', error);
-    return { success: false, error: 'Kon profielen niet ophalen.' };
-  }
-}

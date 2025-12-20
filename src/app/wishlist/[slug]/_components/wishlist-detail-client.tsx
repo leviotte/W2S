@@ -29,6 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { productToWishlistItem } from '@/lib/utils/product-helpers';
 
 interface WishlistDetailClientProps {
   wishlist: any;
@@ -167,16 +168,19 @@ export function WishlistDetailClient({
   };
 
   const addItemToWishlist = async (product: Product) => {
-    const result = await addWishlistItemAction(wishlist.id, product);
+  // ✅ FIXED: Converteer Product naar WishlistItem VOOR het naar de action te sturen
+  const wishlistItem = productToWishlistItem(product);
+  
+  const result = await addWishlistItemAction(wishlist.id, wishlistItem);
 
-    if (result.success) {
-      toast.success('Item toegevoegd');
-      router.refresh();
-      setShowProductDialog(false);
-    } else {
-      toast.error(result.error || 'Toevoegen mislukt');
-    }
-  };
+  if (result.success) {
+    toast.success('Item toegevoegd');
+    router.refresh();
+    setShowProductDialog(false);
+  } else {
+    toast.error(result.error || 'Toevoegen mislukt');
+  }
+};
 
   // ===== UTILITIES =====
   const copyUrlToClipboard = () => {
