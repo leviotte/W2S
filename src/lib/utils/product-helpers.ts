@@ -3,14 +3,17 @@ import type { Product } from '@/types/product';
 import type { WishlistItem } from '@/types/wishlist';
 
 /**
- * ✅ FIXED: Convert Product to WishlistItem met UNIEKE ID
- * Voorkomt duplicate key errors bij hetzelfde product meerdere keren toevoegen
+ * ✅ FIXED: Convert Product to WishlistItem met EAN/ASIN als ID
+ * Gebruikt product.id (EAN/ASIN) zodat duplicates automatisch gemerged worden via quantity
+ * 
+ * BELANGRIJK: Gebruik GEEN crypto.randomUUID() hier!
+ * De action layer (addWishlistItemAction) handled de duplicate detection.
  */
 export function productToWishlistItem(product: Product): WishlistItem {
   return {
     ...product,
-    id: crypto.randomUUID(), // ✅ UNIEKE wishlist item ID
-    productId: product.id,   // ✅ Behoud originele EAN/ASIN
+    id: product.id,        // ✅ EAN/ASIN als primary key (voor deduplication)
+    productId: product.id, // ✅ Same value voor backwards compatibility
     quantity: 1,
     isReserved: false,
     reservedBy: null,
@@ -21,7 +24,7 @@ export function productToWishlistItem(product: Product): WishlistItem {
 }
 
 /**
- * ✅ DETAILED VERSION (alias voor backwards compatibility)
+ * ✅ BACKWARDS COMPATIBILITY alias
  */
 export const productToWishlistItemDetailed = productToWishlistItem;
 

@@ -226,3 +226,37 @@ export async function revalidateUserFollows(userId: string) {
   revalidatePath('/dashboard');
   revalidatePath('/profile');
 }
+// ============================================================================
+// GET USER BY ID (✅ ADMIN SDK SYNTAX)
+// ============================================================================
+
+export async function getUserById(userId: string) {
+  try {
+    const userDoc = await adminDb.collection('users').doc(userId).get();
+
+    if (!userDoc.exists) {
+      return null;
+    }
+
+    const userData = userDoc.data();
+
+    return {
+      id: userDoc.id,
+      firstName: userData?.firstName || '',
+      lastName: userData?.lastName || '',
+      displayName: userData?.displayName || `${userData?.firstName || ''} ${userData?.lastName || ''}`,
+      email: userData?.email || '',
+      photoURL: userData?.photoURL || null,
+      username: userData?.username || null,
+      isPublic: userData?.isPublic ?? true,
+      gender: userData?.gender || null,
+      birthdate: userData?.birthdate || null,
+      address: userData?.address || null,
+      createdAt: userData?.createdAt?.toDate?.() || new Date(),
+      updatedAt: userData?.updatedAt?.toDate?.() || new Date(),
+    };
+  } catch (error) {
+    console.error('Error fetching user by ID:', error);
+    return null;
+  }
+}

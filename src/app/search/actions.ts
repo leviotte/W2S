@@ -1,14 +1,10 @@
 // src/app/search/actions.ts
 'use server';
 
-import { z } from 'zod';
 import { adminDb } from '@/lib/server/firebase-admin';
-import type { UserProfile, SubProfile, SearchResult } from '@/types/user';
+import type { SearchResult } from './types';
 
-const SearchQuerySchema = z.object({
-  query: z.string().trim().min(1, 'Een zoekterm is verplicht.'),
-});
-
+// ✅ Hergebruik jouw bestaande serializeData
 function serializeData(data: any): any {
   if (!data) return null;
   const serialized: { [key: string]: any } = {};
@@ -24,6 +20,7 @@ function serializeData(data: any): any {
   return serialized;
 }
 
+// ✅ Hergebruik jouw bestaande calculateAge
 const calculateAge = (birthdate?: string | null): number | undefined => {
   if (!birthdate) return undefined;
   const birthDate = (birthdate as any).toDate ? (birthdate as any).toDate() : new Date(birthdate);
@@ -38,86 +35,110 @@ const calculateAge = (birthdate?: string | null): number | undefined => {
   return age;
 };
 
-export async function performSearchAction(params: { query: string }): Promise<{ success: true, data: SearchResult[] } | { success: false, error: string }> {
-  const validation = SearchQuerySchema.safeParse(params);
-  if (!validation.success) {
-    return { success: false, error: validation.error.issues[0]?.message || 'Ongeldige zoekopdracht.' };
-  }
-  
-  const { query: searchTerm } = validation.data;
-  const lowerCaseQuery = searchTerm.toLowerCase();
-
+// ✅ NIEUWE functie: split firstName/lastName search
+export async function searchUsersAction(firstName: string, lastName?: string) {
   try {
-    // ✅ Users query (gebruikt firstName_lower)
-    const usersQuery = adminDb.collection('users')
+    if (!firstName.trim()) {
+      return {
+        success: false,
+        error: 'Zonder voornaam kunnen we niet zoeken.',
+        data: null,
+      };
+    }
+
+    const results: SearchResult[] = [];
+    const lowerCaseFirstName = firstName.toLowerCase();
+
+    // Search users (public only)
+    const usersRef = adminDb.collection('users');
+    const userQuery = usersRef
       .where('isPublic', '==', true)
       .orderBy('firstName_lower')
-      .startAt(lowerCaseQuery)
-      .endAt(lowerCaseQuery + '\uf8ff')
-      .limit(15);
+      .startAt(lowerCaseFirstName)
+      .endAt(lowerCaseFirstName + '\uf8ff')
+      .limit(50);
+
+    const userSnapshots = await userQuery.get();
+
+    userSnapshots.forEach((doc) => {
+      const userData = serializeData(doc.data());
       
-    // ✅ Profiles query (gebruikt name_lower zoals oude site!)
-    const profilesQuery = adminDb.collection('profiles')
+      // Match lastName if provided
+      const matchesLastName =
+        !lastName ||
+        userData.lastName?.toLowerCase().startsWith(lastName.toLowerCase());
+
+      if (matchesLastName) {
+        const age = calculateAge(userData.birthdate);
+        results.push({
+          id: doc.id,
+          displayName: `${userData.firstName} ${userData.lastName || ''}`.trim(),
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          email: userData.email,
+          photoURL: userData.photoURL,
+          address: {
+            city: userData.address?.city,
+            country: userData.address?.country,
+          },
+          city: userData.address?.city,
+          birthdate: userData.birthdate,
+          age,
+          gender: userData.gender,
+          type: 'account',
+          username: userData.username,
+        });
+      }
+    });
+
+    // Search profiles (public only)
+    const profilesRef = adminDb.collection('profiles');
+    const profileQuery = profilesRef
       .where('isPublic', '==', true)
-      .orderBy('name_lower')  // ✅ CHANGED: name_lower ipv firstName_lower
-      .startAt(lowerCaseQuery)
-      .endAt(lowerCaseQuery + '\uf8ff')
-      .limit(15);
+      .orderBy('name_lower')
+      .startAt(lowerCaseFirstName)
+      .endAt(lowerCaseFirstName + '\uf8ff')
+      .limit(50);
 
-    const [userSnapshots, profileSnapshots] = await Promise.all([
-      usersQuery.get(),
-      profilesQuery.get(),
-    ]);
-    
-    const results: SearchResult[] = [];
-    const foundUserIds = new Set<string>();
+    const profileSnapshots = await profileQuery.get();
 
-    // ✅ Verwerk 'users' resultaten
-    userSnapshots.forEach(doc => {
-      if (!foundUserIds.has(doc.id)) {
-        const data = serializeData(doc.data()) as UserProfile;
+    profileSnapshots.forEach((doc) => {
+      const profileData = serializeData(doc.data());
+      
+      const matchesName =
+        !lastName ||
+        profileData.name.toLowerCase().includes(lastName.toLowerCase());
+
+      if (matchesName) {
+        const age = calculateAge(profileData.birthdate);
         results.push({
           id: doc.id,
-          displayName: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
-          firstName: data.firstName,
-          lastName: data.lastName,
-          username: data.username,
-          photoURL: data.photoURL,
-          city: data.address?.city, 
-          gender: data.gender,
-          age: calculateAge(data.birthdate),
-          type: 'user'
+          displayName: profileData.name,
+          photoURL: profileData.avatarURL,
+          address: {
+            city: profileData.address?.city,
+            country: profileData.address?.country,
+          },
+          city: profileData.address?.city,
+          birthdate: profileData.birthdate,
+          age,
+          gender: profileData.gender,
+          type: 'profile',
         });
-        foundUserIds.add(doc.id);
       }
     });
 
-    // ✅ Verwerk 'profiles' resultaten
-    profileSnapshots.forEach(doc => {
-      const data = serializeData(doc.data()) as SubProfile;
-      const ownerId = data.userId || data.parentId;
-
-      if (ownerId && !foundUserIds.has(ownerId)) {
-        results.push({
-          id: doc.id,
-          displayName: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
-          firstName: data.firstName,
-          lastName: data.lastName,
-          username: undefined,
-          photoURL: data.photoURL,
-          city: undefined,
-          gender: data.gender,
-          age: calculateAge(data.birthdate),
-          type: 'profile'
-        });
-        foundUserIds.add(ownerId);
-      }
-    });
-
-    return { success: true, data: results };
-
-  } catch (err) {
-    console.error("Fout bij uitvoeren van zoekopdracht:", err);
-    return { success: false, error: "Er ging iets mis op de server bij het zoeken." };
+    return {
+      success: true,
+      data: results,
+      error: null,
+    };
+  } catch (error) {
+    console.error('Search error:', error);
+    return {
+      success: false,
+      error: 'Er ging iets mis bij het zoeken',
+      data: null,
+    };
   }
 }

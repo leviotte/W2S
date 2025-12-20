@@ -19,7 +19,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/lib/store/use-auth-store";
-import { auth } from "@/lib/client/firebase";
+import { auth, getClientFirestore } from "@/lib/client/firebase"; // ✅ Import getClientFirestore functie
+import { collection, query, where, or, onSnapshot } from "firebase/firestore";
 
 interface Profile {
   id: string;
@@ -39,53 +40,66 @@ export function TeamSwitcher() {
   // ✅ Load profiles from Firestore
   useEffect(() => {
     if (!currentUser?.id) {
+      console.log("❌ No currentUser.id, clearing profiles");
       setProfiles([]);
       return;
     }
 
-    const loadProfiles = async () => {
-      try {
-        const { collection, query, where, or, onSnapshot, getFirestore } = await import("firebase/firestore");
-        const db = getFirestore();
+    console.log("🔍 Loading profiles for userId:", currentUser.id);
 
-        const profilesQuery = query(
-          collection(db, "profiles"),
-          or(
-            where("createdBy", "==", currentUser.id),
-            where("managers", "array-contains", currentUser.id)
-          )
-        );
+    // ✅ LAZY: Initialize db inside useEffect (browser-only)
+    const db = getClientFirestore(); // ✅ Dit werkt ALLEEN in de browser!
 
-        const unsubscribe = onSnapshot(profilesQuery, (snapshot) => {
-          const allProfiles = snapshot.docs.map((doc) => ({
+    const profilesQuery = query(
+      collection(db, "profiles"),
+      or(
+        where("createdBy", "==", currentUser.id),
+        where("managers", "array-contains", currentUser.id)
+      )
+    );
+
+    const unsubscribe = onSnapshot(
+      profilesQuery,
+      (snapshot) => {
+        console.log("📦 Firestore snapshot received, docs:", snapshot.docs.length);
+        
+        const allProfiles = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          console.log("📄 Profile doc:", doc.id, data);
+          return {
             id: doc.id,
-            name: doc.data().name || doc.data().displayName,
-            avatarURL: doc.data().avatarURL || doc.data().photoURL,
-          }));
-
-          const mainAccountProfile: Profile = {
-            id: "main-account",
-            name: `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.email || "Main Account",
-            avatarURL: currentUser.photoURL || undefined,
-            mainAccount: true,
+            name: data.name || data.displayName || "Unknown",
+            avatarURL: data.avatarURL || data.photoURL,
           };
-
-          setProfiles([mainAccountProfile, ...allProfiles]);
         });
 
-        return () => unsubscribe();
-      } catch (error) {
-        console.error("Failed to load profiles:", error);
-      }
-    };
+        const mainAccountProfile: Profile = {
+          id: "main-account",
+          name: `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.email || "Main Account",
+          avatarURL: currentUser.photoURL || undefined,
+          mainAccount: true,
+        };
 
-    loadProfiles();
-  }, [currentUser?.id]);
+        const finalProfiles = [mainAccountProfile, ...allProfiles];
+        console.log("✅ Final profiles:", finalProfiles);
+        setProfiles(finalProfiles);
+      },
+      (error) => {
+        console.error("❌ Firestore snapshot error:", error);
+      }
+    );
+
+    return () => {
+      console.log("🧹 Cleaning up profiles listener");
+      unsubscribe();
+    };
+  }, [currentUser?.id, currentUser?.firstName, currentUser?.lastName, currentUser?.email, currentUser?.photoURL]);
 
   // ✅ Load active profile from localStorage
   useEffect(() => {
     const savedProfileId = localStorage.getItem("activeProfile");
     if (savedProfileId) {
+      console.log("📌 Restored activeProfile from localStorage:", savedProfileId);
       setActiveProfileId(savedProfileId);
     }
   }, []);
@@ -93,6 +107,7 @@ export function TeamSwitcher() {
   const activeProfile = profiles.find((p) => p.id === activeProfileId) || profiles[0];
 
   const handleProfileSwitch = (profileId: string) => {
+    console.log("🔄 Switching to profile:", profileId);
     setActiveProfileId(profileId);
     localStorage.setItem("activeProfile", profileId);
     router.refresh();
@@ -113,7 +128,12 @@ export function TeamSwitcher() {
     }
   };
 
-  if (!currentUser) return null;
+  if (!currentUser) {
+    console.log("⚠️ TeamSwitcher: No currentUser, returning null");
+    return null;
+  }
+
+  console.log("🎨 Rendering TeamSwitcher with", profiles.length, "profiles");
 
   return (
     <DropdownMenu>
@@ -143,7 +163,7 @@ export function TeamSwitcher() {
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end">
         <DropdownMenuLabel className="text-xs text-muted-foreground">
-          Profielen
+          Profielen ({profiles.length})
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {profiles.map((profile) => (

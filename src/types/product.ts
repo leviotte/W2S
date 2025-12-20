@@ -6,7 +6,10 @@ import { z } from 'zod';
  * Pure product data - ZONDER wishlist-specifieke velden
  */
 
-// Schema voor zoek/filter opties
+// ============================================================================
+// QUERY OPTIONS SCHEMA
+// ============================================================================
+
 export const productQueryOptionsSchema = z.object({
   query: z.string().optional(),
   category: z.string().optional(),
@@ -18,15 +21,32 @@ export const productQueryOptionsSchema = z.object({
   gender: z.string().optional(),
 });
 
-// Enum voor de bron van het product
-export const productSourceSchema = z.enum(["Amazon", "Bol.com", "Internal", "dummy"]);
+// ============================================================================
+// SOURCE & PLATFORM SCHEMAS
+// ============================================================================
 
-// Schema voor platform-specifieke data (prijsvergelijking)
+/**
+ * ✅ FLEXIBLE SOURCE SCHEMA
+ * Accepteert ANY string, fallback naar "Internal" bij invalide waarden
+ * Voorkomt Zod validatie errors bij onbekende sources
+ */
+export const productSourceSchema = z
+  .string()
+  .default("Internal")
+  .catch("Internal");
+
+/**
+ * Schema voor platform-specifieke data (prijsvergelijking)
+ */
 export const platformSpecificDataSchema = z.object({
   URL: z.string().url(),
   Price: z.number(),
   Source: z.string(),
 });
+
+// ============================================================================
+// PRODUCT SCHEMA
+// ============================================================================
 
 /**
  * Het centrale PURE product schema
@@ -51,7 +71,7 @@ export const productSchema = z.object({
   tags: z.array(z.string()).optional(),
   
   // Prijsvergelijking over platforms
-  platforms: z.record(z.string(), platformSpecificDataSchema).optional(), // ✅ FIXED: 2 argumenten
+  platforms: z.record(z.string(), platformSpecificDataSchema).optional(),
   hasMultiplePlatforms: z.boolean().optional(),
 });
 
@@ -64,7 +84,9 @@ export type Product = z.infer<typeof productSchema>;
 export type ProductSource = z.infer<typeof productSourceSchema>;
 export type PlatformSpecificData = z.infer<typeof platformSpecificDataSchema>;
 
-// ✅ Extended type voor UI state (met isIncluded flag)
+/**
+ * ✅ Extended type voor UI state (met isIncluded flag)
+ */
 export type ProductWithInclusion = Product & { isIncluded?: boolean };
 
 // ============================================================================

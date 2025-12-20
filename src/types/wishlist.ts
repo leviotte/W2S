@@ -1,10 +1,5 @@
-// src/types/wishlist.ts
 import { z } from 'zod';
 import { productSchema, type Product } from './product';
-
-// ============================================================================
-// CLAIMED BY SCHEMA
-// ============================================================================
 
 export const claimedBySchema = z.object({
   userId: z.string(),
@@ -12,70 +7,42 @@ export const claimedBySchema = z.object({
   quantity: z.number().optional().default(1),
   claimedAt: z.string().optional(), // ISO timestamp
 });
-
 export type ClaimedBy = z.infer<typeof claimedBySchema>;
 
-// ============================================================================
-// WISHLIST ITEM SCHEMA
-// ============================================================================
-
-/**
- * WishlistItem = Product + reservation/wishlist metadata
- * 
- * ✅ BELANGRIJK: 
- * - `id` = UNIEKE wishlist item ID (crypto.randomUUID)
- * - `productId` = Originele EAN/ASIN van het product
- * 
- * Dit voorkomt duplicate key errors wanneer hetzelfde product meerdere keren wordt toegevoegd.
- */
 export const wishlistItemSchema = productSchema.extend({
-  id: z.string(), // ✅ UNIEKE wishlist item ID
-  productId: z.union([z.string(), z.number()]).optional(), // ✅ Originele product EAN/ASIN
-  
+  id: z.union([z.string(), z.number()]),
+  productId: z.union([z.string(), z.number()]).optional(),
   quantity: z.number().min(1).default(1),
   isReserved: z.boolean().default(false),
   reservedBy: z.string().optional().nullable(),
   claimedBy: claimedBySchema.optional().nullable(),
-  
-  // Event purchase tracking
   purchasedBy: z.record(z.string(), z.array(z.string())).optional().nullable(),
-  // Format: { "event-id-123": ["user-id-1", "user-id-2"] }
-  
   addedAt: z.string().optional(),
   priority: z.number().optional(),
   notes: z.string().optional(),
 });
-
 export type WishlistItem = z.infer<typeof wishlistItemSchema>;
-
-// ============================================================================
-// WISHLIST SCHEMA
-// ============================================================================
 
 export const wishlistSchema = z.object({
   id: z.string(),
   name: z.string().min(3, "De naam van de wishlist moet minstens 3 tekens lang zijn."),
   ownerId: z.string(),
   ownerName: z.string().optional(),
-  
   isPublic: z.boolean().default(false),
   description: z.string().optional().nullable(),
   slug: z.string().optional().nullable(),
-  
   eventDate: z.string().optional().nullable(),
   backgroundImage: z.string().url().optional().nullable(),
-  
   items: z.array(wishlistItemSchema).default([]),
-  
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
-  
   category: z.string().optional(),
   tags: z.array(z.string()).optional(),
   sharedWith: z.array(z.string()).optional(),
+  profileId: z.string().optional().nullable(),
 });
-
 export type Wishlist = z.infer<typeof wishlistSchema>;
+
 
 // ============================================================================
 // HELPER FUNCTIONS - RESERVATION
@@ -199,23 +166,26 @@ export function getItemsPurchasedByUserForEvent(
 }
 
 // ============================================================================
-// HELPER FUNCTIONS - CONVERSION (✅ FIXED!)
+// HELPER FUNCTIONS - PROFILE FILTERING
 // ============================================================================
 
 /**
- * ✅ FIXED: Genereert een UNIEKE ID voor elk wishlist item
- * Voorkomt duplicate key errors bij hetzelfde product meerdere keren toevoegen
+ * ✅ Filter wishlists voor MAIN USER (geen sub-profiles)
  */
-export function productToWishlistItem(product: Product): WishlistItem {
-  return {
-    ...product,
-    id: crypto.randomUUID(), // ✅ UNIEKE wishlist item ID
-    productId: product.id,   // ✅ Behoud originele EAN/ASIN
-    quantity: 1,
-    isReserved: false,
-    reservedBy: null,
-    claimedBy: null,
-    purchasedBy: null,
-    addedAt: new Date().toISOString(),
-  };
+export function getMainUserWishlists(wishlists: Wishlist[]): Wishlist[] {
+  return wishlists.filter(w => !w.profileId);
+}
+
+/**
+ * ✅ Filter wishlists voor SPECIFIC PROFILE
+ */
+export function getProfileWishlists(wishlists: Wishlist[], profileId: string): Wishlist[] {
+  return wishlists.filter(w => w.profileId === profileId);
+}
+
+/**
+ * ✅ Check of wishlist bij main user hoort
+ */
+export function isMainUserWishlist(wishlist: Wishlist): boolean {
+  return !wishlist.profileId;
 }

@@ -93,7 +93,12 @@ export default function CreateWishlistPage() {
         if (eventId) formData.append("eventId", eventId);
         if (participantId) formData.append("participantId", participantId);
 
-        // ✅ RESULT VERWERKEN
+        console.log('📤 Submitting wishlist:', { 
+          name: wishlistName, 
+          itemCount: items.length,
+          firstItem: items[0]
+        });
+
         const result = await createWishlistFormAction({ success: false, message: "", errors: {} }, formData);
 
         if (result.success) {
@@ -101,7 +106,15 @@ export default function CreateWishlistPage() {
           router.push('/dashboard/wishlists');
         } else {
           toast.error(result.message || "Er ging iets mis bij het aanmaken van de wishlist");
-          console.error("Action errors:", result.errors);
+          
+          // ✅ BETERE ERROR DISPLAY
+          if (result.errors) {
+            Object.entries(result.errors).forEach(([field, messages]) => {
+              if (Array.isArray(messages)) {
+                messages.forEach(msg => console.error(`${field}:`, msg));
+              }
+            });
+          }
         }
       } catch (error) {
         console.error("Submit error:", error);
@@ -117,7 +130,6 @@ export default function CreateWishlistPage() {
           Nieuwe Wishlist
         </h1>
 
-        {/* ✅ CORRECTE FORM HANDLER */}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <Label htmlFor="wishlistName">Naam Wishlist</Label>

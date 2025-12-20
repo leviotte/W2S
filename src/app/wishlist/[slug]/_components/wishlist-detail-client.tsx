@@ -1,12 +1,12 @@
 // src/app/wishlist/[slug]/_components/wishlist-detail-client.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Gift, Edit2, Save, Trash2, Plus, X, Image as ImageIcon, Copy } from 'lucide-react';
+import { Gift, Edit2, Save, Trash2, Plus, Minus, X, Image as ImageIcon, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { UserAvatar } from '@/components/shared/user-avatar';
-import AffiliateProductSearch from '@/components/products/AffiliateProductSearch'; // ✅ FIXED import
+import AffiliateProductSearch from '@/components/products/AffiliateProductSearch';
 import {
   updateWishlistItemAction,
   deleteWishlistItemAction,
@@ -58,6 +58,7 @@ export function WishlistDetailClient({
     imageUrl: '',
     url: '',
     price: 0,
+    quantity: 1,
   });
   const [showAddForm, setShowAddForm] = useState(false);
   const [showProductDialog, setShowProductDialog] = useState(false);
@@ -168,19 +169,19 @@ export function WishlistDetailClient({
   };
 
   const addItemToWishlist = async (product: Product) => {
-  // ✅ FIXED: Converteer Product naar WishlistItem VOOR het naar de action te sturen
-  const wishlistItem = productToWishlistItem(product);
-  
-  const result = await addWishlistItemAction(wishlist.id, wishlistItem);
+    // ✅ FIXED: Converteer Product naar WishlistItem VOOR het naar de action te sturen
+    const wishlistItem = productToWishlistItem(product);
+    
+    const result = await addWishlistItemAction(wishlist.id, wishlistItem);
 
-  if (result.success) {
-    toast.success('Item toegevoegd');
-    router.refresh();
-    setShowProductDialog(false);
-  } else {
-    toast.error(result.error || 'Toevoegen mislukt');
-  }
-};
+    if (result.success) {
+      toast.success(result.message || 'Item toegevoegd');
+      router.refresh();
+      setShowProductDialog(false);
+    } else {
+      toast.error(result.error || 'Toevoegen mislukt');
+    }
+  };
 
   // ===== UTILITIES =====
   const copyUrlToClipboard = () => {
@@ -189,6 +190,30 @@ export function WishlistDetailClient({
       toast.success('URL gekopieerd!');
     });
   };
+
+  // ✅ RUNTIME FIX: Merge duplicate items (backwards compatibility)
+  const deduplicatedItems = useMemo(() => {
+    if (!wishlist.items) return [];
+    
+    const itemMap = new Map<string, WishlistItem>();
+    
+    wishlist.items.forEach((item: WishlistItem) => {
+      const key = String(item.id);
+      
+      if (itemMap.has(key)) {
+        // Merge duplicate: verhoog quantity
+        const existing = itemMap.get(key)!;
+        itemMap.set(key, {
+          ...existing,
+          quantity: (existing.quantity || 1) + (item.quantity || 1),
+        });
+      } else {
+        itemMap.set(key, item);
+      }
+    });
+    
+    return Array.from(itemMap.values());
+  }, [wishlist.items]);
 
   const filteredImages = getFilteredImages();
 
@@ -256,30 +281,38 @@ export function WishlistDetailClient({
             {!showAddForm && (
               <div className="p-4 sm:p-6">
                 <div className="space-y-4 sm:space-y-6">
-                  {wishlist.items?.length === 0 && (
+                  {deduplicatedItems.length === 0 && (
                     <p className="text-center text-gray-500">
                       Deze wishlist is nog leeg.
                     </p>
                   )}
 
-                  {wishlist.items?.map((item: WishlistItem) => (
+                  {deduplicatedItems.map((item: WishlistItem) => (
                     <div key={item.id} className="p-3 sm:p-4 bg-white/60 rounded-md">
                       {editingItem === String(item.id) ? (
-                        // Edit Mode
+                        // ===== EDIT MODE =====
                         <div className="space-y-4">
                           <div className="flex items-center space-x-4">
                             {item.imageUrl ? (
-                              <img
-                                src={item.imageUrl}
-                                alt={item.title}
-                                className="w-16 h-16 object-cover rounded-md"
-                              />
+                              <div className="relative">
+                                <img
+                                  src={item.imageUrl}
+                                  alt={item.title}
+                                  className="w-16 h-16 object-cover rounded-md"
+                                />
+                                {/* ✅ Quantity badge */}
+                                {(item.quantity || 1) > 1 && (
+                                  <span className="absolute -top-2 -right-2 bg-warm-olive text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
+                                    {item.quantity}
+                                  </span>
+                                )}
+                              </div>
                             ) : (
                               <div className="w-16 h-16 bg-gray-300 flex items-center justify-center text-gray-500 rounded-md">
                                 <span className="text-xs">Geen Afbeelding</span>
                               </div>
                             )}
-                            <div>
+                            <div className="flex-1">
                               <h3 className="text-sm sm:text-md line-clamp-3">
                                 {item.title}
                               </h3>
@@ -290,6 +323,37 @@ export function WishlistDetailClient({
                               )}
                             </div>
                           </div>
+                          
+                          {/* ✅ Quantity controls */}
+                          <div className="flex items-center space-x-3">
+                            <label className="text-sm font-medium">Aantal:</label>
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const newQty = Math.max(1, (editedItem.quantity || 1) - 1);
+                                  setEditedItem({ ...editedItem, quantity: newQty });
+                                }}
+                                className="p-1 border rounded hover:bg-gray-100"
+                              >
+                                <Minus className="h-4 w-4" />
+                              </button>
+                              <span className="px-3 py-1 border rounded min-w-[40px] text-center">
+                                {editedItem.quantity || 1}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const newQty = (editedItem.quantity || 1) + 1;
+                                  setEditedItem({ ...editedItem, quantity: newQty });
+                                }}
+                                className="p-1 border rounded hover:bg-gray-100"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+
                           <input
                             type="text"
                             value={editedItem.description || ''}
@@ -318,15 +382,23 @@ export function WishlistDetailClient({
                           </div>
                         </div>
                       ) : (
-                        // View Mode
+                        // ===== VIEW MODE =====
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                           <div className="flex flex-grow items-start sm:items-center space-x-3 sm:space-x-4">
                             {item.imageUrl ? (
-                              <img
-                                src={item.imageUrl}
-                                alt={item.title}
-                                className="w-[90px] sm:w-[110px] h-[75px] sm:h-[90px] object-cover rounded-md"
-                              />
+                              <div className="relative">
+                                <img
+                                  src={item.imageUrl}
+                                  alt={item.title}
+                                  className="w-[90px] sm:w-[110px] h-[75px] sm:h-[90px] object-cover rounded-md"
+                                />
+                                {/* ✅ Quantity badge */}
+                                {(item.quantity || 1) > 1 && (
+                                  <span className="absolute -top-2 -right-2 bg-warm-olive text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-md">
+                                    {item.quantity}
+                                  </span>
+                                )}
+                              </div>
                             ) : (
                               <div className="w-16 h-16 bg-gray-300 flex items-center justify-center text-gray-500 rounded-md">
                                 <span className="text-xs">Geen Afbeelding</span>
@@ -345,7 +417,7 @@ export function WishlistDetailClient({
                               )}
                               {item.price && (
                                 <p className="text-gray-600 text-xs sm:text-sm">
-                                  €{item.price}
+                                  €{item.price} {(item.quantity || 1) > 1 && `× ${item.quantity}`}
                                 </p>
                               )}
                             </div>

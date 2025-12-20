@@ -1,3 +1,4 @@
+// src/app/dashboard/profile/page.tsx
 import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/auth/get-server-session';
 import { getUserProfile, getProfileManagers } from '@/lib/firebase/server/profiles';

@@ -6,21 +6,16 @@ import { WishlistDetailClient } from './_components/wishlist-detail-client';
 import type { Metadata } from 'next';
 
 interface WishlistPageProps {
-  params: Promise<{ slug: string }>;
-  searchParams: Promise<{ maxPrice?: string }>;
+  params: { slug: string };
+  searchParams: { maxPrice?: string };
 }
 
-// ✅ DYNAMIC METADATA voor SEO
 export async function generateMetadata({ params }: WishlistPageProps): Promise<Metadata> {
-  const { slug } = await params;
+  const { slug } = params;
   const result = await getWishlistBySlugAction(slug);
-
   if (!result.success || !result.data) {
-    return {
-      title: 'Wishlist niet gevonden | Wish2Share',
-    };
+    return { title: 'Wishlist niet gevonden | Wish2Share' };
   }
-
   return {
     title: `${result.data.name} | Wish2Share`,
     description: result.data.description || `Bekijk de wishlist van ${result.data.name}`,
@@ -33,27 +28,17 @@ export async function generateMetadata({ params }: WishlistPageProps): Promise<M
 }
 
 export default async function WishlistPage({ params, searchParams }: WishlistPageProps) {
-  const { slug } = await params;
-  const resolvedSearchParams = await searchParams;
-  const maxPrice = resolvedSearchParams.maxPrice ? Number(resolvedSearchParams.maxPrice) : undefined;
-
-  // Get current user
+  const { slug } = params;
+  const maxPrice = searchParams?.maxPrice ? Number(searchParams.maxPrice) : undefined;
   const currentUser = await getCurrentUser();
 
-  // Get wishlist
   const wishlistResult = await getWishlistBySlugAction(slug);
-
-  if (!wishlistResult.success || !wishlistResult.data) {
-    notFound();
-  }
-
+  if (!wishlistResult.success || !wishlistResult.data) notFound();
   const wishlist = wishlistResult.data;
 
-  // Get owner
+  // Owner ophalen op basis van (altijd aanwezige) ownerId
   const ownerResult = await getWishlistOwnerAction(wishlist.ownerId);
   const owner = ownerResult.success ? ownerResult.data : null;
-
-  // Check ownership
   const isOwner = currentUser?.id === wishlist.ownerId;
 
   return (

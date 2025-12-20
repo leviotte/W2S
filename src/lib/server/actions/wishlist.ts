@@ -5,70 +5,71 @@ import { adminDb } from '@/lib/server/firebase-admin';
 import { revalidatePath } from 'next/cache';
 import type { Wishlist, WishlistItem } from '@/types/wishlist';
 import { toDate, nowTimestamp } from '@/lib/utils/time';
+import type { UserProfile } from '@/types/user';
 
-// ============================================================================
+// ----------------------------------------
 // TYPES & INTERFACES
-// ============================================================================
-
-interface ActionResult<T = any> {
+// ----------------------------------------
+export interface ActionResult<T = any> {
   success: boolean;
   data?: T;
   error?: string;
+  message?: string;
 }
 
-interface CreateWishlistData {
+export interface CreateWishlistData {
   name: string;
   description?: string;
   isPublic?: boolean;
   backgroundImage?: string;
   minPrice?: number;
   maxPrice?: number;
+  ownerName?: string;
+  participantIds?: string[];
+  items?: WishlistItem[];
+  profileId?: string | null;
+  tags?: string[];
+  category?: string | null;
 }
-
-interface UpdateWishlistData {
+export interface UpdateWishlistData {
   name?: string;
   description?: string;
   isPublic?: boolean;
   backgroundImage?: string;
   minPrice?: number;
   maxPrice?: number;
+  tags?: string[];
+  category?: string | null;
+  profileId?: string | null;
+  // Voeg hier velden toe die updatable zijn
 }
 
-interface UpdateWishlistItemData {
+export interface UpdateWishlistItemData {
   wishlistId: string;
   itemId: string;
   updates: Partial<WishlistItem>;
 }
-
-// ============================================================================
+// ----------------------------------------
 // WISHLIST CRUD OPERATIONS
-// ============================================================================
-
-/**
- * ✅ Get all wishlists for a specific user
- */
+// ----------------------------------------
 export async function getUserWishlistsAction(userId: string): Promise<ActionResult<Wishlist[]>> {
   try {
     const wishlistsSnapshot = await adminDb
       .collection('wishlists')
-      .where('owner', '==', userId)
+      .where('ownerId', '==', userId)
       .orderBy('createdAt', 'desc')
       .get();
-
     const wishlists = wishlistsSnapshot.docs.map((doc) => {
       const data = doc.data();
-      
       return {
         id: doc.id,
         ...data,
-        createdAt: toDate(data.createdAt).toISOString(), // ✅ FIXED
-        updatedAt: toDate(data.updatedAt).toISOString(), // ✅ FIXED
+        createdAt: toDate(data.createdAt).toISOString(),
+        updatedAt: toDate(data.updatedAt).toISOString(),
       } as Wishlist;
     });
-
     return { success: true, data: wishlists };
   } catch (error) {
-    console.error('getUserWishlistsAction error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Kon wishlists niet ophalen',
@@ -76,160 +77,51 @@ export async function getUserWishlistsAction(userId: string): Promise<ActionResu
   }
 }
 
-/**
- * ✅ Get wishlist by ID
- */
-export async function getWishlistByIdAction(wishlistId: string): Promise<ActionResult<Wishlist>> {
-  try {
-    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
-
-    if (!doc.exists) {
-      return { success: false, error: 'Wishlist niet gevonden' };
-    }
-
-    const data = doc.data();
-    
-    const wishlist = {
-      id: doc.id,
-      ...data,
-      createdAt: toDate(data?.createdAt).toISOString(), // ✅ FIXED
-      updatedAt: toDate(data?.updatedAt).toISOString(), // ✅ FIXED
-    } as Wishlist;
-
-    return { success: true, data: wishlist };
-  } catch (error) {
-    console.error('getWishlistByIdAction error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Kon wishlist niet ophalen',
-    };
-  }
-}
-
-/**
- * ✅ Get wishlist by slug
- */
-export async function getWishlistBySlugAction(slug: string): Promise<ActionResult<Wishlist>> {
-  try {
-    const snapshot = await adminDb
-      .collection('wishlists')
-      .where('slug', '==', slug)
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) {
-      return { success: false, error: 'Wishlist niet gevonden' };
-    }
-
-    const doc = snapshot.docs[0];
-    const data = doc.data();
-    
-    const wishlist = {
-      id: doc.id,
-      ...data,
-      createdAt: toDate(data?.createdAt).toISOString(), // ✅ FIXED
-      updatedAt: toDate(data?.updatedAt).toISOString(), // ✅ FIXED
-    } as Wishlist;
-
-    return { success: true, data: wishlist };
-  } catch (error) {
-    console.error('getWishlistBySlugAction error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Kon wishlist niet ophalen',
-    };
-  }
-}
-
-/**
- * ✅ Get wishlist owner (user or profile)
- */
-export async function getWishlistOwnerAction(ownerId: string): Promise<ActionResult<any>> {
-  try {
-    // Try users first
-    const userDoc = await adminDb
-  .collection('users')
-  .doc(ownerId)  // ✅ Direct ophalen met document ID
-  .get();
-
-if (userDoc.exists) {
-  return { 
-    success: true, 
-    data: { 
-      id: userDoc.id,  // ✅ ID mee teruggeven
-      ...userDoc.data() 
-    } 
-  };
-}
-
-    // Try profiles
-    const profileSnapshot = await adminDb
-      .collection('profiles')
-      .where('id', '==', ownerId)
-      .limit(1)
-      .get();
-
-    if (!profileSnapshot.empty) {
-      return { success: true, data: profileSnapshot.docs[0].data() };
-    }
-
-    return { success: false, error: 'Owner niet gevonden' };
-  } catch (error) {
-    console.error('getWishlistOwnerAction error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Kon owner niet ophalen',
-    };
-  }
-}
-
-/**
- * ✅ Create a new wishlist
- */
+// ----------------------------------------
+// ENIGE centrale CREATE functie
+// ----------------------------------------
 export async function createWishlistAction(
   userId: string,
   data: CreateWishlistData
 ): Promise<ActionResult<string>> {
   try {
-    // Generate slug from name
     const slug = data.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
-
-    // Check if slug exists
     const existingSnapshot = await adminDb
       .collection('wishlists')
       .where('slug', '==', slug)
       .limit(1)
       .get();
-
     const finalSlug = existingSnapshot.empty ? slug : `${slug}-${Date.now()}`;
 
     const wishlistData = {
       name: data.name,
       description: data.description || '',
       owner: userId,
-      ownerId: userId,
+      ownerId: userId,  // ZET ALTIJD BEIDEN (legacy én toekomst)
+      ownerName: data.ownerName || '',
+      participantIds: data.participantIds || [userId],
+      items: Array.isArray(data.items) ? data.items : [],
       slug: finalSlug,
       isPublic: data.isPublic ?? false,
       backgroundImage: data.backgroundImage || '',
       minPrice: data.minPrice || 0,
       maxPrice: data.maxPrice || 0,
-      items: [],
       sharedWith: [],
-      createdAt: nowTimestamp(), // ✅ Already correct
-      updatedAt: nowTimestamp(), // ✅ Already correct
+      createdAt: nowTimestamp(),
+      updatedAt: nowTimestamp(),
+      profileId: data.profileId ?? null,
+      tags: data.tags || [],
+      category: data.category || null,
     };
 
     const docRef = await adminDb.collection('wishlists').add(wishlistData);
-
     revalidatePath('/dashboard/wishlists');
     revalidatePath(`/wishlist/${finalSlug}`);
-
     return { success: true, data: docRef.id };
   } catch (error) {
-    console.error('createWishlistAction error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Kon wishlist niet aanmaken',
@@ -247,7 +139,7 @@ export async function updateWishlistAction(
   try {
     const updateData: any = {
       ...updates,
-      updatedAt: nowTimestamp(), // ✅ Already correct
+      updatedAt: nowTimestamp(),
     };
 
     await adminDb.collection('wishlists').doc(wishlistId).update(updateData);
@@ -302,7 +194,7 @@ export async function deleteWishlistAction(wishlistId: string): Promise<ActionRe
 // ============================================================================
 
 /**
- * ✅ Add item to wishlist - FIXED voor duplicate keys
+ * ✅ Add item to wishlist - FIXED met quantity-based deduplication
  */
 export async function addItemToWishlistAction(
   wishlistId: string,
@@ -318,28 +210,54 @@ export async function addItemToWishlistAction(
     const wishlistData = doc.data();
     const items = wishlistData?.items || [];
 
-    // ✅ FIXED: Genereer altijd een UNIEKE ID, zelfs als item.id al bestaat
-    const newItem = {
-      ...item,
-      id: crypto.randomUUID(), // ✅ UNIEKE ID per wishlist item
-      productId: item.productId || item.id, // ✅ Behoud originele product ID
-      title: item.title || '',
-      description: item.description || '',
-      url: item.url || '',
-      imageUrl: item.imageUrl || (item as any).image || '',
-      price: item.price || 0,
-      quantity: item.quantity || 1,
-      isReserved: false,
-      source: item.source || 'Internal',
-      platforms: item.platforms || {},
-      createdAt: nowTimestamp(),
-      updatedAt: nowTimestamp(),
-    };
+    // ✅ CHECK: Bestaat dit product al? (match op id = EAN/ASIN)
+    const existingItemIndex = items.findIndex(
+      (existing: WishlistItem) => String(existing.id) === String(item.id)
+    );
 
-    items.push(newItem);
+    let updatedItems;
+    let message = 'Item toegevoegd';
+
+    if (existingItemIndex !== -1) {
+      // ✅ Product bestaat al → verhoog quantity
+      updatedItems = items.map((existing: WishlistItem, index: number) => {
+        if (index === existingItemIndex) {
+          return {
+            ...existing,
+            quantity: (existing.quantity || 1) + (item.quantity || 1),
+            // ✅ Update prijs/afbeelding voor het geval die gewijzigd zijn
+            price: item.price ?? existing.price,
+            imageUrl: item.imageUrl ?? existing.imageUrl,
+            updatedAt: nowTimestamp(),
+          };
+        }
+        return existing;
+      });
+      message = 'Aantal verhoogd';
+    } else {
+      // ✅ Nieuw product → voeg toe
+      const newItem = {
+        ...item,
+        id: item.id, // ✅ Gebruik EAN/ASIN als ID
+        productId: item.productId || item.id,
+        title: item.title || '',
+        description: item.description || '',
+        url: item.url || '',
+        imageUrl: item.imageUrl || (item as any).image || '',
+        price: item.price || 0,
+        quantity: item.quantity || 1,
+        isReserved: false,
+        source: item.source || 'Internal',
+        platforms: item.platforms || {},
+        addedAt: nowTimestamp(),
+        updatedAt: nowTimestamp(),
+      };
+
+      updatedItems = [...items, newItem];
+    }
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
-      items,
+      items: updatedItems,
       updatedAt: nowTimestamp(),
     });
 
@@ -349,7 +267,7 @@ export async function addItemToWishlistAction(
       revalidatePath(`/wishlist/${slug}`);
     }
 
-    return { success: true };
+    return { success: true, message };
   } catch (error) {
     console.error('addItemToWishlistAction error:', error);
     return {
@@ -398,12 +316,12 @@ export async function updateWishlistItemAction({
     items[itemIndex] = {
       ...items[itemIndex],
       ...updates,
-      updatedAt: nowTimestamp(), // ✅ Already correct
+      updatedAt: nowTimestamp(),
     };
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
       items,
-      updatedAt: nowTimestamp(), // ✅ Already correct
+      updatedAt: nowTimestamp(),
     });
 
     const slug = wishlistData?.slug;
@@ -445,7 +363,7 @@ export async function deleteWishlistItemAction(
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
       items: filteredItems,
-      updatedAt: nowTimestamp(), // ✅ Already correct
+      updatedAt: nowTimestamp(),
     });
 
     const slug = wishlistData?.slug;
@@ -514,13 +432,13 @@ export async function reserveItemAction(
       isReserved: true,
       reservedBy: userId,
       reservedByName: userName,
-      reservedAt: nowTimestamp(), // ✅ Already correct
-      updatedAt: nowTimestamp(), // ✅ Already correct
+      reservedAt: nowTimestamp(),
+      updatedAt: nowTimestamp(),
     };
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
       items,
-      updatedAt: nowTimestamp(), // ✅ Already correct
+      updatedAt: nowTimestamp(),
     });
 
     const slug = wishlistData?.slug;
@@ -570,12 +488,12 @@ export async function unreserveItemAction(
       reservedBy: null,
       reservedByName: null,
       reservedAt: null,
-      updatedAt: nowTimestamp(), // ✅ Already correct
+      updatedAt: nowTimestamp(),
     };
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
       items,
-      updatedAt: nowTimestamp(), // ✅ Already correct
+      updatedAt: nowTimestamp(),
     });
 
     const slug = wishlistData?.slug;
@@ -623,7 +541,7 @@ export async function shareWishlistAction(
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
       sharedWith,
-      updatedAt: nowTimestamp(), // ✅ Already correct
+      updatedAt: nowTimestamp(),
     });
 
     const slug = wishlistData?.slug;
@@ -663,7 +581,7 @@ export async function unshareWishlistAction(
 
     await adminDb.collection('wishlists').doc(wishlistId).update({
       sharedWith: filteredSharedWith,
-      updatedAt: nowTimestamp(), // ✅ Already correct
+      updatedAt: nowTimestamp(),
     });
 
     const slug = wishlistData?.slug;
@@ -696,7 +614,7 @@ export async function updateWishlistBackgroundAction(
   try {
     await adminDb.collection('wishlists').doc(wishlistId).update({
       backgroundImage,
-      updatedAt: nowTimestamp(), // ✅ Already correct
+      updatedAt: nowTimestamp(),
     });
 
     const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
@@ -817,8 +735,9 @@ export async function getWishlistStatsForUser(
     };
   }
 }
+
 // ============================================================================
-// EVENT LINKING OPERATIONS (✅ NIEUW!)
+// EVENT LINKING OPERATIONS
 // ============================================================================
 
 /**
@@ -886,5 +805,32 @@ export async function linkWishlistToEventAction({
       success: false, 
       error: error instanceof Error ? error.message : 'Kon wishlist niet koppelen aan event' 
     };
+  }
+}
+export async function getWishlistBySlugAction(slug: string): Promise<{ success: boolean; data?: Wishlist | null; error?: string; }> {
+  try {
+    const snapshot = await adminDb
+      .collection('wishlists')
+      .where('slug', '==', slug)
+      .limit(1)
+      .get();
+    if (snapshot.empty) {
+      return { success: false, data: null, error: 'Niet gevonden' };
+    }
+    const doc = snapshot.docs[0];
+    return { success: true, data: { id: doc.id, ...doc.data() } as Wishlist };
+  } catch (err) {
+    return { success: false, data: null, error: (err as Error).message };
+  }
+}
+export async function getWishlistOwnerAction(userId: string): Promise<{ success: boolean; data?: UserProfile | null; error?: string; }> {
+  try {
+    const doc = await adminDb.collection('users').doc(userId).get();
+    if (!doc.exists) {
+      return { success: false, data: null, error: 'Gebruiker niet gevonden' };
+    }
+    return { success: true, data: { id: doc.id, ...doc.data() } as UserProfile };
+  } catch (err) {
+    return { success: false, data: null, error: (err as Error).message };
   }
 }

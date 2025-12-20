@@ -207,24 +207,42 @@ export default function AffiliateProductSearch({ items, setItems, eventBudget }:
     fetchProducts(1, true, newFilters);
   };
 
-  // Item management
+  // Item management - ✅ FIXED met quantity-based deduplication
   const isItemIncluded = (product: Product): boolean => {
     const productId = String(product.id);
     return items.some(item => String(item.id) === productId);
   };
 
   const addItemToWishlist = (product: Product) => {
-    const newItem = productToWishlistItem(product);
+    const productId = String(product.id);
+    const existingIndex = items.findIndex(item => String(item.id) === productId);
     
-    if (!isItemIncluded(product)) {
+    if (existingIndex !== -1) {
+      // ✅ Product bestaat al → verhoog quantity
+      const updatedItems = items.map((item, index) => {
+        if (index === existingIndex) {
+          return {
+            ...item,
+            quantity: (item.quantity || 1) + 1,
+          };
+        }
+        return item;
+      });
+      setItems(updatedItems);
+      toast.success(`Aantal verhoogd naar ${updatedItems[existingIndex].quantity}!`);
+      
+      if (activeProductState?.id === product.id) {
+        setActiveProduct({ ...activeProductState, isIncluded: true });
+      }
+    } else {
+      // ✅ Nieuw product → voeg toe
+      const newItem = productToWishlistItem(product);
       setItems([...items, newItem]);
       toast.success(`${product.title} toegevoegd!`);
       
       if (activeProductState?.id === product.id) {
         setActiveProduct({ ...activeProductState, isIncluded: true });
       }
-    } else {
-      toast.info("Dit item staat al op je lijst.");
     }
   };
 
@@ -271,7 +289,7 @@ export default function AffiliateProductSearch({ items, setItems, eventBudget }:
            filters.price.max !== initialPrice.max;
   };
 
-  // ✅ GECORRIGEERDE renderFilterButton functie
+  // ✅ FIXED renderFilterButton functie
   const renderFilterButton = (
     label: string,
     value: any,
@@ -324,7 +342,7 @@ export default function AffiliateProductSearch({ items, setItems, eventBudget }:
             </Button>
           </form>
 
-          {/* Filters - ✅ GECORRIGEERDE AANROEPEN */}
+          {/* Filters */}
           <div className="flex flex-wrap gap-[15px] mt-[15px]">
             {renderFilterButton("Category", filters.category, () => clearFilter("Category"))}
             {renderFilterButton("Price", filters.price, () => clearFilter("Price"), filters.price.display)}
