@@ -4,7 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/auth/get-server-session';
 // ✅ FIX: Use correct import
 import { getEventByIdAction } from '@/lib/server/actions/events';
-import WishlistRequestClient from '@/components/wishlist/WishlistRequestClient';
+import WishlistRequestClient from '@/app/wishlist/_components/WishlistRequestClient';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface PageProps {

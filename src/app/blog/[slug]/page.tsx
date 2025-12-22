@@ -1,23 +1,14 @@
-// src/app/blog/[id]/page.tsx
-
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-
-import { getCachedBlogPost, getBlogPostIds } from '@/lib/server/data/blog';
+import { getPostAction, getAllPostsAction } from '@/lib/server/actions/blog';
 import { getCurrentUser } from '@/lib/auth/actions';
-
 import { PostContent } from './_components/post-content';
 
-type Props = {
-  params: { id: string };
-};
-
-// ============================================================================
-// SEO METADATA
-// ============================================================================
+type Props = { params: { slug: string } };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const post = await getCachedBlogPost(params.id);
+  const result = await getPostAction(params.slug);
+  const post = result?.success ? result.post : null;
 
   if (!post) {
     return { title: 'Blogpost niet gevonden' };
@@ -43,33 +34,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-// ============================================================================
-// STATIC GENERATION
-// ============================================================================
-
 export async function generateStaticParams() {
-  const ids = await getBlogPostIds();
-  return ids.slice(0, 10).map((id) => ({ id }));
+  const result = await getAllPostsAction({ published: true });
+  if (!result.success) return [];
+  return result.posts.map((post: any) => ({ slug: post.slug ?? post.id }));
 }
 
-// ISR
 export const revalidate = 300;
 
-// ============================================================================
-// PAGE
-// ============================================================================
-
 export default async function BlogPostPage({ params }: Props) {
-  const [post, currentUser] = await Promise.all([
-    getCachedBlogPost(params.id),
+  const [postResult, currentUser] = await Promise.all([
+    getPostAction(params.slug),
     getCurrentUser().catch(() => null),
   ]);
+  const post = postResult?.success ? postResult.post : null;
 
   if (!post) notFound();
 
   return (
     <>
-      {/* JSON-LD */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

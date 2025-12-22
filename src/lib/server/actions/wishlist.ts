@@ -1,6 +1,7 @@
 // src/lib/server/actions/wishlist.ts
 'use server';
 
+import { getSession } from '@/lib/auth/actions';
 import { adminDb } from '@/lib/server/firebase-admin';
 import { revalidatePath } from 'next/cache';
 import type { Wishlist, WishlistItem } from '@/types/wishlist';
@@ -14,8 +15,10 @@ export interface ActionResult<T = any> {
   success: boolean;
   data?: T;
   error?: string;
+  errors?: { [field: string]: string[] };
   message?: string;
 }
+
 
 export interface CreateWishlistData {
   name: string;
@@ -832,5 +835,35 @@ export async function getWishlistOwnerAction(userId: string): Promise<{ success:
     return { success: true, data: { id: doc.id, ...doc.data() } as UserProfile };
   } catch (err) {
     return { success: false, data: null, error: (err as Error).message };
+  }
+}
+export async function toggleWishlistPrivacyAction(
+  wishlistId: string,
+  isPrivate: boolean
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.user) return { success: false, error: 'Niet geautoriseerd' };
+
+    const wishlistDoc = await adminDb.collection('wishlists').doc(wishlistId).get();
+    if (!wishlistDoc.exists) return { success: false, error: 'Wishlist niet gevonden' };
+    const wishlistData = wishlistDoc.data();
+
+    if (wishlistData?.ownerId !== session.user.id) {
+      return { success: false, error: 'Niet geautoriseerd om deze wishlist te wijzigen' };
+    }
+
+    await adminDb.collection('wishlists').doc(wishlistId).update({
+      isPublic: !isPrivate,
+      updatedAt: nowTimestamp(),
+    });
+
+    revalidatePath('/dashboard/wishlists');
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon privacy niet wijzigen',
+    };
   }
 }

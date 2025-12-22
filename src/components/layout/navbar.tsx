@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Menu, X, Home, Search } from "lucide-react";
 import { useAuthStore } from "@/lib/store/use-auth-store";
 import { Button } from "@/components/ui/button";
-import { TeamSwitcher } from "@/components/profile/TeamSwitcher";
+import { TeamSwitcher } from "@/app/profile/_components/TeamSwitcher";
 
 export function Navbar() {
   // ✅ Zustand auth store

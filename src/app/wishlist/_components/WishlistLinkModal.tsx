@@ -151,11 +151,12 @@ export function WishlistLinkModal({
 
     startTransition(async () => {
       try {
-        const result = await createWishlistAction(currentUser.id, {
-          name: newWishlistName.trim(),
-          description: `Wishlist voor ${eventName}`,
-          isPublic: false,
-        });
+        const result = await createWishlistAction({
+  name: newWishlistName.trim(),
+  description: `Wishlist voor ${eventName}`,
+  isPublic: false,
+  // Voeg indien gewenst ook andere velden toe (bv. backgroundImage etc.)
+});
 
         if (result.success && result.data) {
           // ✅ Link the new wishlist to event

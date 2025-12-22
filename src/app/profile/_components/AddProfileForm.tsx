@@ -8,9 +8,9 @@ import * as Tooltip from "@radix-ui/react-tooltip";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhotoSection } from "./PhotoSection";
-import { DateInput } from "@/components/profile/DateInput";
+import { DateInput } from "@/app/profile/_components/DateInput";
 import { toast } from "sonner";
-import { LoadingSpinner } from "../ui/loading-spinner";
+import { LoadingSpinner } from "../../../components/ui/loading-spinner";
 import { createSubProfileAction } from "@/lib/server/actions/subprofile-actions"; // ✅ GEBRUIK BESTAANDE ACTION
 
 const RequiredFieldMarker = () => {

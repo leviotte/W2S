@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/client/firebase';
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { WishlistInviteHandler } from '@/components/wishlist/WishlistInviteHandler';
+import { WishlistInviteHandler } from '@/app/wishlist/_components/WishlistInviteHandler';
 
 interface FormData {
   firstName: string;

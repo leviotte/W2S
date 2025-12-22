@@ -1,3 +1,4 @@
+// src/types/wishlist.ts
 import { z } from 'zod';
 import { productSchema, type Product } from './product';
 

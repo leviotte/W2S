@@ -1,5 +1,9 @@
 // src/types/blog.ts
 
+export type BlogAuthor = {
+  name: string;
+};
+
 export type BlogSectionItem = {
   id: string;
   title: string;
@@ -15,24 +19,16 @@ export type BlogSection = {
   items?: BlogSectionItem[];
 };
 
-export type BlogAuthor = {
-  name: string;
-};
-
 export type BlogPost = {
   id: string;
-  slug: string; // ✅ VERPLICHT — routing, cards, SEO
-
+  slug: string; // verplicht!
   headTitle: string;
   headDescription: string;
   subDescription?: string;
   headImage: string;
-
   sections?: BlogSection[];
-
   author?: BlogAuthor;
   views?: number;
-
   createdAt: Date | string;
   updatedAt?: Date | string;
 };

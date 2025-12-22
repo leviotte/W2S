@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { db } from "@/lib/client/firebase";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { type WishlistItem } from "@/types/wishlist";
-import { createWishlistFormAction } from './actions';
+import { createWishlistAction } from '@/lib/server/actions/wishlist';
 
 import AffiliateProductSearch from "@/components/products/AffiliateProductSearch";
 import { Button } from "@/components/ui/button";
@@ -85,42 +85,33 @@ export default function CreateWishlistPage() {
     }
 
     startTransition(async () => {
-      try {
-        const formData = new FormData();
-        formData.append("wishlistName", wishlistName);
-        formData.append("backgroundImage", backgroundImage || "https://firebasestorage.googleapis.com/v0/b/wish2share4u.firebasestorage.app/o/public%2FWebBackgrounds%2FStandaard%20achtergrond%20Event.jpg?alt=media");
-        formData.append("items", JSON.stringify(items));
-        if (eventId) formData.append("eventId", eventId);
-        if (participantId) formData.append("participantId", participantId);
-
-        console.log('📤 Submitting wishlist:', { 
-          name: wishlistName, 
-          itemCount: items.length,
-          firstItem: items[0]
-        });
-
-        const result = await createWishlistFormAction({ success: false, message: "", errors: {} }, formData);
-
-        if (result.success) {
-          toast.success("Wishlist succesvol aangemaakt! 🎉");
-          router.push('/dashboard/wishlists');
-        } else {
-          toast.error(result.message || "Er ging iets mis bij het aanmaken van de wishlist");
-          
-          // ✅ BETERE ERROR DISPLAY
-          if (result.errors) {
-            Object.entries(result.errors).forEach(([field, messages]) => {
-              if (Array.isArray(messages)) {
-                messages.forEach(msg => console.error(`${field}:`, msg));
-              }
-            });
-          }
-        }
-      } catch (error) {
-        console.error("Submit error:", error);
-        toast.error("Er ging iets mis. Probeer het opnieuw.");
-      }
+  try {
+    // Weglaten: const formData = new FormData(); ... (alles daarvan schrappen)
+    const result = await createWishlistAction({
+      name: wishlistName.trim(),
+      backgroundImage: backgroundImage || "...standaard-url...",
+      items,
+      // description, isPublic, eventId, participantId: indien gewenst!
     });
+
+    if (result.success) {
+      toast.success("Wishlist succesvol aangemaakt! 🎉");
+      router.push('/dashboard/wishlists');
+    } else {
+      toast.error(result.message || "Er ging iets mis bij het aanmaken van de wishlist");
+      if (result.errors) {
+        Object.entries(result.errors).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            messages.forEach(msg => console.error(`${field}:`, msg));
+          }
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Submit error:", error);
+    toast.error("Er ging iets mis. Probeer het opnieuw.");
+  }
+});
   };
 
   return (

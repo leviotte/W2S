@@ -7,6 +7,7 @@ import { getSession } from '@/lib/auth/session';
 import { revalidatePath, revalidateTag } from '@/lib/utils/revalidate';
 import { z } from 'zod';
 import { productSchema } from '@/types/product';
+import { BlogPost } from '@/types/blog';
 
 // ============================================================================
 // ZOD SCHEMAS
@@ -18,8 +19,6 @@ const postSectionSchema = z.object({
   content: z.string(),
   items: z.array(productSchema),
 });
-
-export type PostSection = z.infer<typeof postSectionSchema>;
 
 const createPostSchema = z.object({
   headTitle: z.string().min(1, 'Titel is verplicht'),
@@ -60,12 +59,8 @@ export type CreatePostFormState = {
 // ============================================================================
 
 function fromFirestoreTimestamp(timestamp: any): Date {
-  if (timestamp instanceof Timestamp) {
-    return timestamp.toDate();
-  }
-  if (timestamp?.toDate) {
-    return timestamp.toDate();
-  }
+  if (!timestamp) return new Date();
+  if (typeof timestamp.toDate === 'function') return timestamp.toDate();
   return new Date(timestamp);
 }
 
@@ -73,7 +68,7 @@ function fromFirestoreTimestamp(timestamp: any): Date {
 // GET POST ACTION
 // ============================================================================
 
-export async function getPostAction(postId: string) {
+export async function getPostAction(postId: string): Promise<{ success: boolean; post?: BlogPost; error?: string }> {
   try {
     const postRef = adminDb.collection('posts').doc(postId);
     const postDoc = await postRef.get();
@@ -82,18 +77,20 @@ export async function getPostAction(postId: string) {
       return { success: false, error: 'Post niet gevonden' };
     }
 
-    const postData = postDoc.data();
-    const post = {
-      ...postData,
+    const d = postDoc.data()!;
+    const post: BlogPost = {
       id: postDoc.id,
-      createdAt: postData?.createdAt
-        ? fromFirestoreTimestamp(postData.createdAt)
-        : new Date(),
-      updatedAt: postData?.updatedAt
-        ? fromFirestoreTimestamp(postData.updatedAt)
-        : new Date(),
+      slug: d.slug ?? postDoc.id,
+      headTitle: d.headTitle ?? '',
+      headDescription: d.headDescription ?? '',
+      subDescription: d.subDescription ?? '',
+      headImage: d.headImage ?? '',
+      sections: d.sections ?? [],
+      author: d.author ?? undefined,
+      views: d.views ?? undefined,
+      createdAt: d.createdAt ? fromFirestoreTimestamp(d.createdAt) : new Date(),
+      updatedAt: d.updatedAt ? fromFirestoreTimestamp(d.updatedAt) : undefined,
     };
-
     return { success: true, post };
   } catch (error) {
     console.error('Error in getPostAction:', error);
@@ -131,19 +128,26 @@ export async function getAllPostsAction(options?: {
     }
 
     const snapshot = await query.get();
-    const posts: any[] = [];
+    const posts: BlogPost[] = [];
 
     for (const doc of snapshot.docs) {
-      const data = doc.data();
+      const d = doc.data();
       posts.push({
-        ...data,
         id: doc.id,
-        createdAt: data.createdAt
-          ? fromFirestoreTimestamp(data.createdAt)
+        slug: d.slug ?? doc.id,
+        headTitle: d.headTitle ?? '',
+        headDescription: d.headDescription ?? '',
+        subDescription: d.subDescription ?? '',
+        headImage: d.headImage ?? '',
+        sections: d.sections ?? [],
+        author: d.author ?? undefined,
+        views: d.views ?? undefined,
+        createdAt: d.createdAt
+          ? fromFirestoreTimestamp(d.createdAt)
           : new Date(),
-        updatedAt: data.updatedAt
-          ? fromFirestoreTimestamp(data.updatedAt)
-          : new Date(),
+        updatedAt: d.updatedAt
+          ? fromFirestoreTimestamp(d.updatedAt)
+          : undefined,
       });
     }
 

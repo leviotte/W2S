@@ -9,7 +9,7 @@ import { getCurrentUser } from '@/lib/auth/actions';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import FollowButton from '@/components/followers/FollowButton';
 import FollowersFollowingCount from '@/components/followers/FollowersFollowingCount';
-import WishlistsSection from '@/components/wishlist/WishlistsSection';
+import WishlistsSection from '@/app/wishlist/_components/WishlistsSection';
 import { Card, CardContent } from '@/components/ui/card';
 
 export const revalidate = 60;

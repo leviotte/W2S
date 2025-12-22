@@ -10,7 +10,7 @@ import type { Wishlist } from '@/types/wishlist';
 import { 
   toggleWishlistPrivacyAction, 
   deleteWishlistAction 
-} from '../_actions/wishlist-actions';
+} from '@/lib/server/actions/wishlist';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

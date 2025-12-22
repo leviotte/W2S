@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LoadingSpinner } from '../ui/loading-spinner';
-import WishlistSelector from '../wishlist/WishlistSelector';
+import WishlistSelector from '../../app/wishlist/_components/WishlistSelector';
 import { createWishlistAction } from '@/lib/server/actions/wishlist'; // ✅ Direct import
 import { useSession } from '@/components/providers/auth-provider';
 
@@ -42,7 +42,7 @@ export function EventWishlistSelector({
 
     startTransition(async () => {
       // ✅ Gebruik de directe versie met userId parameter
-      const result = await createWishlistAction(user.id, {
+      const result = await createWishlistAction({
         name: newWishlistName,
         isPublic: false,
       });

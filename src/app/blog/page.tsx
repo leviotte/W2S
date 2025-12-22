@@ -1,61 +1,54 @@
 // src/app/blog/page.tsx
-import { getAllPostsAction } from '@/lib/server/actions/blog';
-import { getCurrentUser } from '@/lib/auth/actions';
-import PageTitle from '@/components/layout/page-title';
-import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { PlusCircle } from 'lucide-react';
-import { PostCard } from '@/components/blog/post-card';
+import { BlogPost } from '@/types/blog';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
-export const metadata = {
-  title: 'Blog - Wish2Share',
-  description: 'Lees onze laatste tips en inspiratie voor events en cadeaus',
+export type PostCardProps = {
+  post: BlogPost;
+  isAdmin?: boolean;
 };
 
-export default async function BlogPage() {
-  const currentUser = await getCurrentUser();
-  const isAdmin = currentUser?.isAdmin || false;
-
-  // ✅ Get posts via server action
-  const result = await getAllPostsAction({ published: true });
-  const posts = result.success ? result.posts : [];
+export function PostCard({ post, isAdmin }: PostCardProps) {
+  // Flexibele datum formatting
+  let datum = '';
+  if (post.createdAt instanceof Date) {
+    datum = post.createdAt.toLocaleDateString('nl-BE', { year: 'numeric', month: 'long', day: 'numeric' });
+  } else if (typeof post.createdAt === 'string') {
+    const d = new Date(post.createdAt);
+    datum = isNaN(d.getTime())
+      ? post.createdAt
+      : d.toLocaleDateString('nl-BE', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
 
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="flex items-center justify-between mb-8">
-        <PageTitle title="Ons Blog" />
-        {isAdmin && (
-          <Button asChild>
-            <Link href="/dashboard/posts/create">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Nieuwe Post
-            </Link>
-          </Button>
-        )}
-      </div>
-
-      {posts.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {posts.map((post) => (
-            <PostCard key={post.id} post={post} isAdmin={isAdmin} />
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-16">
-          <h2 className="text-2xl font-semibold text-gray-700">
-            Nog geen posts...
-          </h2>
-          <p className="mt-2 text-gray-500">Kom snel terug voor updates!</p>
-          {isAdmin && (
-            <Button asChild className="mt-4">
-              <Link href="/dashboard/posts/create">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Maak je eerste post
-              </Link>
-            </Button>
+    <Card className="group h-full flex flex-col">
+      <Link href={`/blog/${post.slug}`} prefetch={false} className="block">
+        <CardHeader className="p-0 pb-2 flex flex-col">
+          {post.headImage && (
+            <img
+              src={post.headImage}
+              alt={post.headTitle}
+              className="w-full h-48 object-cover rounded-t shadow-sm transition group-hover:scale-105"
+              loading="lazy"
+            />
           )}
-        </div>
-      )}
-    </div>
+          <CardTitle className="mt-4 text-xl font-bold text-cool-olive group-hover:text-warm-olive transition">{post.headTitle}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 flex flex-col p-0 px-4">
+          <p className="text-gray-700 mt-2 line-clamp-3">{post.headDescription}</p>
+          <div className="flex items-center justify-between mt-4">
+            <span className="text-xs text-gray-500">{datum}</span>
+            {isAdmin && (
+              <Button asChild variant="ghost" size="icon" className="hover:text-warm-olive">
+                <Link href={`/dashboard/posts/${post.id}/edit`} aria-label="Bewerk post">
+                  ✎
+                </Link>
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Link>
+    </Card>
   );
 }

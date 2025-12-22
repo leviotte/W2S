@@ -12,7 +12,7 @@ import type { Event } from '@/types/event'; // ✅ ADD Event import
 import type { EventParticipant } from '@/types/event';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { WishlistLinkModal } from '../wishlist/WishlistLinkModal';
+import { WishlistLinkModal } from '../../app/wishlist/_components/WishlistLinkModal';
 
 interface EventWishlistsSectionProps {
   participants: EventParticipant[];

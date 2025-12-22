@@ -1,5 +1,5 @@
 // src/app/dashboard/add-profile/page.tsx
-import { AddProfileForm } from "@/components/profile/AddProfileForm";
+import { AddProfileForm } from "@/app/profile/_components/AddProfileForm";
 import { getSession } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 
