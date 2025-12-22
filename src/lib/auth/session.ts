@@ -112,6 +112,7 @@ export const sessionOptions = {
  * ✅ ENIGE PLEK waar getIronSession wordt aangeroepen
  */
 export async function getSession(): Promise<IronSession<SessionData>> {
+  // GEEN await → cookies() is sync en geeft een CookieStore!
   const cookieStore = await cookies();
   return getIronSession<SessionData>(cookieStore, sessionOptions);
 }

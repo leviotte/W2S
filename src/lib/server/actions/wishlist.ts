@@ -1,16 +1,15 @@
 // src/lib/server/actions/wishlist.ts
 'use server';
 
-import { getSession } from '@/lib/auth/actions';
 import { adminDb } from '@/lib/server/firebase-admin';
 import { revalidatePath } from 'next/cache';
-import type { Wishlist, WishlistItem } from '@/types/wishlist';
-import { toDate, nowTimestamp } from '@/lib/utils/time';
+import { nowTimestamp } from '@/lib/utils/time';
+import { getSession } from '@/lib/auth/actions';
 import type { UserProfile } from '@/types/user';
+import type { UpdateWishlistItemData } from '@/types/wishlist';
+import type { Wishlist, WishlistItem } from '@/types/wishlist';
+import { serializeWishlist, serializeWishlistItem, serializeUserProfile } from '@/lib/utils/serializers';
 
-// ----------------------------------------
-// TYPES & INTERFACES
-// ----------------------------------------
 export interface ActionResult<T = any> {
   success: boolean;
   data?: T;
@@ -18,7 +17,6 @@ export interface ActionResult<T = any> {
   errors?: { [field: string]: string[] };
   message?: string;
 }
-
 
 export interface CreateWishlistData {
   name: string;
@@ -44,49 +42,17 @@ export interface UpdateWishlistData {
   tags?: string[];
   category?: string | null;
   profileId?: string | null;
-  // Voeg hier velden toe die updatable zijn
 }
 
-export interface UpdateWishlistItemData {
-  wishlistId: string;
-  itemId: string;
-  updates: Partial<WishlistItem>;
-}
-// ----------------------------------------
-// WISHLIST CRUD OPERATIONS
-// ----------------------------------------
-export async function getUserWishlistsAction(userId: string): Promise<ActionResult<Wishlist[]>> {
-  try {
-    const wishlistsSnapshot = await adminDb
-      .collection('wishlists')
-      .where('ownerId', '==', userId)
-      .orderBy('createdAt', 'desc')
-      .get();
-    const wishlists = wishlistsSnapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: toDate(data.createdAt).toISOString(),
-        updatedAt: toDate(data.updatedAt).toISOString(),
-      } as Wishlist;
-    });
-    return { success: true, data: wishlists };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Kon wishlists niet ophalen',
-    };
-  }
+export interface CreateWishlistParams {
+  userId: string;
+  data: CreateWishlistData;
 }
 
-// ----------------------------------------
-// ENIGE centrale CREATE functie
-// ----------------------------------------
-export async function createWishlistAction(
-  userId: string,
-  data: CreateWishlistData
-): Promise<ActionResult<string>> {
+export async function createWishlistAction({
+  userId,
+  data
+}: CreateWishlistParams): Promise<ActionResult<{ id: string; slug: string }>> {
   try {
     const slug = data.name
       .toLowerCase()
@@ -100,30 +66,24 @@ export async function createWishlistAction(
     const finalSlug = existingSnapshot.empty ? slug : `${slug}-${Date.now()}`;
 
     const wishlistData = {
-      name: data.name,
-      description: data.description || '',
-      owner: userId,
-      ownerId: userId,  // ZET ALTIJD BEIDEN (legacy én toekomst)
-      ownerName: data.ownerName || '',
-      participantIds: data.participantIds || [userId],
-      items: Array.isArray(data.items) ? data.items : [],
+      ...data,
+      userId,
+      ownerId: userId, // backwards compat alleen; gebruik overal userId!
+      participantIds: data.participantIds ?? [userId],
       slug: finalSlug,
       isPublic: data.isPublic ?? false,
-      backgroundImage: data.backgroundImage || '',
-      minPrice: data.minPrice || 0,
-      maxPrice: data.maxPrice || 0,
+      items: Array.isArray(data.items) ? data.items : [],
       sharedWith: [],
       createdAt: nowTimestamp(),
       updatedAt: nowTimestamp(),
       profileId: data.profileId ?? null,
-      tags: data.tags || [],
-      category: data.category || null,
     };
 
     const docRef = await adminDb.collection('wishlists').add(wishlistData);
     revalidatePath('/dashboard/wishlists');
     revalidatePath(`/wishlist/${finalSlug}`);
-    return { success: true, data: docRef.id };
+
+    return { success: true, data: { id: docRef.id, slug: finalSlug } };
   } catch (error) {
     return {
       success: false,
@@ -132,6 +92,23 @@ export async function createWishlistAction(
   }
 }
 
+export async function getUserWishlistsAction(userId: string): Promise<ActionResult<Wishlist[]>> {
+  try {
+    const wishlistsSnapshot = await adminDb
+      .collection('wishlists')
+      .where('userId', '==', userId)
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    const wishlists = wishlistsSnapshot.docs.map((doc) => serializeWishlist(doc.data(), doc.id));
+    return { success: true, data: wishlists };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon wishlists niet ophalen',
+    };
+  }
+}
 /**
  * ✅ Update wishlist metadata
  */
@@ -810,7 +787,9 @@ export async function linkWishlistToEventAction({
     };
   }
 }
-export async function getWishlistBySlugAction(slug: string): Promise<{ success: boolean; data?: Wishlist | null; error?: string; }> {
+export async function getWishlistBySlugAction(
+  slug: string,
+): Promise<{ success: boolean; data?: Wishlist | null; error?: string }> {
   try {
     const snapshot = await adminDb
       .collection('wishlists')
@@ -821,18 +800,21 @@ export async function getWishlistBySlugAction(slug: string): Promise<{ success: 
       return { success: false, data: null, error: 'Niet gevonden' };
     }
     const doc = snapshot.docs[0];
-    return { success: true, data: { id: doc.id, ...doc.data() } as Wishlist };
+    return { success: true, data: serializeWishlist(doc.data(), doc.id) };
   } catch (err) {
     return { success: false, data: null, error: (err as Error).message };
   }
 }
-export async function getWishlistOwnerAction(userId: string): Promise<{ success: boolean; data?: UserProfile | null; error?: string; }> {
+
+export async function getWishlistOwnerAction(
+  userId: string,
+): Promise<{ success: boolean; data?: UserProfile | null; error?: string }> {
   try {
     const doc = await adminDb.collection('users').doc(userId).get();
     if (!doc.exists) {
       return { success: false, data: null, error: 'Gebruiker niet gevonden' };
     }
-    return { success: true, data: { id: doc.id, ...doc.data() } as UserProfile };
+    return { success: true, data: serializeUserProfile(doc.data(), doc.id) };
   } catch (err) {
     return { success: false, data: null, error: (err as Error).message };
   }

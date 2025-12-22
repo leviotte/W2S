@@ -6,7 +6,7 @@ export const claimedBySchema = z.object({
   userId: z.string(),
   userName: z.string(),
   quantity: z.number().optional().default(1),
-  claimedAt: z.string().optional(), // ISO timestamp
+  claimedAt: z.string().optional(),
 });
 export type ClaimedBy = z.infer<typeof claimedBySchema>;
 
@@ -22,12 +22,14 @@ export const wishlistItemSchema = productSchema.extend({
   priority: z.number().optional(),
   notes: z.string().optional(),
 });
+
 export type WishlistItem = z.infer<typeof wishlistItemSchema>;
 
 export const wishlistSchema = z.object({
   id: z.string(),
   name: z.string().min(3, "De naam van de wishlist moet minstens 3 tekens lang zijn."),
-  ownerId: z.string(),
+  userId: z.string(),                    // => DE standaard: gekoppeld aan de main user!
+  ownerId: z.string().optional(),        // => backward compat (mag weg in de toekomst)
   ownerName: z.string().optional(),
   isPublic: z.boolean().default(false),
   description: z.string().optional().nullable(),
@@ -42,6 +44,7 @@ export const wishlistSchema = z.object({
   sharedWith: z.array(z.string()).optional(),
   profileId: z.string().optional().nullable(),
 });
+
 export type Wishlist = z.infer<typeof wishlistSchema>;
 
 
@@ -190,3 +193,9 @@ export function getProfileWishlists(wishlists: Wishlist[], profileId: string): W
 export function isMainUserWishlist(wishlist: Wishlist): boolean {
   return !wishlist.profileId;
 }
+export interface UpdateWishlistItemData {
+  wishlistId: string;
+  itemId: string;
+  updates: Partial<WishlistItem>;
+}
+export function assertIsWishlistItem(item: unknown): asserts item is WishlistItem {}

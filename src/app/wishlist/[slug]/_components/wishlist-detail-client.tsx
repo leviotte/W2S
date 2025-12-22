@@ -47,7 +47,7 @@ export function WishlistDetailClient({
   maxPrice,
 }: WishlistDetailClientProps) {
   const router = useRouter();
-  
+
   // ===== STATE =====
   const [wishlist, setWishlist] = useState(initialWishlist);
   const [editingItem, setEditingItem] = useState<string | null>(null);
@@ -64,6 +64,7 @@ export function WishlistDetailClient({
   const [showProductDialog, setShowProductDialog] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [pendingItems, setPendingItems] = useState<Product[]>([]);
 
   // Background modal state
   const [showBackgroundModal, setShowBackgroundModal] = useState(false);
@@ -83,13 +84,8 @@ export function WishlistDetailClient({
       getBackgroundImagesAction(),
     ]);
 
-    if (categoriesResult.success && categoriesResult.data) {
-      setCategories(categoriesResult.data);
-    }
-
-    if (imagesResult.success && imagesResult.data) {
-      setBackgroundImages(imagesResult.data);
-    }
+    if (categoriesResult.success && categoriesResult.data) setCategories(categoriesResult.data);
+    if (imagesResult.success && imagesResult.data) setBackgroundImages(imagesResult.data);
 
     setIsLoadingBackgrounds(false);
   };
@@ -99,7 +95,6 @@ export function WishlistDetailClient({
       toast.warning('Selecteer een achtergrond');
       return;
     }
-
     const result = await updateWishlistBackgroundAction(wishlist.id, backgroundImage);
 
     if (result.success) {
@@ -117,10 +112,10 @@ export function WishlistDetailClient({
     return backgroundImages.filter((img) => img.category === selectedCategory);
   };
 
-  // ===== ITEM ACTIONS =====
+  // ===== ITEM ACTIES =====
   const handleEditItem = (item: WishlistItem) => {
     setEditingItem(String(item.id));
-    setEditedItem(item);
+    setEditedItem(item); // Pre-fill met huidige item
   };
 
   const handleSaveItem = async (itemId: string | number) => {
@@ -168,21 +163,6 @@ export function WishlistDetailClient({
     setItemToDelete(null);
   };
 
-  const addItemToWishlist = async (product: Product) => {
-    // ✅ FIXED: Converteer Product naar WishlistItem VOOR het naar de action te sturen
-    const wishlistItem = productToWishlistItem(product);
-    
-    const result = await addWishlistItemAction(wishlist.id, wishlistItem);
-
-    if (result.success) {
-      toast.success(result.message || 'Item toegevoegd');
-      router.refresh();
-      setShowProductDialog(false);
-    } else {
-      toast.error(result.error || 'Toevoegen mislukt');
-    }
-  };
-
   // ===== UTILITIES =====
   const copyUrlToClipboard = () => {
     const currentUrl = window.location.href;
@@ -191,452 +171,481 @@ export function WishlistDetailClient({
     });
   };
 
-  // ✅ RUNTIME FIX: Merge duplicate items (backwards compatibility)
+  // ===== ✅ DEDUPLICATE items only once, no double-adding after edit/save
   const deduplicatedItems = useMemo(() => {
     if (!wishlist.items) return [];
-    
-    const itemMap = new Map<string, WishlistItem>();
-    
-    wishlist.items.forEach((item: WishlistItem) => {
-      const key = String(item.id);
-      
-      if (itemMap.has(key)) {
-        // Merge duplicate: verhoog quantity
-        const existing = itemMap.get(key)!;
-        itemMap.set(key, {
-          ...existing,
-          quantity: (existing.quantity || 1) + (item.quantity || 1),
-        });
-      } else {
-        itemMap.set(key, item);
-      }
-    });
-    
-    return Array.from(itemMap.values());
+
+    // Unique map op id (laatste snapshot telt)
+    const map = new Map();
+    for (const item of wishlist.items) {
+      map.set(String(item.id), item);
+    }
+    return Array.from(map.values());
   }, [wishlist.items]);
 
   const filteredImages = getFilteredImages();
 
+  // ==== BELANGRIJK: Batchwise toevoegen na selectie ====
+
+  const handlePendingAdd = (newItems: Product[]) => {
+    // Voeg enkel toe als nog niet in pending of wishlist
+    setPendingItems((prev) => {
+      const existingIds = new Set([
+        ...prev.map((item) => String(item.id)),
+        ...deduplicatedItems.map((item) => String(item.id)),
+      ]);
+      return [
+        ...prev,
+        ...newItems.filter((item) => !existingIds.has(String(item.id))),
+      ];
+    });
+  };
+
+  const handleRemovePendingItem = (id: string | number) => {
+    setPendingItems((items) => items.filter((item) => String(item.id) !== String(id)));
+  };
+
+  const handleBatchSavePendingItems = async () => {
+    if (pendingItems.length === 0) return;
+    let errors = 0;
+    await Promise.all(
+      pendingItems.map(async (product) => {
+        const wishlistItem = productToWishlistItem(product);
+        const result = await addWishlistItemAction(wishlist.id, wishlistItem);
+        if (!result.success) errors++;
+      })
+    );
+    if (errors === 0) {
+      toast.success('Alle items toegevoegd');
+    } else {
+      toast.error(`Sommige items konden niet toegevoegd worden (${errors})`);
+    }
+    setPendingItems([]);
+    setShowProductDialog(false);
+    // Wil je refreshen na toevoegen voor directe UI update:
+    router.refresh();
+  };
+
   return (
     <>
-      <div>
-        {/* Background Image */}
-        <div
-          style={{
-            backgroundImage: `url(${wishlist?.backgroundImage})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-          }}
-          className="w-full fixed min-h-screen top-0 z-[-1]"
-        />
+      {/* Background Image */}
+      <div
+        style={{
+          backgroundImage: `url(${wishlist?.backgroundImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}
+        className="w-full fixed min-h-screen top-0 z-[-1]"
+      />
 
-        {/* Wishlist Content */}
-        <div className="max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-          <div className="rounded-lg shadow-sm bg-white/40 backdrop-blur-sm">
-            {/* Header */}
-            <div className="p-4 sm:p-6 shadow-md">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+      {/* Wishlist Content */}
+      <div className="max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="rounded-lg shadow-sm bg-white/40 backdrop-blur-sm">
+          {/* Header */}
+          <div className="p-4 sm:p-6 shadow-md">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              {owner && (
+                <UserAvatar
+                  photoURL={owner.photoURL || owner.avatarURL}
+                  firstName={owner.firstName}
+                  lastName={owner.lastName}
+                  name={owner.name}
+                  size="xl"
+                />
+              )}
+              <div className="flex-grow">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+                  {wishlist.name}
+                </h1>
                 {owner && (
-                  <UserAvatar
-                    photoURL={owner.photoURL || owner.avatarURL}
-                    firstName={owner.firstName}
-                    lastName={owner.lastName}
-                    name={owner.name}
-                    size="xl"
-                  />
+                  <p className="text-gray-600">
+                    Wishlist van {owner.name || `${owner.firstName} ${owner.lastName}`}
+                  </p>
                 )}
-                <div className="flex-grow">
-                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-                    {wishlist.name}
-                  </h1>
-                  {owner && (
-                    <p className="text-gray-600">
-                      Wishlist van {owner.name || `${owner.firstName} ${owner.lastName}`}
-                    </p>
-                  )}
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2 sm:space-x-3">
-                  {isOwner && (
-                    <button
-                      onClick={openBackgroundModal}
-                      className="hover:bg-white/40 border border-black px-3 py-2 rounded-md flex items-center justify-center"
-                    >
-                      <ImageIcon className="h-5 w-5 mr-2" />
-                      <span className="text-sm sm:text-base">Bewerk Achtergrond</span>
-                    </button>
-                  )}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 sm:space-x-3">
+                {isOwner && (
                   <button
-                    onClick={copyUrlToClipboard}
+                    onClick={openBackgroundModal}
                     className="hover:bg-white/40 border border-black px-3 py-2 rounded-md flex items-center justify-center"
                   >
-                    <Copy className="h-5 w-5 mr-2" />
-                    <span className="text-sm sm:text-base">Kopieer URL</span>
+                    <ImageIcon className="h-5 w-5 mr-2" />
+                    <span className="text-sm sm:text-base">Bewerk Achtergrond</span>
                   </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Items List */}
-            {!showAddForm && (
-              <div className="p-4 sm:p-6">
-                <div className="space-y-4 sm:space-y-6">
-                  {deduplicatedItems.length === 0 && (
-                    <p className="text-center text-gray-500">
-                      Deze wishlist is nog leeg.
-                    </p>
-                  )}
-
-                  {deduplicatedItems.map((item: WishlistItem) => (
-                    <div key={item.id} className="p-3 sm:p-4 bg-white/60 rounded-md">
-                      {editingItem === String(item.id) ? (
-                        // ===== EDIT MODE =====
-                        <div className="space-y-4">
-                          <div className="flex items-center space-x-4">
-                            {item.imageUrl ? (
-                              <div className="relative">
-                                <img
-                                  src={item.imageUrl}
-                                  alt={item.title}
-                                  className="w-16 h-16 object-cover rounded-md"
-                                />
-                                {/* ✅ Quantity badge */}
-                                {(item.quantity || 1) > 1 && (
-                                  <span className="absolute -top-2 -right-2 bg-warm-olive text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
-                                    {item.quantity}
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="w-16 h-16 bg-gray-300 flex items-center justify-center text-gray-500 rounded-md">
-                                <span className="text-xs">Geen Afbeelding</span>
-                              </div>
-                            )}
-                            <div className="flex-1">
-                              <h3 className="text-sm sm:text-md line-clamp-3">
-                                {item.title}
-                              </h3>
-                              {item.price && (
-                                <p className="text-gray-600 text-xs sm:text-sm">
-                                  €{item.price}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          
-                          {/* ✅ Quantity controls */}
-                          <div className="flex items-center space-x-3">
-                            <label className="text-sm font-medium">Aantal:</label>
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const newQty = Math.max(1, (editedItem.quantity || 1) - 1);
-                                  setEditedItem({ ...editedItem, quantity: newQty });
-                                }}
-                                className="p-1 border rounded hover:bg-gray-100"
-                              >
-                                <Minus className="h-4 w-4" />
-                              </button>
-                              <span className="px-3 py-1 border rounded min-w-[40px] text-center">
-                                {editedItem.quantity || 1}
-                              </span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const newQty = (editedItem.quantity || 1) + 1;
-                                  setEditedItem({ ...editedItem, quantity: newQty });
-                                }}
-                                className="p-1 border rounded hover:bg-gray-100"
-                              >
-                                <Plus className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-
-                          <input
-                            type="text"
-                            value={editedItem.description || ''}
-                            onChange={(e) =>
-                              setEditedItem({
-                                ...editedItem,
-                                description: e.target.value,
-                              })
-                            }
-                            className="block w-full rounded-md border-2 border-gray-300 px-3 py-2 shadow-sm focus:border-warm-olive focus:ring-warm-olive"
-                            placeholder="Notitie (bijv. kleur, maat)"
-                          />
-                          <div className="flex justify-end space-x-2">
-                            <button
-                              onClick={() => handleSaveItem(item.id)}
-                              className="p-2 text-green-600 hover:text-green-800"
-                            >
-                              <Save className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => setEditingItem(null)}
-                              className="p-2 text-gray-400 hover:text-gray-600"
-                            >
-                              <X className="h-5 w-5" />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        // ===== VIEW MODE =====
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                          <div className="flex flex-grow items-start sm:items-center space-x-3 sm:space-x-4">
-                            {item.imageUrl ? (
-                              <div className="relative">
-                                <img
-                                  src={item.imageUrl}
-                                  alt={item.title}
-                                  className="w-[90px] sm:w-[110px] h-[75px] sm:h-[90px] object-cover rounded-md"
-                                />
-                                {/* ✅ Quantity badge */}
-                                {(item.quantity || 1) > 1 && (
-                                  <span className="absolute -top-2 -right-2 bg-warm-olive text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-md">
-                                    {item.quantity}
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="w-16 h-16 bg-gray-300 flex items-center justify-center text-gray-500 rounded-md">
-                                <span className="text-xs">Geen Afbeelding</span>
-                              </div>
-                            )}
-                            <div>
-                              <h3 className="text-sm sm:text-md line-clamp-3">
-                                {item.title.length > 100
-                                  ? item.title.slice(0, 80) + '...'
-                                  : item.title}
-                              </h3>
-                              {item.description && (
-                                <p className="text-gray-600 mt-1 text-xs sm:text-sm">
-                                  {item.description}
-                                </p>
-                              )}
-                              {item.price && (
-                                <p className="text-gray-600 text-xs sm:text-sm">
-                                  €{item.price} {(item.quantity || 1) > 1 && `× ${item.quantity}`}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex gap-[5px] self-end sm:self-center">
-                            {isOwner ? (
-                              <>
-                                <button
-                                  onClick={() => handleEditItem(item)}
-                                  className="p-2 hover:text-gray-600"
-                                >
-                                  <Edit2 className="h-5 w-5" />
-                                </button>
-                                <button
-                                  onClick={() => confirmDeleteItem(item.id)}
-                                  className="p-2 text-[#b34c4c] hover:text-red-600"
-                                >
-                                  <Trash2 className="h-5 w-5" />
-                                </button>
-                              </>
-                            ) : (
-                              <a
-                                href={item.url || '#'}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="bg-warm-olive text-white px-3 sm:px-4 py-2 rounded-md hover:bg-cool-olive transition-colors flex items-center text-xs sm:text-sm"
-                              >
-                                <Gift className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
-                                Koop dit cadeau
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Add Item Button */}
-        {isOwner && (
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
-            <button
-              onClick={() => setShowProductDialog(true)}
-              className="w-full px-4 py-2 border border-black rounded-md bg-white/40 backdrop-blur-sm flex items-center justify-center hover:bg-white/60"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Item toevoegen
-            </button>
-          </div>
-        )}
-
-        {/* Add Items Dialog */}
-        {isOwner && showProductDialog && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-auto p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Producten toevoegen</h3>
-                <button onClick={() => setShowProductDialog(false)}>
-                  <X className="h-5 w-5" />
+                )}
+                <button
+                  onClick={copyUrlToClipboard}
+                  className="hover:bg-white/40 border border-black px-3 py-2 rounded-md flex items-center justify-center"
+                >
+                  <Copy className="h-5 w-5 mr-2" />
+                  <span className="text-sm sm:text-base">Kopieer URL</span>
                 </button>
               </div>
-              <AffiliateProductSearch
-                items={wishlist.items || []}
-                setItems={(newItems) => {
-                  newItems.forEach(item => {
-                    const product = item as unknown as Product;
-                    addItemToWishlist(product);
-                  });
-                }}
-                eventBudget={maxPrice}
-              />
             </div>
           </div>
-        )}
 
-        {/* Background Modal */}
-        {showBackgroundModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-4 sm:p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                    Bewerk Achtergrond
-                  </h2>
-                  <button
-                    onClick={() => setShowBackgroundModal(false)}
-                    className="text-gray-500 hover:text-gray-700"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
+          {/* Items List */}
+          {!showAddForm && (
+            <div className="p-4 sm:p-6">
+              <div className="space-y-4 sm:space-y-6">
+                {deduplicatedItems.length === 0 && (
+                  <p className="text-center text-gray-500">
+                    Deze wishlist is nog leeg.
+                  </p>
+                )}
 
-                {isLoadingBackgrounds ? (
-                  <div className="py-12 text-center">
-                    <p className="text-gray-600">Loading...</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4 sm:space-y-6">
-                    {/* Category Filter */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Filter op Categorie
-                      </label>
-                      <select
-                        value={selectedCategory}
-                        onChange={(e) => setSelectedCategory(e.target.value)}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded-md"
-                      >
-                        <option value="">Alle categorieën</option>
-                        {categories.map((category) => (
-                          <option key={category.id} value={category.id}>
-                            {category.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Current Selection Preview */}
-                    {backgroundImage && (
-                      <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Huidige Selectie
-                        </label>
-                        <div className="w-full h-32 sm:h-40 shadow-md rounded-lg overflow-hidden">
-                          <img
-                            src={backgroundImage}
-                            alt="Selected background"
-                            className="w-full h-full object-cover"
-                          />
+                {deduplicatedItems.map((item: WishlistItem) => (
+                  <div key={item.id} className="p-3 sm:p-4 bg-white/60 rounded-md">
+                    {editingItem === String(item.id) ? (
+                      // ===== EDIT MODE =====
+                      <div className="space-y-4">
+                        <div className="flex items-center space-x-4">
+                          {item.imageUrl ? (
+                            <div className="relative">
+                              <img
+                                src={item.imageUrl}
+                                alt={item.title}
+                                className="w-16 h-16 object-cover rounded-md"
+                              />
+                              {(item.quantity || 1) > 1 && (
+                                <span className="absolute -top-2 -right-2 bg-warm-olive text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
+                                  {item.quantity}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="w-16 h-16 bg-gray-300 flex items-center justify-center text-gray-500 rounded-md">
+                              <span className="text-xs">Geen Afbeelding</span>
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <h3 className="text-sm sm:text-md line-clamp-3">
+                              {item.title}
+                            </h3>
+                            {item.price && (
+                              <p className="text-gray-600 text-xs sm:text-sm">
+                                €{item.price}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        {/* Quantity controls */}
+                        <div className="flex items-center space-x-3">
+                          <label className="text-sm font-medium">Aantal:</label>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newQty = Math.max(1, (editedItem.quantity || 1) - 1);
+                                setEditedItem({ ...editedItem, quantity: newQty });
+                              }}
+                              className="p-1 border rounded hover:bg-gray-100"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </button>
+                            <span className="px-3 py-1 border rounded min-w-[40px] text-center">
+                              {editedItem.quantity || 1}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newQty = (editedItem.quantity || 1) + 1;
+                                setEditedItem({ ...editedItem, quantity: newQty });
+                              }}
+                              className="p-1 border rounded hover:bg-gray-100"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <input
+                          type="text"
+                          value={editedItem.description || ''}
+                          onChange={(e) =>
+                            setEditedItem({
+                              ...editedItem,
+                              description: e.target.value,
+                            })
+                          }
+                          className="block w-full rounded-md border-2 border-gray-300 px-3 py-2 shadow-sm focus:border-warm-olive focus:ring-warm-olive"
+                          placeholder="Notitie (bijv. kleur, maat)"
+                        />
+                        <div className="flex justify-end space-x-2">
+                          <button
+                            onClick={() => handleSaveItem(item.id)}
+                            className="p-2 text-green-600 hover:text-green-800"
+                          >
+                            <Save className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => setEditingItem(null)}
+                            className="p-2 text-gray-400 hover:text-gray-600"
+                          >
+                            <X className="h-5 w-5" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      // ===== VIEW MODE =====
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="flex flex-grow items-start sm:items-center space-x-3 sm:space-x-4">
+                          {item.imageUrl ? (
+                            <div className="relative">
+                              <img
+                                src={item.imageUrl}
+                                alt={item.title}
+                                className="w-[90px] sm:w-[110px] h-[75px] sm:h-[90px] object-cover rounded-md"
+                              />
+                              {(item.quantity || 1) > 1 && (
+                                <span className="absolute -top-2 -right-2 bg-warm-olive text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-md">
+                                  {item.quantity}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="w-16 h-16 bg-gray-300 flex items-center justify-center text-gray-500 rounded-md">
+                              <span className="text-xs">Geen Afbeelding</span>
+                            </div>
+                          )}
+                          {/* ENKEL hoognodige tonen: title, prijs, quantity */}
+                          <div>
+                            <h3 className="text-sm sm:text-md line-clamp-2">
+                              {item.title.length > 100
+                                ? item.title.slice(0, 80) + '...'
+                                : item.title}
+                            </h3>
+                            {item.price && (
+                              <p className="text-gray-600 text-xs sm:text-sm">
+                                €{item.price}{' '}
+                                {(item.quantity || 1) > 1 && `× ${item.quantity}`}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-[5px] self-end sm:self-center">
+                          {isOwner ? (
+                            <>
+                              <button
+                                onClick={() => handleEditItem(item)}
+                                className="p-2 hover:text-gray-600"
+                              >
+                                <Edit2 className="h-5 w-5" />
+                              </button>
+                              <button
+                                onClick={() => confirmDeleteItem(item.id)}
+                                className="p-2 text-[#b34c4c] hover:text-red-600"
+                              >
+                                <Trash2 className="h-5 w-5" />
+                              </button>
+                            </>
+                          ) : (
+                            <a
+                              href={item.url || '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="bg-warm-olive text-white px-3 sm:px-4 py-2 rounded-md hover:bg-cool-olive transition-colors flex items-center text-xs sm:text-sm"
+                            >
+                              <Gift className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+                              Koop dit cadeau
+                            </a>
+                          )}
                         </div>
                       </div>
                     )}
-
-                    {/* Image Grid */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Kies een Achtergrond
-                      </label>
-                      {filteredImages.length === 0 ? (
-                        <p className="text-center py-8 text-gray-500">
-                          Geen achtergronden gevonden
-                        </p>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-                          {filteredImages.map((image) => (
-                            <div
-                              key={image.id}
-                              onClick={() => setBackgroundImage(image.imageLink)}
-                              className={`relative cursor-pointer rounded-lg overflow-hidden h-24 sm:h-32 transition-all ${
-                                backgroundImage === image.imageLink ? 'ring-4 ring-warm-olive' : ''
-                              }`}
-                            >
-                              <img
-                                src={image.imageLink}
-                                alt={image.title}
-                                className="w-full h-full object-cover"
-                              />
-                              <div className="absolute inset-0 bg-black bg-opacity-40 flex items-end">
-                                <p className="text-white text-xs p-2 w-full truncate">
-                                  {image.title}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex justify-end space-x-3 pt-4 border-t">
-                      <button
-                        onClick={() => setShowBackgroundModal(false)}
-                        className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                      >
-                        Annuleer
-                      </button>
-                      <button
-                        onClick={handleSaveBackground}
-                        disabled={!backgroundImage}
-                        className={`px-4 py-2 rounded-md ${
-                          backgroundImage
-                            ? 'bg-warm-olive text-white hover:bg-warm-olive/90'
-                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        }`}
-                      >
-                        Opslaan
-                      </button>
-                    </div>
                   </div>
-                )}
+                ))}
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Ben je zeker?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Dit item zal permanent verwijderd worden.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annuleer</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDeleteItem}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                Verwijder
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          )}
+        </div>
       </div>
+
+      {/* Add Item Button */}
+      {isOwner && (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+          <button
+            onClick={() => setShowProductDialog(true)}
+            className="w-full px-4 py-2 border border-black rounded-md bg-white/40 backdrop-blur-sm flex items-center justify-center hover:bg-white/60"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Item toevoegen
+          </button>
+        </div>
+      )}
+
+      {/* Add Items Dialog */}
+      {isOwner && showProductDialog && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-auto p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Producten toevoegen</h3>
+              <button onClick={() => { setPendingItems([]); setShowProductDialog(false); }}>
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <AffiliateProductSearch
+              items={[...wishlist.items, ...pendingItems]}
+              setItems={handlePendingAdd}
+              eventBudget={maxPrice}
+            />
+            <div className="flex justify-end mt-4 gap-2">
+              <button
+                onClick={() => {
+                  setPendingItems([]);
+                  setShowProductDialog(false);
+                }}
+                className="rounded px-4 py-2 bg-gray-200 hover:bg-gray-300"
+              >
+                Annuleer
+              </button>
+              <button
+  onClick={handleBatchSavePendingItems}
+  disabled={pendingItems.length === 0}
+  className="rounded px-4 py-2 bg-warm-olive text-white hover:bg-cool-olive disabled:opacity-60"
+>
+  Sla op
+</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Background Modal */}
+      {showBackgroundModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                  Bewerk Achtergrond
+                </h2>
+                <button
+                  onClick={() => setShowBackgroundModal(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {isLoadingBackgrounds ? (
+                <div className="py-12 text-center">
+                  <p className="text-gray-600">Loading...</p>
+                </div>
+              ) : (
+                <div className="space-y-4 sm:space-y-6">
+                  {/* Category Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Filter op Categorie
+                    </label>
+                    <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="">Alle categorieën</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Current Selection Preview */}
+                  {backgroundImage && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Huidige Selectie
+                      </label>
+                      <div className="w-full h-32 sm:h-40 shadow-md rounded-lg overflow-hidden">
+                        <img
+                          src={backgroundImage}
+                          alt="Selected background"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Image Grid */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Kies een Achtergrond
+                    </label>
+                    {filteredImages.length === 0 ? (
+                      <p className="text-center py-8 text-gray-500">
+                        Geen achtergronden gevonden
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                        {filteredImages.map((image) => (
+                          <div key={image.id} onClick={() => setBackgroundImage(image.imageLink)}
+                            className={`relative cursor-pointer rounded-lg overflow-hidden h-24 sm:h-32 transition-all ${
+                              backgroundImage === image.imageLink ? 'ring-4 ring-warm-olive' : ''
+                            }`}
+                          >
+                            <img
+                              src={image.imageLink}
+                              alt={image.title}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black bg-opacity-40 flex items-end">
+                              <p className="text-white text-xs p-2 w-full truncate">
+                                {image.title}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end space-x-3 pt-4 border-t mt-5">
+  <button
+    onClick={() => setShowProductDialog(false)}
+    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+  >
+    Annuleer
+  </button>
+  <button
+    onClick={handleBatchSavePendingItems}
+    disabled={pendingItems.length === 0}
+    className={`px-4 py-2 rounded-md ${
+      pendingItems.length
+        ? 'bg-warm-olive text-white hover:bg-warm-olive/90'
+        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+    }`}
+  >
+    Sla op
+  </button>
+</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ben je zeker?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Dit item zal permanent verwijderd worden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuleer</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteItem}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Verwijder
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

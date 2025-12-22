@@ -1,3 +1,4 @@
+// src/components/layout/CookieConsent.tsx
 "use client";
 
 import CookieConsent from "react-cookie-consent";

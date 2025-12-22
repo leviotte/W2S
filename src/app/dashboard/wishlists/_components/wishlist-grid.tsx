@@ -104,7 +104,7 @@ export function WishlistGrid({ wishlists }: WishlistGridProps) {
   const handleCardClick = (wishlist: Wishlist) => {
   // ✅ Gebruik slug ALS het bestaat, anders fallback naar ID
   const identifier = wishlist.slug || wishlist.id;
-  router.push(`/dashboard/wishlists/${identifier}`);
+  router.push(`/wishlist/${identifier}`);
 };
 
   // ✅ EMPTY STATE

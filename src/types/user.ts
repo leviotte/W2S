@@ -3,14 +3,12 @@ import { z } from 'zod';
 import { addressSchema, type Address, type AddressNullable } from './address';
 
 /**
- * Timestamp Schema - Handles Firestore Timestamps
+ * Firestore-Timestamp → Date
  */
-const timestampSchema = z.preprocess((arg) => {
-  // Firestore Timestamp object
+const timestampSchema = z.preprocess(arg => {
   if (arg && typeof arg === 'object' && 'toDate' in arg && typeof arg.toDate === 'function') {
     return arg.toDate();
   }
-  // Date, string, or number
   if (arg instanceof Date || typeof arg === 'string' || typeof arg === 'number') {
     const d = new Date(arg);
     if (!isNaN(d.getTime())) return d;
@@ -18,70 +16,43 @@ const timestampSchema = z.preprocess((arg) => {
   return arg;
 }, z.date());
 
-/**
- * Social Links Schema
- */
 export const socialLinksSchema = z.object({
   website: z.string().url().or(z.literal('')).optional().nullable(),
   facebook: z.string().url().or(z.literal('')).optional().nullable(),
   instagram: z.string().url().or(z.literal('')).optional().nullable(),
   linkedin: z.string().url().or(z.literal('')).optional().nullable(),
 });
-
 export type SocialLinks = z.infer<typeof socialLinksSchema>;
 
-/**
- * Base Profile Schema (shared between User & SubProfiles)
- */
 export const baseProfileSchema = z.object({
   id: z.string(),
-  // FIX: userId is niet altijd in de DB, we voegen die later toe.
-  userId: z.string().optional(), 
+  userId: z.string(), // ALTIJD verplicht, main user eigenaar!
   firstName: z.string().min(1, 'Voornaam is verplicht'),
   lastName: z.string().min(1, 'Achternaam is verplicht'),
-  // FIX: displayName is niet altijd in de DB, we genereren die.
   displayName: z.string().optional(), 
-  // FIX: Verander .url() naar .string() om data-URI's toe te laten
   photoURL: z.string().optional().nullable(), 
   birthdate: z.string().optional().nullable(),
   gender: z.string().optional().nullable(),
 });
 
-/**
- * User Profile Schema (main user account)
- */
 export const userProfileSchema = baseProfileSchema.extend({
   email: z.string().email('Ongeldig e-mailadres'),
   username: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
   address: addressSchema,
-  
-  // Permissions & Flags
   isPublic: z.boolean().default(false),
   isAdmin: z.boolean().default(false),
   isPartner: z.boolean().default(false),
-  
-  // Sharing
-  sharedWith: z.array(z.string()).optional().default([]),
-  
-  // Timestamps
+  sharedWith: z.array(z.string()).default([]),
   createdAt: timestampSchema.default(() => new Date()),
   updatedAt: timestampSchema.default(() => new Date()),
-  
-  // Social Links
   socials: socialLinksSchema.nullable().optional(),
 });
 
-/**
- * Sub Profile Schema (for kids, pets, etc.)
- */
 export const subProfileSchema = baseProfileSchema.extend({
-  parentId: z.string().optional(),
+  // parentId: z.string().optional(), // mag weg als userId voldoende link is
 });
 
-/**
- * Session User Schema (lightweight for iron-session)
- */
 export const sessionUserSchema = z.object({
   id: z.string(),
   isLoggedIn: z.literal(true),
@@ -93,21 +64,12 @@ export const sessionUserSchema = z.object({
   username: z.string().optional().nullable(),
 });
 
-// ============================================
-// EXPORTED TYPES
-// ============================================
-
+// Types
 export type UserProfile = z.infer<typeof userProfileSchema>;
 export type SubProfile = z.infer<typeof subProfileSchema>;
 export type AnyProfile = UserProfile | SubProfile;
 export type SessionUser = z.infer<typeof sessionUserSchema>;
-
 export type { Address, AddressNullable };
-
-// ============================================
-// USER ROLE TYPES
-// ============================================
-
 export type UserRole = 'user' | 'admin' | 'partner' | 'organizer';
 
 // ============================================

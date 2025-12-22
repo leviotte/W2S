@@ -1,4 +1,4 @@
-// src/components/wishlist/WishlistRequestDialog.tsx
+// src/app/wishlist/_components/WishlistRequestDialog.tsx
 "use client";
 
 import { useCallback, useMemo } from "react";

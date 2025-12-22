@@ -1,4 +1,4 @@
-// src/components/wishlist/ShareWishlistModal.tsx
+// src/app/wishlist/_components/ShareWishlistModal.tsx
 "use client";
 
 import React, { useState } from "react";

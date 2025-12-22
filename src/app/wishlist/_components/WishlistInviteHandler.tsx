@@ -1,3 +1,4 @@
+// src/app/wishlist/_components/WishlistInviteHandler.tsx
 'use client';
 
 import { useEffect, useState } from 'react';

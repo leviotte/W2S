@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCurrentUser } from "@/lib/store/use-auth-store";
 
 interface BackImage { id: string; imageLink: string; title: string; category: string; }
 interface Category { id: string; name: string; type: string; }
@@ -38,6 +39,7 @@ export default function CreateWishlistPage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [showAddForm, setShowAddForm] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const currentUser = useCurrentUser();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -72,47 +74,54 @@ export default function CreateWishlistPage() {
   }, [selectedCategory, backImages]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!wishlistName.trim()) {
-      toast.error("Geef je wishlist een naam");
-      return;
-    }
-
-    if (items.length === 0) {
-      toast.error("Voeg minstens één item toe aan je wishlist.");
-      return;
-    }
-
-    startTransition(async () => {
-  try {
-    // Weglaten: const formData = new FormData(); ... (alles daarvan schrappen)
-    const result = await createWishlistAction({
-      name: wishlistName.trim(),
-      backgroundImage: backgroundImage || "...standaard-url...",
-      items,
-      // description, isPublic, eventId, participantId: indien gewenst!
-    });
-
-    if (result.success) {
-      toast.success("Wishlist succesvol aangemaakt! 🎉");
-      router.push('/dashboard/wishlists');
-    } else {
-      toast.error(result.message || "Er ging iets mis bij het aanmaken van de wishlist");
-      if (result.errors) {
-        Object.entries(result.errors).forEach(([field, messages]) => {
-          if (Array.isArray(messages)) {
-            messages.forEach(msg => console.error(`${field}:`, msg));
-          }
-        });
-      }
-    }
-  } catch (error) {
-    console.error("Submit error:", error);
-    toast.error("Er ging iets mis. Probeer het opnieuw.");
+  if (!wishlistName.trim()) {
+    toast.error("Geef je wishlist een naam");
+    return;
   }
-});
-  };
+
+  if (items.length === 0) {
+    toast.error("Voeg minstens één item toe aan je wishlist.");
+    return;
+  }
+
+  if (!currentUser?.id) {
+    toast.error("Je moet ingelogd zijn om een wishlist aan te maken.");
+    return;
+  }
+
+  startTransition(async () => {
+    try {
+      const result = await createWishlistAction({
+        userId: currentUser.id,
+        data: {
+          name: wishlistName.trim(),
+          backgroundImage: backgroundImage || "...standaard-url...",
+          items,
+          // description, isPublic, eventId, participantId: indien gewenst!
+        }
+      });
+
+      if (result.success) {
+        toast.success("Wishlist succesvol aangemaakt! 🎉");
+        router.push('/dashboard/wishlists');
+      } else {
+        toast.error(result.message || "Er ging iets mis bij het aanmaken van de wishlist");
+        if (result.errors) {
+          Object.entries(result.errors).forEach(([field, messages]) => {
+            if (Array.isArray(messages)) {
+              messages.forEach(msg => console.error(`${field}:`, msg));
+            }
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Submit error:", error);
+      toast.error("Er ging iets mis. Probeer het opnieuw.");
+    }
+  });
+};
 
   return (
     <div className="mx-auto px-4 py-8">

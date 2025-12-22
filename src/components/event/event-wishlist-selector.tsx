@@ -1,6 +1,4 @@
-/**
- * ✅ GOLD STANDARD: Gebruikt directe createWishlistAction
- */
+// src/components/event/event-wishlist-selector.tsx
 'use client';
 
 import React, { useState, useTransition } from 'react';
@@ -42,13 +40,10 @@ export function EventWishlistSelector({
 
     startTransition(async () => {
       // ✅ Gebruik de directe versie met userId parameter
-      const result = await createWishlistAction({
-        name: newWishlistName,
-        isPublic: false,
-      });
+      const result = await createWishlistAction({ userId: user.id, data: { name: newWishlistName.trim(), isPublic: false } });
 
       if (result.success && result.data) {
-        onWishlistSelect(result.data);
+        onWishlistSelect(result.data.id);
         setShowNewWishlistForm(false);
         setNewWishlistName('');
         toast.success('Wishlist aangemaakt!');

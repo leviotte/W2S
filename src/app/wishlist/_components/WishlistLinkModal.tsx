@@ -1,4 +1,4 @@
-// src/components/wishlist/WishlistLinkModal.tsx
+// src/app/wishlist/_components/WishlistLinkModal.tsx
 "use client";
 
 import { useState, useTransition, useEffect, useCallback } from "react";
@@ -152,29 +152,32 @@ export function WishlistLinkModal({
     startTransition(async () => {
       try {
         const result = await createWishlistAction({
-  name: newWishlistName.trim(),
-  description: `Wishlist voor ${eventName}`,
-  isPublic: false,
-  // Voeg indien gewenst ook andere velden toe (bv. backgroundImage etc.)
+  userId: currentUser.id, // <-- VOEG DEZE TOE!
+  data: {
+    name: newWishlistName.trim(),
+    description: `Wishlist voor ${eventName}`,
+    isPublic: false,
+    // Voeg andere velden toe indien nodig
+  }
 });
 
         if (result.success && result.data) {
-          // ✅ Link the new wishlist to event
-          const linkResult = await linkWishlistToEventAction({
-            eventId,
-            wishlistId: result.data,
-            participantId: participantId || currentUser.id,
-          });
+  // ✅ Link de nieuwe wishlist aan event - gebruik result.data.id als wishlistId!
+  const linkResult = await linkWishlistToEventAction({
+    eventId,
+    wishlistId: result.data.id, // <-- FIXED!
+    participantId: participantId || currentUser.id,
+  });
 
-          if (linkResult.success) {
-            toast.success("Wishlist aangemaakt en gekoppeld!");
-            onOpenChange(false);
-            router.push(`/dashboard/wishlist/${result.data}/${eventId}?tab=wishlists&subTab=details`);
-            router.refresh();
-          } else {
-            toast.error(linkResult.error || "Aanmaken gelukt, maar koppelen mislukt");
-          }
-        } else {
+  if (linkResult.success) {
+    toast.success("Wishlist aangemaakt en gekoppeld!");
+    onOpenChange(false);
+    router.push(`/dashboard/wishlist/${result.data.slug}/${eventId}?tab=wishlists&subTab=details`);
+    router.refresh();
+  } else {
+    toast.error(linkResult.error || "Aanmaken gelukt, maar koppelen mislukt");
+  }
+} else {
           toast.error(result.error || "Kon wishlist niet aanmaken");
         }
       } catch (error) {

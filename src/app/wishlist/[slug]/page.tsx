@@ -5,13 +5,12 @@ import { getCurrentUser } from '@/lib/auth/actions';
 import { WishlistDetailClient } from './_components/wishlist-detail-client';
 import type { Metadata } from 'next';
 
-interface WishlistPageProps {
-  params: { slug: string };
-  searchParams: { maxPrice?: string };
-}
-
-export async function generateMetadata({ params }: WishlistPageProps): Promise<Metadata> {
-  const { slug } = params;
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
   const result = await getWishlistBySlugAction(slug);
   if (!result.success || !result.data) {
     return { title: 'Wishlist niet gevonden | Wish2Share' };
@@ -27,19 +26,28 @@ export async function generateMetadata({ params }: WishlistPageProps): Promise<M
   };
 }
 
-export default async function WishlistPage({ params, searchParams }: WishlistPageProps) {
-  const { slug } = params;
-  const maxPrice = searchParams?.maxPrice ? Number(searchParams.maxPrice) : undefined;
+export default async function WishlistPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ maxPrice?: string }>;
+}) {
+  const { slug } = await params;
+  const { maxPrice } = await searchParams;
+  const maxPriceNumber = maxPrice ? Number(maxPrice) : undefined;
   const currentUser = await getCurrentUser();
 
   const wishlistResult = await getWishlistBySlugAction(slug);
   if (!wishlistResult.success || !wishlistResult.data) notFound();
   const wishlist = wishlistResult.data;
 
-  // Owner ophalen op basis van (altijd aanwezige) ownerId
-  const ownerResult = await getWishlistOwnerAction(wishlist.ownerId);
+  const ownerId: string | undefined = wishlist.userId ?? wishlist.ownerId;
+  if (!ownerId) notFound();
+
+  const ownerResult = await getWishlistOwnerAction(ownerId);
   const owner = ownerResult.success ? ownerResult.data : null;
-  const isOwner = currentUser?.id === wishlist.ownerId;
+  const isOwner = currentUser?.id === ownerId;
 
   return (
     <WishlistDetailClient
@@ -47,7 +55,7 @@ export default async function WishlistPage({ params, searchParams }: WishlistPag
       owner={owner}
       currentUser={currentUser}
       isOwner={isOwner}
-      maxPrice={maxPrice}
+      maxPrice={maxPriceNumber}
     />
   );
 }

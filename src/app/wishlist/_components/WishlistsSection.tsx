@@ -1,4 +1,4 @@
-// src/components/wishlist/WishlistsSection.tsx
+// src/app/wishlist/_components/WishlistsSection.tsx
 'use client';
 
 import { useMemo } from 'react';

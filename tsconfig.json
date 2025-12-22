@@ -1,40 +1,42 @@
 {
+  // 💎 Baseline: modern Next.js, no legacy cruft, only source & ambient types
   "compilerOptions": {
-    // --- Cruciale Next.js & React Instellingen ---
+    "target": "ES2022", // mag naar wens, best modern houden
     "lib": [
       "dom",
       "dom.iterable",
       "esnext"
     ],
     "module": "esnext",
-    "moduleResolution": "bundler", // Essentieel voor moderne tooling en de App Router.
-    "allowSyntheticDefaultImports": true,
-    "jsx": "react-jsx", // BELANGRIJK: Next.js' eigen compiler (SWC) handelt de JSX-transformatie af.
-    "plugins": [
-      {
-        "name": "next" // DE MAGIE: Geeft VS Code context over Server Components, 'use client', etc.
-      }
-    ],
-    "noEmit": true, // Next.js doet de build, TypeScript hoeft geen JS-bestanden te genereren.
-    // --- Pad Aliassen ---
+    "moduleResolution": "bundler", // noodzakelijk bij App Router/Turbopack
     "baseUrl": ".",
     "paths": {
       "@/*": [
         "./src/*"
       ]
     },
-    // --- "Gold Standard" Strictness & Veiligheid ---
+    // 🟩 Strictness & ergonomie
     "strict": true,
-    "allowJs": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true, // Essentieel voor Vercel (Linux-based).
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "noEmit": true, // Alleen types, geen js output
     "incremental": true,
-    "target": "ES2017"
-    // "noUncheckedIndexedAccess": true, // Optionele, zeer strikte regel. Zet deze aan als je extra veiligheid wilt.
+    // 🎨 Must-have voor Next.js 13+/16+ met VSCode!
+    "jsx": "react-jsx",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+    // "noUncheckedIndexedAccess": true, // Optioneel voor nóg strikter
+    ,
+    "allowJs": true
   },
+  // 🟢 *** HIER zit de magic *** NIET meer .next/types of .next/dev/types! ***
   "include": [
     "next-env.d.ts",
     "**/*.ts",

@@ -1,15 +1,11 @@
 // src/lib/server/actions/subprofile-actions.ts
 'use server';
-
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { adminDb } from '@/lib/server/firebase-admin';
 import { getSession } from '@/lib/auth/actions';
 import type { SubProfile } from '@/types/user';
-
-// ============================================================================
-// SCHEMAS
-// ============================================================================
+import { nanoid } from 'nanoid';
 
 const subProfileSchema = z.object({
   firstName: z.string().min(1, "Voornaam is verplicht"),
@@ -23,15 +19,11 @@ const subProfileSchema = z.object({
     postalCode: z.string().optional().nullable(),
     country: z.string().optional().nullable(),
   }).optional().nullable(),
-  // ✅ FIX: Accepteer ook data URIs (base64 images)
   photoURL: z.string().optional().nullable(),
+  email: z.string().email().optional().nullable(), // ← Indien in formulier
 });
 
 type SubProfileData = z.infer<typeof subProfileSchema>;
-
-// ============================================================================
-// CREATE SUBPROFILE
-// ============================================================================
 
 export async function createSubProfileAction(data: unknown) {
   const session = await getSession();
@@ -51,18 +43,31 @@ export async function createSubProfileAction(data: unknown) {
   const profileData = validation.data;
   const displayName = `${profileData.firstName} ${profileData.lastName}`.trim();
 
+  const managersArr = [session.user.id];
+
+  // Zet emails array zoals in productie
+  let emailsArr: { email: string; id: string }[] = [];
+  if (profileData.email && profileData.email.length > 0) {
+    emailsArr = [{
+      email: profileData.email,
+      id: nanoid(),
+    }];
+  }
+  // Je kan hier optioneel parentId, slug,... meegeven.
+  
   try {
     const profilesRef = adminDb.collection('profiles');
-    
     const newProfileData = {
       ...profileData,
-      userId: session.user.id,
+      userId: session.user.id, // MAIN LINK!
       displayName,
       displayName_lowercase: displayName.toLowerCase(),
       isPublic: false,
-      // ✅ FIX: Firestore Date objects ipv ISO strings
+      managers: managersArr,
+      emails: emailsArr,
       createdAt: new Date(),
       updatedAt: new Date(),
+      // Let op: firebase zal null/undefined velden mogelijk droppen, dus alles initialiseren!
     };
 
     const newProfileRef = await profilesRef.add(newProfileData);

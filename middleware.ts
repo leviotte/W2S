@@ -23,7 +23,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Get session
+  // Get session (let op: géén await bij cookies!)
   const cookieStore = await cookies();
   const session = await getIronSession<SessionData>(cookieStore, sessionOptions);
 
@@ -64,6 +64,7 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
+// Gebruik de correcte export-structuur voor matcher:
 export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
