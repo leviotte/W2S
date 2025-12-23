@@ -1,12 +1,15 @@
 // src/app/wishlist/[slug]/_components/wishlist-detail-client.tsx
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Gift, Edit2, Save, Trash2, Plus, Minus, X, Image as ImageIcon, Copy } from 'lucide-react';
+import {
+  Gift, Edit2, Save, Trash2, Plus, Minus, X, Image as ImageIcon, Copy,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import AffiliateProductSearch from '@/components/products/AffiliateProductSearch';
+import ProductDetails from '@/components/products/ProductDetails';
 import {
   updateWishlistItemAction,
   deleteWishlistItemAction,
@@ -15,10 +18,12 @@ import {
   getBackgroundImagesAction,
   getBackgroundCategoriesAction,
 } from '@/lib/server/actions/wishlist';
+
 import type { WishlistItem } from '@/types/wishlist';
 import type { BackgroundImage, BackgroundCategory } from '@/types/background';
 import type { UserProfile } from '@/types/user';
-import type { Product } from '@/types/product';
+import type { ProductWithInclusion } from '@/types/product';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+
 import { productToWishlistItem } from '@/lib/utils/product-helpers';
 
 interface WishlistDetailClientProps {
@@ -48,25 +54,18 @@ export function WishlistDetailClient({
 }: WishlistDetailClientProps) {
   const router = useRouter();
 
-  // ===== STATE =====
+  // STATE
   const [wishlist, setWishlist] = useState(initialWishlist);
   const [editingItem, setEditingItem] = useState<string | null>(null);
-  const [editedItem, setEditedItem] = useState<Partial<WishlistItem>>({
-    id: '',
-    title: '',
-    description: '',
-    imageUrl: '',
-    url: '',
-    price: 0,
-    quantity: 1,
-  });
+  const [editedItem, setEditedItem] = useState<Partial<WishlistItem>>({});
   const [showAddForm, setShowAddForm] = useState(false);
   const [showProductDialog, setShowProductDialog] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-  const [pendingItems, setPendingItems] = useState<Product[]>([]);
+  const [pendingItems, setPendingItems] = useState<any[]>([]);
+  const [selectedProductForDetails, setSelectedProductForDetails] = useState<ProductWithInclusion | null>(null);
 
-  // Background modal state
+  // Achtergrond
   const [showBackgroundModal, setShowBackgroundModal] = useState(false);
   const [backgroundImage, setBackgroundImage] = useState(wishlist?.backgroundImage || '');
   const [backgroundImages, setBackgroundImages] = useState<BackgroundImage[]>([]);
@@ -74,19 +73,21 @@ export function WishlistDetailClient({
   const [selectedCategory, setSelectedCategory] = useState('');
   const [isLoadingBackgrounds, setIsLoadingBackgrounds] = useState(false);
 
-  // ===== BACKGROUND MODAL =====
+  // Sticky footer voor batch knoppen
+  const dialogFooterRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => setWishlist(initialWishlist), [initialWishlist]);
+
+  // BACKGROUND MODAL FUNCTIES
   const openBackgroundModal = async () => {
     setShowBackgroundModal(true);
     setIsLoadingBackgrounds(true);
-
     const [categoriesResult, imagesResult] = await Promise.all([
       getBackgroundCategoriesAction(),
       getBackgroundImagesAction(),
     ]);
-
     if (categoriesResult.success && categoriesResult.data) setCategories(categoriesResult.data);
     if (imagesResult.success && imagesResult.data) setBackgroundImages(imagesResult.data);
-
     setIsLoadingBackgrounds(false);
   };
 
@@ -96,7 +97,6 @@ export function WishlistDetailClient({
       return;
     }
     const result = await updateWishlistBackgroundAction(wishlist.id, backgroundImage);
-
     if (result.success) {
       setWishlist({ ...wishlist, backgroundImage });
       setShowBackgroundModal(false);
@@ -112,10 +112,10 @@ export function WishlistDetailClient({
     return backgroundImages.filter((img) => img.category === selectedCategory);
   };
 
-  // ===== ITEM ACTIES =====
+  // ITEM ACTIES
   const handleEditItem = (item: WishlistItem) => {
     setEditingItem(String(item.id));
-    setEditedItem(item); // Pre-fill met huidige item
+    setEditedItem(item);
   };
 
   const handleSaveItem = async (itemId: string | number) => {
@@ -124,7 +124,6 @@ export function WishlistDetailClient({
       itemId: String(itemId),
       updates: editedItem,
     });
-
     if (result.success) {
       const updatedItems = wishlist.items.map((item: WishlistItem) =>
         String(item.id) === String(itemId) ? { ...item, ...editedItem } : item
@@ -145,9 +144,7 @@ export function WishlistDetailClient({
 
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
-
     const result = await deleteWishlistItemAction(wishlist.id, itemToDelete);
-
     if (result.success) {
       const updatedItems = wishlist.items.filter(
         (item: WishlistItem) => String(item.id) !== String(itemToDelete)
@@ -158,12 +155,11 @@ export function WishlistDetailClient({
     } else {
       toast.error(result.error || 'Verwijderen mislukt');
     }
-
     setIsAlertOpen(false);
     setItemToDelete(null);
   };
 
-  // ===== UTILITIES =====
+  // URL COPY
   const copyUrlToClipboard = () => {
     const currentUrl = window.location.href;
     navigator.clipboard.writeText(currentUrl).then(() => {
@@ -171,11 +167,9 @@ export function WishlistDetailClient({
     });
   };
 
-  // ===== ✅ DEDUPLICATE items only once, no double-adding after edit/save
+  // DEDUPLICATE items
   const deduplicatedItems = useMemo(() => {
     if (!wishlist.items) return [];
-
-    // Unique map op id (laatste snapshot telt)
     const map = new Map();
     for (const item of wishlist.items) {
       map.set(String(item.id), item);
@@ -185,10 +179,8 @@ export function WishlistDetailClient({
 
   const filteredImages = getFilteredImages();
 
-  // ==== BELANGRIJK: Batchwise toevoegen na selectie ====
-
-  const handlePendingAdd = (newItems: Product[]) => {
-    // Voeg enkel toe als nog niet in pending of wishlist
+  // BATCHWISE TOEVOEGEN
+  const handlePendingAdd = (newItems: any[]) => {
     setPendingItems((prev) => {
       const existingIds = new Set([
         ...prev.map((item) => String(item.id)),
@@ -222,13 +214,29 @@ export function WishlistDetailClient({
     }
     setPendingItems([]);
     setShowProductDialog(false);
-    // Wil je refreshen na toevoegen voor directe UI update:
     router.refresh();
   };
 
+  // CLEAN HTML HELPER (verwijdert <br />)
+  const cleanHtml = (input?: string) => {
+    if (!input) return '';
+    // Alle <br>, <br />, <br/> verwijderen én dubbele witregels opschonen
+    return input.replace(/<br\s*\/?>/gi, ' ').replace(/\s{2,}/g, ' ').trim();
+  };
+
+  // Productdetails openen
+  function openProductDetails(item: WishlistItem) {
+    setSelectedProductForDetails({
+      ...item,
+      isIncluded: true,
+      images: item.images ? item.images : item.imageUrl ? [item.imageUrl] : [],
+      description: cleanHtml(item.description),
+    });
+  }
+
   return (
     <>
-      {/* Background Image */}
+      {/* ===== Achtergrond ===== */}
       <div
         style={{
           backgroundImage: `url(${wishlist?.backgroundImage})`,
@@ -239,10 +247,11 @@ export function WishlistDetailClient({
         className="w-full fixed min-h-screen top-0 z-[-1]"
       />
 
-      {/* Wishlist Content */}
+      {/* ===== Wishlist Content ===== */}
       <div className="max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         <div className="rounded-lg shadow-sm bg-white/40 backdrop-blur-sm">
-          {/* Header */}
+          
+          {/* ===== Header ===== */}
           <div className="p-4 sm:p-6 shadow-md">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               {owner && (
@@ -285,7 +294,7 @@ export function WishlistDetailClient({
             </div>
           </div>
 
-          {/* Items List */}
+          {/* ===== Items List ===== */}
           {!showAddForm && (
             <div className="p-4 sm:p-6">
               <div className="space-y-4 sm:space-y-6">
@@ -296,17 +305,23 @@ export function WishlistDetailClient({
                 )}
 
                 {deduplicatedItems.map((item: WishlistItem) => (
-                  <div key={item.id} className="p-3 sm:p-4 bg-white/60 rounded-md">
+                  <div
+                    key={item.id}
+                    className="p-3 sm:p-4 bg-white/60 rounded-md cursor-pointer hover:bg-warm-olive/10 transition"
+                    onClick={() => openProductDetails(item)}
+                  >
                     {editingItem === String(item.id) ? (
                       // ===== EDIT MODE =====
                       <div className="space-y-4">
                         <div className="flex items-center space-x-4">
+                          {/* ==== Geen cropping: afbeeldingen volledig zichtbaar maken ==== */}
                           {item.imageUrl ? (
-                            <div className="relative">
+                            <div className="relative flex-shrink-0">
                               <img
                                 src={item.imageUrl}
                                 alt={item.title}
-                                className="w-16 h-16 object-cover rounded-md"
+                                className="w-16 h-16 bg-white object-contain rounded-md border"
+                                style={{ objectFit: 'contain', background: 'white' }}
                               />
                               {(item.quantity || 1) > 1 && (
                                 <span className="absolute -top-2 -right-2 bg-warm-olive text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
@@ -335,7 +350,7 @@ export function WishlistDetailClient({
                           <label className="text-sm font-medium">Aantal:</label>
                           <div className="flex items-center space-x-2">
                             <button
-                              onClick={(e) => {
+                              onClick={e => {
                                 e.stopPropagation();
                                 const newQty = Math.max(1, (editedItem.quantity || 1) - 1);
                                 setEditedItem({ ...editedItem, quantity: newQty });
@@ -344,11 +359,9 @@ export function WishlistDetailClient({
                             >
                               <Minus className="h-4 w-4" />
                             </button>
-                            <span className="px-3 py-1 border rounded min-w-[40px] text-center">
-                              {editedItem.quantity || 1}
-                            </span>
+                            <span className="px-3 py-1 border rounded min-w-[40px] text-center">{editedItem.quantity || 1}</span>
                             <button
-                              onClick={(e) => {
+                              onClick={e => {
                                 e.stopPropagation();
                                 const newQty = (editedItem.quantity || 1) + 1;
                                 setEditedItem({ ...editedItem, quantity: newQty });
@@ -362,7 +375,7 @@ export function WishlistDetailClient({
                         <input
                           type="text"
                           value={editedItem.description || ''}
-                          onChange={(e) =>
+                          onChange={e =>
                             setEditedItem({
                               ...editedItem,
                               description: e.target.value,
@@ -391,11 +404,12 @@ export function WishlistDetailClient({
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div className="flex flex-grow items-start sm:items-center space-x-3 sm:space-x-4">
                           {item.imageUrl ? (
-                            <div className="relative">
+                            <div className="relative flex-shrink-0">
                               <img
                                 src={item.imageUrl}
                                 alt={item.title}
-                                className="w-[90px] sm:w-[110px] h-[75px] sm:h-[90px] object-cover rounded-md"
+                                className="w-[90px] sm:w-[110px] h-[75px] sm:h-[90px] object-contain rounded-md border bg-white"
+                                style={{ objectFit: 'contain', background: 'white' }}
                               />
                               {(item.quantity || 1) > 1 && (
                                 <span className="absolute -top-2 -right-2 bg-warm-olive text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-md">
@@ -408,7 +422,7 @@ export function WishlistDetailClient({
                               <span className="text-xs">Geen Afbeelding</span>
                             </div>
                           )}
-                          {/* ENKEL hoognodige tonen: title, prijs, quantity */}
+                          {/* Alleen noodzakelijke info */}
                           <div>
                             <h3 className="text-sm sm:text-md line-clamp-2">
                               {item.title.length > 100
@@ -427,13 +441,13 @@ export function WishlistDetailClient({
                           {isOwner ? (
                             <>
                               <button
-                                onClick={() => handleEditItem(item)}
+                                onClick={e => { e.stopPropagation(); handleEditItem(item); }}
                                 className="p-2 hover:text-gray-600"
                               >
                                 <Edit2 className="h-5 w-5" />
                               </button>
                               <button
-                                onClick={() => confirmDeleteItem(item.id)}
+                                onClick={e => { e.stopPropagation(); confirmDeleteItem(item.id); }}
                                 className="p-2 text-[#b34c4c] hover:text-red-600"
                               >
                                 <Trash2 className="h-5 w-5" />
@@ -445,6 +459,7 @@ export function WishlistDetailClient({
                               target="_blank"
                               rel="noopener noreferrer"
                               className="bg-warm-olive text-white px-3 sm:px-4 py-2 rounded-md hover:bg-cool-olive transition-colors flex items-center text-xs sm:text-sm"
+                              onClick={e => e.stopPropagation()}
                             >
                               <Gift className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
                               Koop dit cadeau
@@ -461,7 +476,7 @@ export function WishlistDetailClient({
         </div>
       </div>
 
-      {/* Add Item Button */}
+      {/* ===== Add Item Button ===== */}
       {isOwner && (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
           <button
@@ -474,160 +489,74 @@ export function WishlistDetailClient({
         </div>
       )}
 
-      {/* Add Items Dialog */}
+      {/* ===== Add Items Dialog ===== */}
       {isOwner && showProductDialog && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-auto p-6">
-            <div className="flex justify-between items-center mb-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] relative flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center mb-4 p-6 pb-2">
               <h3 className="text-lg font-semibold">Producten toevoegen</h3>
               <button onClick={() => { setPendingItems([]); setShowProductDialog(false); }}>
                 <X className="h-5 w-5" />
               </button>
             </div>
-            
-            <AffiliateProductSearch
-              items={[...wishlist.items, ...pendingItems]}
-              setItems={handlePendingAdd}
-              eventBudget={maxPrice}
-            />
-            <div className="flex justify-end mt-4 gap-2">
-              <button
-                onClick={() => {
-                  setPendingItems([]);
-                  setShowProductDialog(false);
-                }}
-                className="rounded px-4 py-2 bg-gray-200 hover:bg-gray-300"
-              >
-                Annuleer
-              </button>
-              <button
-  onClick={handleBatchSavePendingItems}
-  disabled={pendingItems.length === 0}
-  className="rounded px-4 py-2 bg-warm-olive text-white hover:bg-cool-olive disabled:opacity-60"
->
-  Sla op
-</button>
+            <div className="overflow-auto flex-1 px-6">
+              <AffiliateProductSearch
+                items={[...wishlist.items, ...pendingItems]}
+                setItems={handlePendingAdd}
+                eventBudget={maxPrice}
+              />
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Background Modal */}
-      {showBackgroundModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-4 sm:p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                  Bewerk Achtergrond
-                </h2>
-                <button
-                  onClick={() => setShowBackgroundModal(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              {isLoadingBackgrounds ? (
-                <div className="py-12 text-center">
-                  <p className="text-gray-600">Loading...</p>
-                </div>
-              ) : (
-                <div className="space-y-4 sm:space-y-6">
-                  {/* Category Filter */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Filter op Categorie
-                    </label>
-                    <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    >
-                      <option value="">Alle categorieën</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Current Selection Preview */}
-                  {backgroundImage && (
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Huidige Selectie
-                      </label>
-                      <div className="w-full h-32 sm:h-40 shadow-md rounded-lg overflow-hidden">
-                        <img
-                          src={backgroundImage}
-                          alt="Selected background"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Image Grid */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Kies een Achtergrond
-                    </label>
-                    {filteredImages.length === 0 ? (
-                      <p className="text-center py-8 text-gray-500">
-                        Geen achtergronden gevonden
-                      </p>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-                        {filteredImages.map((image) => (
-                          <div key={image.id} onClick={() => setBackgroundImage(image.imageLink)}
-                            className={`relative cursor-pointer rounded-lg overflow-hidden h-24 sm:h-32 transition-all ${
-                              backgroundImage === image.imageLink ? 'ring-4 ring-warm-olive' : ''
-                            }`}
-                          >
-                            <img
-                              src={image.imageLink}
-                              alt={image.title}
-                              className="w-full h-full object-cover"
-                            />
-                            <div className="absolute inset-0 bg-black bg-opacity-40 flex items-end">
-                              <p className="text-white text-xs p-2 w-full truncate">
-                                {image.title}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex justify-end space-x-3 pt-4 border-t mt-5">
+            {/* Sticky knoppenbalk ONDERAAN, altijd zichtbaar boven de scroll! */}
+<div
+  className="
+    fixed left-0 right-0
+    bottom-0
+    z-30
+    bg-white
+    bg-opacity-95
+    border-t border-gray-200
+    px-6 py-3
+    flex justify-end gap-3
+    max-w-6xl
+    mx-auto
+    shadow-[0_0_16px_0_rgba(0,0,0,0.03)]
+  "
+  style={{
+    // Zorg dat je knoppen nooit overlapt worden buiten de dialog
+    borderBottomLeftRadius: '1rem',
+    borderBottomRightRadius: '1rem',
+  }}
+>
   <button
-    onClick={() => setShowProductDialog(false)}
-    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+    onClick={() => { setPendingItems([]); setShowProductDialog(false); }}
+    className="rounded px-4 py-2 bg-gray-200 hover:bg-gray-300 font-medium"
   >
     Annuleer
   </button>
   <button
     onClick={handleBatchSavePendingItems}
     disabled={pendingItems.length === 0}
-    className={`px-4 py-2 rounded-md ${
-      pendingItems.length
-        ? 'bg-warm-olive text-white hover:bg-warm-olive/90'
-        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-    }`}
+    className="rounded px-4 py-2 bg-warm-olive text-white hover:bg-cool-olive disabled:opacity-60 font-medium"
   >
     Sla op
   </button>
 </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation Dialog */}
+      {/* ===== Product Details MODAL ===== */}
+      {selectedProductForDetails && (
+        <ProductDetails
+          product={{
+            ...selectedProductForDetails,
+            description: cleanHtml(selectedProductForDetails.description),
+          }}
+          setModal={() => setSelectedProductForDetails(null)}
+        />
+      )}
+
+      {/* ===== Delete Confirmation Dialog ===== */}
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

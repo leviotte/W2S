@@ -1,3 +1,4 @@
+// src/lib/server/actions/product-actions.ts
 'use server';
 
 import { z } from 'zod';

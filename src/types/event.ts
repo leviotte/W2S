@@ -415,7 +415,8 @@ export type ParticipantStatus = typeof PARTICIPANT_STATUS[keyof typeof PARTICIPA
  */
 export const eventFormSchema = z.object({
   name: z.string().min(3, "Naam moet minstens 3 tekens bevatten"),
-  date: z.date({ message: "Datum is verplicht" }),
+  // Maak datum velden expliciet verplicht als Date
+  date: z.date({}).refine(val => val != null, { message: "Datum is verplicht" }),
   time: z.string().optional().nullable(),
   endTime: z.string().optional().nullable(),
   location: z.string().optional().nullable(),
@@ -427,6 +428,7 @@ export const eventFormSchema = z.object({
   isPublic: z.boolean().default(false),
   backgroundImage: z.string().url().optional().nullable(),
   theme: z.string().optional().nullable(),
+  // Deadline voor lootjes trekt - mag leeg, maar als ingevuld Date
   registrationDeadline: z.date().optional().nullable(),
   organizerProfileId: z.string().min(1, "Organisator is verplicht"),
 });

@@ -1,19 +1,37 @@
 // src/lib/utils/product-helpers.ts
+
 import type { Product } from '@/types/product';
 import type { WishlistItem } from '@/types/wishlist';
 
 /**
- * ✅ FIXED: Convert Product to WishlistItem met EAN/ASIN als ID
- * Gebruikt product.id (EAN/ASIN) zodat duplicates automatisch gemerged worden via quantity
- * 
+ * ✅ Convert Product naar WishlistItem met correcte field-mapping + images array support
+ * - Houdt EAN/ASIN als ID (voor deduplication)
+ * - images-array wordt gegarandeerd meegenomen, met fallback naar imageUrl
+ *
  * BELANGRIJK: Gebruik GEEN crypto.randomUUID() hier!
- * De action layer (addWishlistItemAction) handled de duplicate detection.
+ * De action layer (addWishlistItemAction) handled duplicate detection.
  */
 export function productToWishlistItem(product: Product): WishlistItem {
   return {
+    // Neem alle Product props over (let op: images/imageUrl kunnen elders overschreven worden, vandaar expliciet hieronder!) 
     ...product,
-    id: product.id,        // ✅ EAN/ASIN als primary key (voor deduplication)
-    productId: product.id, // ✅ Same value voor backwards compatibility
+
+    id: product.id,              // EAN/ASIN of unieke ID
+    productId: product.id,       // Backwards compatible
+
+    // Carrousel fix: images altijd als array aanwezig
+    images:
+      Array.isArray(product.images) && product.images.length > 0
+        ? product.images
+        : product.imageUrl
+          ? [product.imageUrl]
+          : [],
+
+    // Zorg dat imageUrl altijd de hoofdafbeelding blijft (optioneel: neem eerste uit images)
+    imageUrl: product.imageUrl ?? (Array.isArray(product.images) && product.images.length > 0
+        ? product.images[0]
+        : undefined),
+
     quantity: 1,
     isReserved: false,
     reservedBy: null,
@@ -24,18 +42,18 @@ export function productToWishlistItem(product: Product): WishlistItem {
 }
 
 /**
- * ✅ BACKWARDS COMPATIBILITY alias
+ * ✅ BACKWARDS COMPAT alias
  */
 export const productToWishlistItemDetailed = productToWishlistItem;
 
 /**
- * ✅ Format price for display
+ * ✅ Format price for display (NL/EURO)
  */
 export function formatPrice(price: number | string): string {
   const numPrice = typeof price === 'string' ? parseFloat(price) : price;
-  
+
   if (isNaN(numPrice)) return '€0.00';
-  
+
   return new Intl.NumberFormat('nl-BE', {
     style: 'currency',
     currency: 'EUR',

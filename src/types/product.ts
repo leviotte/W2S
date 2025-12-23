@@ -1,4 +1,3 @@
-// src/types/product.ts
 import { z } from 'zod';
 
 /**
@@ -59,7 +58,7 @@ export const productSchema = z.object({
   url: z.string().url(),
   imageUrl: z.string().url(),
   price: z.number(),
-  
+
   // Optionele metadata
   ean: z.string().optional(),
   category: z.string().optional(),
@@ -69,7 +68,10 @@ export const productSchema = z.object({
   ageGroup: z.string().optional(),
   gender: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  
+
+  // Meerdere afbeeldingen (!!!)
+  images: z.array(z.string().url()).optional(), // ⭐️ Toegevoegd, altijd optioneel!
+
   // Prijsvergelijking over platforms
   platforms: z.record(z.string(), platformSpecificDataSchema).optional(),
   hasMultiplePlatforms: z.boolean().optional(),
@@ -100,7 +102,7 @@ export function getCheapestPrice(product: Product): number {
   if (!product.platforms || Object.keys(product.platforms).length === 0) {
     return product.price;
   }
-  
+
   const prices = [product.price, ...Object.values(product.platforms).map(p => p.Price)];
   return Math.min(...prices);
 }
@@ -112,18 +114,18 @@ export function getCheapestPlatform(product: Product): { name: string; data: Pla
   if (!product.platforms || Object.keys(product.platforms).length === 0) {
     return null;
   }
-  
-  let cheapest = { 
-    name: Object.keys(product.platforms)[0], 
-    data: Object.values(product.platforms)[0] 
+
+  let cheapest = {
+    name: Object.keys(product.platforms)[0],
+    data: Object.values(product.platforms)[0]
   };
-  
+
   Object.entries(product.platforms).forEach(([name, data]) => {
     if (data.Price < cheapest.data.Price) {
       cheapest = { name, data };
     }
   });
-  
+
   return cheapest;
 }
 

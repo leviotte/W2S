@@ -1,23 +1,22 @@
 // src/components/products/ProductDetails.tsx
-"use client";
+'use client';
 
-import { useState, useMemo, useCallback } from "react";
-import DOMPurify from "dompurify";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/client/firebase";
-import { X, Heart } from "lucide-react";
+import React, { useState, useMemo } from 'react';
+import Image from 'next/image';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { Product, ProductWithInclusion, PlatformSpecificData } from '@/types/product';
+import type { ProductWithInclusion } from '@/types/product';
+import ProductImageCarousel from '../shared/ProductImageCarousel';
+
+type ProductImage = { url: string; alt?: string };
 
 interface ProductDetailsProps {
   product: ProductWithInclusion;
-  setModal: (val: boolean) => void;
-  setActiveProduct: (product: ProductWithInclusion | null) => void;
-  addItemToWishlist?: (product: Product) => void;
+  setModal: (open: boolean) => void;
+  setActiveProduct?: (prod: ProductWithInclusion | null) => void;
+  addItemToWishlist?: (prod: ProductWithInclusion) => void;
   handleDeleteItem?: (id: string | number) => void;
 }
-
-const CHARACTER_LIMIT = 150;
 
 export default function ProductDetails({
   product,
@@ -26,250 +25,131 @@ export default function ProductDetails({
   addItemToWishlist,
   handleDeleteItem,
 }: ProductDetailsProps) {
-  const [showFullDescription, setShowFullDescription] = useState(false);
-  const [selectedPlatform, setSelectedPlatform] = useState(
-    product.platforms ? Object.keys(product.platforms)[0] : null
-  );
-
-  const title = product.title;
-  const imageUrl = product.imageUrl;
-  const description = product.description || "";
-
-  const platforms = product.platforms ? Object.keys(product.platforms) : [];
-  const hasMultiplePlatforms = platforms.length > 1;
-
-  const currentPlatform = useMemo(() => {
-    if (product.platforms && selectedPlatform) {
-      return product.platforms[selectedPlatform];
+  // Altijd consistent: images[] ophalen, fallback naar imageUrl
+  const images: ProductImage[] = useMemo(() => {
+    const out: ProductImage[] = [];
+    if (product.images && Array.isArray(product.images)) {
+      product.images.forEach(url => {
+        if (url && !out.some(img => img.url === url)) out.push({ url, alt: product.title });
+      });
     }
-    return {
-      URL: product.url || "#",
-      Price: product.price || 0,
-      Source: product.source || "unknown",
-    };
-  }, [product, selectedPlatform]);
+    if ((!out.length) && product.imageUrl) out.push({ url: product.imageUrl, alt: product.title });
+    return out;
+  }, [product]);
+  const [current, setCurrent] = useState(0);
 
-  const toggleDescription = () => setShowFullDescription((prev) => !prev);
-
-  const onDeleteClick = useCallback(() => {
-    if (handleDeleteItem) {
-      handleDeleteItem(product.id);
-    }
-  }, [product.id, handleDeleteItem]);
-
-  const onAddClick = useCallback(() => {
-    if (addItemToWishlist) {
-      // ✅ Stuur alleen de base Product properties (zonder isIncluded)
-      const { isIncluded, ...baseProduct } = product;
-      addItemToWishlist(baseProduct as Product);
-    }
-  }, [product, addItemToWishlist]);
-
-  const getShopImage = useCallback((source: string | null) => {
-    if (!source) return "/logos/bol.png";
-    return source.toLowerCase() === "amz"
-      ? "https://amazon-blogs-brightspot-lower.s3.amazonaws.com/about/00/92/0260aab44ee8a2faeafde18ee1da/amazon-logo-inverse.svg"
-      : "/logos/bol.png";
-  }, []);
-
-  const trackProductClick = useCallback(
-    async (platformName: string | null) => {
-      try {
-        await addDoc(collection(db, "clicks"), {
-          productId: product.id,
-          source: platformName?.toUpperCase() || "UNKNOWN",
-          title: product.title,
-          timestamp: serverTimestamp(),
-        });
-      } catch (error) {
-        console.error("Error tracking click:", error);
-      }
-    },
-    [product]
-  );
-
-  const handleClose = () => {
-    setActiveProduct(null);
-    setModal(false);
-  };
+  const prevImg = () => setCurrent(current => Math.max(current - 1, 0));
+  const nextImg = () => setCurrent(current => Math.min(current + 1, images.length - 1));
 
   return (
     <div
-      onClick={handleClose}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-2"
+      onClick={() => { setModal(false); setActiveProduct?.(null); }}
     >
       <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white relative rounded-lg shadow-xl flex flex-col md:flex-row w-full max-w-4xl max-h-[90vh] overflow-hidden"
+        className="bg-white max-w-lg w-full rounded-lg shadow-lg p-6 relative"
+        onClick={e => e.stopPropagation()}
       >
-        {/* Close button */}
+        {/* Sluitknop */}
         <button
-          onClick={handleClose}
-          className="absolute top-2 right-2 z-20 text-gray-400 hover:text-gray-600 transition-colors"
-          aria-label="Sluit productdetails"
+          className="absolute right-2 top-2 rounded hover:bg-gray-200 p-1"
+          onClick={() => { setModal(false); setActiveProduct?.(null); }}
         >
-          <X size={28} />
+          <X className="h-6 w-6" />
         </button>
 
-        {/* Image Section */}
-        <div className="md:w-1/2 p-8 flex items-center justify-center bg-gray-50">
-          {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={title}
-              className="max-w-full max-h-[400px] object-contain"
+        {/* Productafbeelding(en) */}
+        <div className="w-full flex flex-col items-center">
+          <div className="relative w-60 h-60 bg-gray-100 rounded-lg overflow-hidden mb-4">
+            {images.length > 1 && (
+              <>
+                <button
+                  className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white rounded-full shadow border p-1"
+                  onClick={e => { e.stopPropagation(); prevImg(); }}
+                  disabled={current === 0}
+                  aria-label="Vorige afbeelding"
+                >
+                  <ChevronLeft />
+                </button>
+                <button
+                  className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white rounded-full shadow border p-1"
+                  onClick={e => { e.stopPropagation(); nextImg(); }}
+                  disabled={current === images.length - 1}
+                  aria-label="Volgende afbeelding"
+                >
+                  <ChevronRight />
+                </button>
+              </>
+            )}
+            <Image
+              src={images[current]?.url || '/placeholder.png'}
+              alt={images[current]?.alt || 'Productafbeelding'}
+              fill
+              style={{ objectFit: 'contain' }}
+              sizes="(max-width: 640px) 100vw, 384px"
+              className="rounded-lg"
             />
-          ) : (
-            <div className="text-gray-400 text-center">
-              <p>Geen afbeelding beschikbaar</p>
+          </div>
+          {images.length > 1 && (
+            <div className="flex justify-center gap-1 mb-2">
+              {images.map((img, i) => (
+                <button
+                  key={i}
+                  className={`w-4 h-4 rounded-full ${i === current ? "bg-warm-olive" : "bg-gray-300"}`}
+                  style={{ border: i === current ? "2px solid #606c38" : undefined }}
+                  onClick={e => { e.stopPropagation(); setCurrent(i); }}
+                  aria-label={`Ga naar afbeelding ${i + 1}`}
+                  type="button"
+                />
+              ))}
             </div>
           )}
         </div>
 
-        {/* Details Section */}
-        <div className="md:w-1/2 p-6 flex flex-col overflow-y-auto">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">{title}</h1>
-
-          {product.ean && (
-            <p className="text-xs text-gray-500 mb-4">EAN: {product.ean}</p>
+        <div className="mb-2">
+          <h3 className="text-lg font-bold">{product.title}</h3>
+          <div className="flex items-center gap-3 mt-2 mb-1">
+            <span className="font-semibold text-warm-olive text-lg">€{Number(product.price).toFixed(2)}</span>
+            {product.rating && (
+              <span className="text-sm bg-warm-olive/20 text-warm-olive px-2 py-1 rounded-full font-semibold">{product.rating} ★</span>
+            )}
+            {product.reviewCount && (
+              <span className="text-xs text-gray-500">({product.reviewCount} reviews)</span>
+            )}
+          </div>
+          {product.description && (
+            <p className="text-sm text-gray-700 mt-1 mb-1 line-clamp-6">{product.description}</p>
           )}
-
-          {/* Platform Selection */}
-          {hasMultiplePlatforms && (
-            <div className="mb-4">
-              <p className="text-sm font-medium mb-2 text-gray-600">
-                Verkrijgbaar bij:
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {platforms.map((platform) => (
-                  <button
-                    key={platform}
-                    onClick={() => setSelectedPlatform(platform)}
-                    className={`px-3 py-1 rounded-md text-sm transition-colors ${
-                      selectedPlatform === platform
-                        ? "bg-[#606c38] text-white"
-                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                    }`}
-                  >
-                    {platform.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
+          {product.category && (
+            <p className="text-xs text-gray-500">Categorie: {product.category}</p>
           )}
-
-          {/* Price Link */}
+        </div>
+        <div className="flex flex-col md:flex-row gap-2 mt-3">
           <a
-            href={currentPlatform.URL}
+            href={product.url}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => trackProductClick(selectedPlatform)}
-            className="block my-4 p-4 bg-green-50 rounded-lg border border-green-200 hover:border-green-400 transition"
+            className="w-full md:w-auto rounded px-4 py-2 bg-warm-olive text-white text-center hover:bg-cool-olive transition-colors font-semibold"
           >
-            <div className="flex justify-between items-center">
-              <img
-                src={getShopImage(selectedPlatform)}
-                alt={`${selectedPlatform} logo`}
-                className={`h-6 ${
-                  selectedPlatform === "amz" ? "w-16" : "w-10"
-                }`}
-              />
-              <span className="text-xl font-bold text-[#606c38]">
-                €{currentPlatform.Price?.toFixed(2)} *
-              </span>
-            </div>
+            Bekijk bij {product.source || "verkoper"}
           </a>
-
-          {/* Price Comparison */}
-          {hasMultiplePlatforms && product.platforms && (
-            <div className="mb-4 p-3 bg-gray-50 rounded-md">
-              <p className="text-sm font-medium mb-2 text-gray-600">
-                Prijsvergelijking:
-              </p>
-              <div className="space-y-1">
-                {platforms.map((platform) => (
-                  <div key={platform} className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">{platform.toUpperCase()}</span>
-                    <span className="font-medium">
-                      €{product.platforms![platform].Price?.toFixed(2)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              {platforms.length > 1 && (
-                <div className="mt-2 pt-2 border-t border-gray-200">
-                  <p className="text-xs text-[#606c38] font-medium">
-                    Bespaar tot €
-                    {Math.abs(
-                      Math.max(...platforms.map(p => product.platforms![p].Price)) -
-                      Math.min(...platforms.map(p => product.platforms![p].Price))
-                    ).toFixed(2)} door te vergelijken!
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Description */}
-          {description && (
-            <div className="prose prose-sm max-w-none text-gray-600 mb-4">
-              {description.length > CHARACTER_LIMIT && !showFullDescription ? (
-                <>
-                  <p>{description.substring(0, CHARACTER_LIMIT)}...</p>
-                  <button
-                    onClick={toggleDescription}
-                    className="text-[#606c38] font-semibold text-sm hover:underline mt-2"
-                  >
-                    Lees meer
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div
-                    dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(description),
-                    }}
-                  />
-                  {description.length > CHARACTER_LIMIT && (
-                    <button
-                      onClick={toggleDescription}
-                      className="text-[#606c38] font-semibold text-sm hover:underline mt-2"
-                    >
-                      Toon minder
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Action Button */}
-          <div className="mt-auto pt-4">
+          {addItemToWishlist && !product.isIncluded && (
             <Button
-              onClick={() => {
-                if (product.isIncluded) {
-                  onDeleteClick();
-                } else {
-                  onAddClick();
-                }
-              }}
-              className={`w-full ${
-                product.isIncluded 
-                  ? "bg-red-500 hover:bg-red-600" 
-                  : "bg-[#606c38] hover:bg-[#4a5526]"
-              }`}
+              onClick={() => addItemToWishlist(product)}
+              className="w-full md:w-auto"
             >
-              <Heart 
-                className={`mr-2 h-5 w-5 ${product.isIncluded ? "fill-current" : ""}`} 
-              />
-              {product.isIncluded
-                ? "Verwijder van wenslijst"
-                : "Voeg toe aan wenslijst"}
+              Voeg toe aan wishlist
             </Button>
-            <p className="text-xs text-gray-400 mt-2 text-center">
-              * Prijzen en beschikbaarheid kunnen wijzigen.
-            </p>
-          </div>
+          )}
+          {handleDeleteItem && product.isIncluded && (
+            <Button
+              variant="destructive"
+              onClick={() => handleDeleteItem(product.id)}
+              className="w-full md:w-auto"
+            >
+              Verwijder uit wishlist
+            </Button>
+          )}
         </div>
       </div>
     </div>

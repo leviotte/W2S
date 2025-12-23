@@ -77,6 +77,7 @@
     "server-only": "^0.0.1",
     "sonner": "^2.0.7",
     "sweetalert2": "^11.26.3",
+    "swiper": "^12.0.3",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
     "use-debounce": "^10.0.6",
