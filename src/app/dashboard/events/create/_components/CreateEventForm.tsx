@@ -8,7 +8,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import type { UserProfile } from '@/types/user';
-import type { EventProfileOption, EventParticipant } from '@/types/event';
 import {
   Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form';
@@ -23,91 +22,8 @@ import { CalendarIcon, Plus, X, Gift, Sparkles, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
-
-// ------------- VALIDATIE SCHEMA'S ----------------
-
-const participantSchema = z.object({
-  id: z.string(),
-  firstName: z.string(), // geen min(1)
-  lastName: z.string(),
-  email: z.string().email().optional().or(z.literal('')),
-  confirmed: z.boolean().default(false),
-});
-
-const eventFormSchema = z.object({
-  step: z.number().min(1).max(2),
-  name: z.string().min(3, { message: 'Naam moet minimaal 3 karakters zijn.' }),
-  date: z.preprocess(
-  (val) => {
-    // Fix voor RHF: "" of undefined → undefined, strings → Date
-    if (val instanceof Date) return val
-    if (typeof val === 'string' && val) return new Date(val)
-    return undefined
-  },
-  z.date().refine(
-    (val) => val instanceof Date && !isNaN(val.valueOf()), 
-    { message: "Datum is verplicht" }
-  )
-),
-  time: z.string().optional(),
-  description: z.string().optional(),
-  budget: z.coerce.number().min(0).optional(),
-  organizerProfileId: z.string().min(1, { message: 'Kies een organisator.' }),
-  drawNames: z.boolean().default(false),
-  registrationDeadline: z.date().optional().nullable(),
-  participantType: z.enum(['manual', 'self-register']),
-  maxParticipants: z.coerce.number().positive().optional(),
-  participants: z.array(participantSchema).default([]),
-}).superRefine((data, ctx) => {
-  const { step, drawNames, participantType, participants, name, date, registrationDeadline } = data;
-
-  // Step 1: alleen velden voor stap 1
-  if (step === 1) {
-    if (!name) ctx.addIssue({ path: ['name'], code: 'custom', message: 'Naam is verplicht' });
-    if (!date) ctx.addIssue({ path: ['date'], code: 'custom', message: 'Datum is verplicht' });
-    if (date && date < todayISO()) ctx.addIssue({ path: ['date'], code: 'custom', message: 'Datum mag niet in het verleden liggen.' });
-    if (drawNames && registrationDeadline && date && registrationDeadline > date) {
-      ctx.addIssue({ path: ['registrationDeadline'], code: 'custom', message: 'Deadline moet vóór de eventdatum liggen.' });
-    }
-  }
-
-  // Step 2: deelnemers
-  if (step === 2 && participantType === 'manual') {
-    //--> HIER! Zet 1 check, push max 1 keer:
-    if (drawNames && participants.length < 3) {
-      ctx.addIssue({ path: ['participants'], code: 'custom', message: 'Minimaal 3 deelnemers vereist voor lootjesevents.' });
-    }
-
-    // Dubbele namen nog uniek checken:
-    const lowerNames = participants.map(p =>
-      `${p.firstName?.trim().toLowerCase() || ''} ${p.lastName?.trim().toLowerCase() || ''}`
-    );
-    if (lowerNames.length !== new Set(lowerNames).size) {
-      ctx.addIssue({ path: ['participants'], code: 'custom', message: 'Dubbele deelnamenamen niet toegestaan.' });
-    }
-
-    // Per de extra deelnemers check
-    for (let i = 1; i < participants.length; i++) {
-      const p = participants[i];
-      if (!p.firstName || p.firstName.trim() === '') {
-        ctx.addIssue({
-          path: ['participants', i, 'firstName'],
-          code: 'custom',
-          message: 'Voornaam is verplicht',
-        });
-      }
-      if (!p.lastName || p.lastName.trim() === '') {
-        ctx.addIssue({
-          path: ['participants', i, 'lastName'],
-          code: 'custom',
-          message: 'Achternaam is verplicht',
-        });
-      }
-    }
-  }
-});
-
-type EventFormData = z.infer<typeof eventFormSchema>;
+import { createEventAction } from '@/lib/server/actions/events';
+import { eventFormSchema, EventFormData, EventParticipant, EventProfileOption } from '@/types/event';
 
 // ------------- HULPFUNCTIES ---------------------
 
@@ -116,7 +32,25 @@ function todayISO() {
   d.setHours(0, 0, 0, 0);
   return d;
 }
-
+function prepareParticipants(
+  participants: (Partial<EventParticipant> & { email?: string })[],
+  organizerProfileId: string
+): EventParticipant[] {
+  return participants.map((p, idx): EventParticipant => ({
+    ...p,
+    id: typeof p.id === "string" ? p.id : "",          // Zorgt dat het altijd een string is
+    firstName: typeof p.firstName === "string" ? p.firstName : "",
+    lastName: typeof p.lastName === "string" ? p.lastName : "",
+    role: idx === 0 ? "organizer" : "participant",
+    status: "accepted",
+    confirmed: !!p.confirmed,
+    addedAt: p.addedAt ?? new Date().toISOString(),
+    wishlistId: p.wishlistId ?? undefined,
+    photoURL: p.photoURL ?? undefined,
+    profileId: p.profileId ?? undefined,
+    email: p.email ?? "",
+  }));
+}
 function createOrganizerProfile(profile: EventProfileOption): EventParticipant {
   return {
     id: profile.id,
@@ -154,18 +88,18 @@ export default function CreateEventForm({ currentUser, profiles }: CreateEventFo
     defaultValues: {
       step: 1,
       name: '',
-      date: undefined,
+      date: null,
       time: '',
       description: '',
       budget: undefined,
       organizerProfileId: organizerProfile.id,
       drawNames: false,
-      registrationDeadline: undefined,
+      registrationDeadline: null,
       participantType: 'manual', // default
       maxParticipants: undefined,
       participants: defaultParticipants,
     },
-    mode: 'onBlur',
+    mode: 'onSubmit',
   });
 
   const {
@@ -226,16 +160,16 @@ const step = watch('step');
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
-                    mode="single"
-                    selected={field.value ?? undefined}
-                    onSelect={d => {
-                      field.onChange(d ?? undefined);
-                      clearErrors("date");
-                    }}
-                    disabled={date => date < todayISO()}
-                    initialFocus
-                    locale={nl}
-                  />
+  mode="single"
+  selected={field.value ?? undefined}
+  onSelect={d => {
+    field.onChange(d ?? null);
+    clearErrors("date");
+  }}
+  disabled={date => date < todayISO()}
+  initialFocus
+  locale={nl}
+/>
                 </PopoverContent>
               </Popover>
               <FormMessage />
@@ -503,18 +437,23 @@ const step = watch('step');
           ))}
         </div>
         <Button
-          type="button"
-          onClick={() => appendParticipant({
-            id: crypto.randomUUID(),
-            firstName: '',
-            lastName: '',
-            confirmed: false,
-          })}
-          className="w-full border border-gray-300 text-accent px-4 py-2 rounded-md hover:bg-gray-50 flex items-center justify-center mt-4"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Deelnemer toevoegen
-        </Button>
+  type="button"
+  onClick={() => appendParticipant({
+    id: crypto.randomUUID(),
+    firstName: '',
+    lastName: '',
+    confirmed: false,
+    role: "participant",
+    status: "pending",
+    email: '',
+    addedAt: new Date().toISOString(),
+    // (optioneel): wishlistId, photoURL, profileId kunnen undefined blijven
+  })}
+  className="w-full border border-gray-300 text-accent px-4 py-2 rounded-md hover:bg-gray-50 flex items-center justify-center mt-4"
+>
+  <Plus className="h-5 w-5 mr-2" />
+  Deelnemer toevoegen
+</Button>
         <div className="flex justify-end space-x-4 mt-8">
           <Button
   type="button"
@@ -535,25 +474,40 @@ const step = watch('step');
     );
   }
 
-  // --------- SUBMIT HANDLER --------
+// --------- SUBMIT HANDLER --------
 
-  const onSubmit = async (data: EventFormData) => {
-  // Valideer verplichting date
-  if (!data.name || !data.date) return toast.error('Verplichte velden missen');
+const onSubmit = async (data: EventFormData) => {
+  const enrichedParticipants = prepareParticipants(data.participants, data.organizerProfileId);
 
-  // Zet date expliciet om naar ISO string
   const payload = {
-    ...data,
-    date: data.date instanceof Date ? data.date.toISOString().slice(0,10) : data.date,  // "YYYY-MM-DD"
+    name: data.name,
+    date: data.date instanceof Date ? data.date.toISOString() : String(data.date),
+    time: data.time ?? null,
+    endTime: null,
+    organizerProfileId: data.organizerProfileId,
+    organizer: currentUser.id,
+    budget: data.budget ?? 0,
+    maxParticipants: data.maxParticipants ?? 1000,
+    isLootjesEvent: data.drawNames,
+    allowSelfRegistration: data.participantType === 'self-register',
+    participants: enrichedParticipants,
     registrationDeadline: data.registrationDeadline instanceof Date
-      ? data.registrationDeadline.toISOString().slice(0,10)
-      : data.registrationDeadline ?? undefined,
+      ? data.registrationDeadline.toISOString()
+      : data.registrationDeadline ?? null,
+    // voeg extra fields toe indien nodig
   };
-  // Hier roep je je server action aan
-  // const result = await createEventAction(payload);
 
-  toast.success('Event aangemaakt! (implementatie server action required)');
-  // router.push(`/dashboard/events/${newEventId}`);
+  try {
+    const result = await createEventAction(payload);
+    if (result?.success && result.eventId) {
+      toast.success('Event aangemaakt!');
+      router.push(`/dashboard/events/${result.eventId}`);
+    } else {
+      toast.error(result?.message || 'Fout bij aanmaken event');
+    }
+  } catch (err) {
+    toast.error('Onbekende fout opgetreden');
+  }
 };
 
   return (

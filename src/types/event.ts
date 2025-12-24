@@ -414,27 +414,116 @@ export type ParticipantStatus = typeof PARTICIPANT_STATUS[keyof typeof PARTICIPA
  * 💡 Gebruikt in CreateEventForm component
  */
 export const eventFormSchema = z.object({
-  name: z.string().min(3, "Naam moet minstens 3 tekens bevatten"),
-  // Maak datum velden expliciet verplicht als Date
-  date: z.date({}).refine(val => val != null, { message: "Datum is verplicht" }),
-  time: z.string().optional().nullable(),
-  endTime: z.string().optional().nullable(),
-  location: z.string().optional().nullable(),
-  description: z.string().optional().nullable(),
-  budget: z.number().min(0).optional().default(0),
-  maxParticipants: z.number().positive().int().optional().default(1000),
-  isLootjesEvent: z.boolean().default(false),
-  allowSelfRegistration: z.boolean().default(false),
-  isPublic: z.boolean().default(false),
-  backgroundImage: z.string().url().optional().nullable(),
-  theme: z.string().optional().nullable(),
-  // Deadline voor lootjes trekt - mag leeg, maar als ingevuld Date
-  registrationDeadline: z.date().optional().nullable(),
-  organizerProfileId: z.string().min(1, "Organisator is verplicht"),
+  step: z.number().min(1).max(2),
+
+  name: z.string().min(3, { message: 'Naam moet minimaal 3 karakters zijn.' }),
+
+  date: z.preprocess(
+    val => {
+      if (val instanceof Date) return val;
+      if (typeof val === 'string' && val) {
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      return null;
+    },
+    z.date().nullable()
+  ),
+
+  time: z.string().optional(),
+  description: z.string().optional(),
+  budget: z.coerce.number().min(0).optional(),
+
+  organizerProfileId: z.string().min(1, { message: 'Kies een organisator.' }),
+
+  drawNames: z.boolean().default(false),
+  registrationDeadline: z.date().nullable().optional(),
+
+  participantType: z.enum(['manual', 'self-register']),
+  maxParticipants: z.coerce.number().positive().optional(),
+
+  participants: z.array(eventParticipantSchema).default([]),
+})
+.superRefine((data, ctx) => {
+  const { step, drawNames, participantType, participants, name, date, registrationDeadline } = data;
+
+  if (step === 1) {
+    if (!name) {
+      ctx.addIssue({ path: ['name'], code: 'custom', message: 'Naam is verplicht' });
+    }
+
+    if (!date) {
+      ctx.addIssue({ path: ['date'], code: 'custom', message: 'Datum is verplicht' });
+    }
+
+    if (date && date < todayISO()) {
+      ctx.addIssue({
+        path: ['date'],
+        code: 'custom',
+        message: 'Datum mag niet in het verleden liggen.',
+      });
+    }
+
+    if (drawNames && registrationDeadline && date && registrationDeadline > date) {
+      ctx.addIssue({
+        path: ['registrationDeadline'],
+        code: 'custom',
+        message: 'Deadline moet vóór de eventdatum liggen.',
+      });
+    }
+  }
+
+  if (step === 2 && participantType === 'manual') {
+    const extraParticipants = participants.slice(1);
+
+    if (drawNames && participants.length < 3) {
+      ctx.addIssue({
+        path: ['participants'],
+        code: 'custom',
+        message: 'Minimaal 3 deelnemers vereist voor lootjesevents.',
+      });
+    }
+
+    const lowerNames = participants.map(p =>
+      `${p.firstName?.trim().toLowerCase() || ''} ${p.lastName?.trim().toLowerCase() || ''}`
+    );
+
+    if (lowerNames.length !== new Set(lowerNames).size) {
+      ctx.addIssue({
+        path: ['participants'],
+        code: 'custom',
+        message: 'Dubbele deelnamenamen niet toegestaan.',
+      });
+    }
+
+    extraParticipants.forEach((p, i) => {
+      const idx = i + 1;
+      if (!p.firstName?.trim()) {
+        ctx.addIssue({
+          path: ['participants', idx, 'firstName'],
+          code: 'custom',
+          message: 'Voornaam is verplicht',
+        });
+      }
+      if (!p.lastName?.trim()) {
+        ctx.addIssue({
+          path: ['participants', idx, 'lastName'],
+          code: 'custom',
+          message: 'Achternaam is verplicht',
+        });
+      }
+    });
+  }
 });
 
 export type EventFormData = z.infer<typeof eventFormSchema>;
 
+// Utility mag hier ook staan:
+function todayISO() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 /**
  * ✅ Event Creation Schema (voor Server Actions)
  * 💡 Omit fields die automatisch gegenereerd worden

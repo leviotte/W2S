@@ -1,4 +1,3 @@
-// src/app/blog/page.tsx
 import Link from 'next/link';
 import { BlogPost } from '@/types/blog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,5 +49,21 @@ export function PostCard({ post, isAdmin }: PostCardProps) {
         </CardContent>
       </Link>
     </Card>
+  );
+}
+
+// Voeg deze default export toe - vereist door Next.js!
+export default function BlogPage() {
+  // Gebruik hier je eigen query om blogposts te fetchen (bv. getAllBlogPosts)
+  // Dummy voorbeeld:
+  // const posts = getAllBlogPosts();
+  return (
+    <div>
+      <h1 className="text-3xl font-bold mb-8">Blog</h1>
+      {/* Hier je lijst van PostCards - pas eventueel aan met echte data */}
+      {/* {posts.map(post => <PostCard key={post.id} post={post} />)} */}
+      {/* Placeholder indien leeg */}
+      <p>Blogcontent coming soon...</p>
+    </div>
   );
 }
