@@ -1,11 +1,10 @@
 // src/app/dashboard/events/create/_components/CreateEventForm.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { toast } from 'sonner';
 import type { UserProfile } from '@/types/user';
 import {
@@ -25,20 +24,21 @@ import { nl } from 'date-fns/locale';
 import { createEventAction } from '@/lib/server/actions/events';
 import { eventFormSchema, EventFormData, EventParticipant, EventProfileOption } from '@/types/event';
 
-// ------------- HULPFUNCTIES ---------------------
+// ---------------- HULPFUNCTIES ------------------
 
 function todayISO() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
 }
+
 function prepareParticipants(
   participants: (Partial<EventParticipant> & { email?: string })[],
   organizerProfileId: string
 ): EventParticipant[] {
   return participants.map((p, idx): EventParticipant => ({
     ...p,
-    id: typeof p.id === "string" ? p.id : "",          // Zorgt dat het altijd een string is
+    id: typeof p.id === "string" ? p.id : "",
     firstName: typeof p.firstName === "string" ? p.firstName : "",
     lastName: typeof p.lastName === "string" ? p.lastName : "",
     role: idx === 0 ? "organizer" : "participant",
@@ -51,12 +51,13 @@ function prepareParticipants(
     email: p.email ?? "",
   }));
 }
+
 function createOrganizerProfile(profile: EventProfileOption): EventParticipant {
   return {
     id: profile.id,
     firstName: profile.firstName,
     lastName: profile.lastName,
-    email: '', // optioneel
+    email: '',
     confirmed: true,
     role: "organizer",
     status: "accepted",
@@ -67,7 +68,7 @@ function createOrganizerProfile(profile: EventProfileOption): EventParticipant {
   };
 }
 
-// ------ REACT COMPONENT 1-OP-1 PRODUCTIENIVEAU -------
+// ---------------- COMPONENT ------------------
 
 interface CreateEventFormProps {
   currentUser: UserProfile;
@@ -76,11 +77,8 @@ interface CreateEventFormProps {
 
 export default function CreateEventForm({ currentUser, profiles }: CreateEventFormProps) {
   const router = useRouter();
-  // State: step-wizard
 
-  // Organizer is standaard eerste profiel
   const organizerProfile = profiles.find(p => p.id === currentUser.id) || profiles[0];
-
   const defaultParticipants: EventParticipant[] = [createOrganizerProfile(organizerProfile)];
 
   const form = useForm<EventFormData>({
@@ -95,7 +93,7 @@ export default function CreateEventForm({ currentUser, profiles }: CreateEventFo
       organizerProfileId: organizerProfile.id,
       drawNames: false,
       registrationDeadline: null,
-      participantType: 'manual', // default
+      participantType: 'manual',
       maxParticipants: undefined,
       participants: defaultParticipants,
     },
@@ -103,44 +101,47 @@ export default function CreateEventForm({ currentUser, profiles }: CreateEventFo
   });
 
   const {
-    control, handleSubmit, watch, setValue, trigger, getValues, setError, clearErrors,
+    control, handleSubmit, watch, setValue, trigger, clearErrors,
   } = form;
-const step = watch('step');
-  // Participant array & helpers
-  const {
-    fields: participantFields,
-    append: appendParticipant,
-    remove: removeParticipant,
-  } = useFieldArray({ control, name: 'participants' });
 
-  // Organizer steeds bovenaan
-  useEffect(() => {
-    const profileId = watch('organizerProfileId');
-    const orgProfile = profiles.find(p => p.id === profileId);
-    if (orgProfile) {
-      setValue(
-        'participants',
-        [createOrganizerProfile(orgProfile), ...participantFields.slice(1)]
-      );
-    }
-    // eslint-disable-next-line
-  }, [watch('organizerProfileId')]);
+  const step = watch('step');
 
-  // --------- FLOW STAP 1: Infogegevens + opties -------
+  const { fields: participantFields, append: appendParticipant, remove: removeParticipant } = useFieldArray({
+    control,
+    name: 'participants',
+  });
+
+  // Organizer bovenaan houden, safe versie
+useEffect(() => {
+  const organizerProfile = profiles.find(p => p.id === form.getValues('organizerProfileId'));
+  if (!organizerProfile) return;
+
+  const currentParticipants = form.getValues('participants');
+
+  // Alleen aanpassen als organizer nog niet bovenaan staat
+  if (!currentParticipants[0] || currentParticipants[0].profileId !== organizerProfile.id) {
+    form.setValue('participants', [
+      createOrganizerProfile(organizerProfile),
+      ...currentParticipants.filter(p => p.profileId !== organizerProfile.id),
+    ], { shouldValidate: false });
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [form, profiles]);
+
+  // ---------------- STEP 1 ------------------
 
   function Step1() {
     const participantType = watch('participantType');
+
     return (
       <>
         <FormField control={control} name="name" render={({ field }) => (
           <FormItem>
             <FormLabel>Naam van het evenement *</FormLabel>
             <FormControl>
-              <Input placeholder="Bijv. Kerstfeest Familie 2025" className="text-base" {...field} />
+              <Input placeholder="Bijv. Kerstfeest Familie 2025" {...field} />
             </FormControl>
-            <FormDescription>
-              Kies een herkenbare naam voor je evenement
-            </FormDescription>
+            <FormDescription>Kies een herkenbare naam voor je evenement</FormDescription>
             <FormMessage />
           </FormItem>
         )} />
@@ -152,7 +153,7 @@ const step = watch('step');
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>
-                    <Button variant="outline" className={cn("w-full pl-3 text-left font-normal text-base", !field.value && "text-muted-foreground")}>
+                    <Button variant="outline" className={cn("w-full text-left", !field.value && "text-muted-foreground")}>
                       {field.value ? format(field.value, "PPP", { locale: nl }) : <span>Kies een datum</span>}
                       <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
@@ -160,39 +161,30 @@ const step = watch('step');
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
-  mode="single"
-  selected={field.value ?? undefined}
-  onSelect={d => {
-    field.onChange(d ?? null);
-    clearErrors("date");
-  }}
-  disabled={date => date < todayISO()}
-  initialFocus
-  locale={nl}
-/>
+                    mode="single"
+                    selected={field.value ?? undefined}
+                    onSelect={d => { field.onChange(d ?? null); clearErrors("date"); }}
+                    disabled={date => date < todayISO()}
+                    initialFocus
+                    locale={nl}
+                  />
                 </PopoverContent>
               </Popover>
               <FormMessage />
             </FormItem>
           )} />
-          {/* Tijd */}
+
           <FormField control={control} name="time" render={({ field }) => (
             <FormItem>
               <FormLabel>Tijd</FormLabel>
               <FormControl>
-                <Input
-                  type="time"
-                  value={field.value}
-                  onChange={field.onChange}
-                  className="text-base"
-                />
+                <Input type="time" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )} />
         </div>
 
-        {/* Budget */}
         <FormField control={control} name="budget" render={({ field }) => (
           <FormItem>
             <FormLabel>Budget per persoon (€)</FormLabel>
@@ -201,89 +193,69 @@ const step = watch('step');
                 type="number"
                 min="0"
                 step="0.01"
-                placeholder="Bijv. 25"
                 value={field.value ?? ''}
                 onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                className="text-base"
+                placeholder="Bijv. 25"
               />
             </FormControl>
             <FormMessage />
           </FormItem>
         )} />
 
-        {/* Beschrijving */}
         <FormField control={control} name="description" render={({ field }) => (
           <FormItem>
             <FormLabel>Beschrijving (optioneel)</FormLabel>
             <FormControl>
-              <Textarea
-                placeholder="Voeg extra details toe over het evenement, bijvoorbeeld dresscode, locatie, speciale instructies..."
-                className="resize-none text-base min-h-[100px]"
-                {...field}
-              />
+              <Textarea placeholder="Extra details..." {...field} className="min-h-[100px]" />
             </FormControl>
             <FormMessage />
           </FormItem>
         )} />
 
-        {/* Organizer profile */}
         <FormField control={control} name="organizerProfileId" render={({ field }) => (
           <FormItem>
             <FormLabel>Organisator *</FormLabel>
             <Select value={field.value} onValueChange={field.onChange}>
               <FormControl>
-                <SelectTrigger className="text-base">
+                <SelectTrigger>
                   <SelectValue placeholder="Selecteer een profiel" />
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
                 {profiles.map(p => (
-                  <SelectItem key={p.id} value={p.id} className="text-base">
+                  <SelectItem key={p.id} value={p.id}>
                     <div className="flex items-center gap-2">
                       {p.photoURL ? (
                         <img src={p.photoURL} alt={p.displayName} className="w-6 h-6 rounded-full object-cover" />
                       ) : (
                         <div className="w-6 h-6 rounded-full bg-warm-olive/20 flex items-center justify-center">
-                          <span className="text-xs font-medium text-warm-olive">
-                            {p.firstName.charAt(0)}
-                          </span>
+                          <span className="text-xs font-medium text-warm-olive">{p.firstName.charAt(0)}</span>
                         </div>
                       )}
                       <span>{p.displayName}</span>
-                      {p.isMainProfile && (
-                        <span className="text-xs text-muted-foreground">(Jij)</span>
-                      )}
+                      {p.isMainProfile && <span className="text-xs text-muted-foreground">(Jij)</span>}
                     </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <FormDescription>
-              Wie organiseert dit evenement? (jezelf of een van je profielen)
-            </FormDescription>
+            <FormDescription>Wie organiseert dit evenement?</FormDescription>
             <FormMessage />
           </FormItem>
         )} />
 
-        {/* Draw names */}
         <FormField control={control} name="drawNames" render={({ field }) => (
-          <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-lg border border-warm-olive/20 bg-warm-olive/5 p-4">
+          <FormItem className="flex items-start space-x-3 rounded-lg border p-4 bg-warm-olive/5">
             <FormControl>
               <Checkbox checked={field.value} onCheckedChange={field.onChange} className="mt-1" />
             </FormControl>
-            <div className="space-y-1 leading-none">
-              <FormLabel className="flex items-center gap-2 text-base font-medium">
-                <Gift className="w-4 h-4 text-warm-olive" />
-                Lootjes trekken
-              </FormLabel>
-              <FormDescription className="text-sm">
-                Als je de Secret Santa functie activeert, krijgen deelnemers automatisch iemand toegewezen om een cadeau voor te kopen
-              </FormDescription>
+            <div className="space-y-1">
+              <FormLabel className="flex items-center gap-2"><Gift className="w-4 h-4" />Lootjes trekken</FormLabel>
+              <FormDescription>Deelnemers krijgen automatisch iemand toegewezen om een cadeau te kopen</FormDescription>
             </div>
           </FormItem>
         )} />
 
-        {/* Registration deadline (indien lootjes) */}
         {watch('drawNames') && (
           <FormField control={control} name="registrationDeadline" render={({ field }) => (
             <FormItem>
@@ -291,7 +263,7 @@ const step = watch('step');
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>
-                    <Button variant="outline" className={cn("w-full pl-3 text-left font-normal text-base", !field.value && "text-muted-foreground")}>
+                    <Button variant="outline" className={cn("w-full text-left", !field.value && "text-muted-foreground")}>
                       {field.value ? format(field.value, "PPP", { locale: nl }) : <span>Kies een deadline</span>}
                       <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
@@ -301,14 +273,11 @@ const step = watch('step');
                   <Calendar
                     mode="single"
                     selected={field.value ?? undefined}
-                    onSelect={d => {
-                      field.onChange(d ?? undefined);
-                      clearErrors("registrationDeadline");
-                    }}
+                    onSelect={d => { field.onChange(d ?? undefined); clearErrors("registrationDeadline"); }}
                     disabled={date => {
-  const eventDate = watch('date');
-  return date < todayISO() || (eventDate instanceof Date && date >= eventDate);
-}}
+                      const eventDate = watch('date');
+                      return date < todayISO() || (eventDate instanceof Date && date >= eventDate);
+                    }}
                     initialFocus
                     locale={nl}
                   />
@@ -319,38 +288,24 @@ const step = watch('step');
           )} />
         )}
 
-        {/* Deelnametype: manual/self-register */}
         <FormField control={control} name="participantType" render={({ field }) => (
           <FormItem>
             <FormLabel>Manier van deelnemen</FormLabel>
             <div className="space-y-2">
               <label className="flex items-center space-x-3">
-                <input
-                  type="radio"
-                  checked={field.value === 'manual'}
-                  onChange={() => field.onChange('manual')}
-                  className="h-4 w-4 text-warm-olive focus:ring-warm-olive border-gray-300"
-                />
-                <span className="text-sm text-accent">Ik voeg de deelnemers manueel toe</span>
+                <input type="radio" checked={field.value === 'manual'} onChange={() => field.onChange('manual')} />
+                <span>Ik voeg de deelnemers manueel toe</span>
               </label>
               <label className="flex items-center space-x-3">
-                <input
-                  type="radio"
-                  checked={field.value === 'self-register'}
-                  onChange={() => field.onChange('self-register')}
-                  className="h-4 w-4 text-warm-olive focus:ring-warm-olive border-gray-300"
-                />
-                <span className="text-sm text-accent">
-                  Deelnemers registreren zichzelf met een link
-                </span>
+                <input type="radio" checked={field.value === 'self-register'} onChange={() => field.onChange('self-register')} />
+                <span>Deelnemers registreren zichzelf met een link</span>
               </label>
             </div>
             <FormMessage />
           </FormItem>
         )} />
 
-        {/* Max deelnemers (indien self-register) */}
-        {watch('participantType') === 'self-register' && (
+        {participantType === 'self-register' && (
           <FormField control={control} name="maxParticipants" render={({ field }) => (
             <FormItem>
               <FormLabel>Maximum aantal deelnemers</FormLabel>
@@ -360,8 +315,6 @@ const step = watch('step');
                   min={1}
                   value={field.value ?? ''}
                   onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
-                  className="text-base"
-                  placeholder="Bijv. 12"
                 />
               </FormControl>
               <FormMessage />
@@ -369,27 +322,18 @@ const step = watch('step');
           )} />
         )}
 
-        {/* NEXT BUTTON */}
         <div className="flex gap-3 pt-4">
-          <Button type="button" variant="outline" onClick={() => router.back()} className="flex-1">
-            Annuleren
-          </Button>
-          <Button
-  type="button"
-  onClick={async () => {
-    const ok = await trigger();
-    if (ok) setValue('step', 2);
-  }}
->
+          <Button type="button" variant="outline" onClick={() => router.back()} className="flex-1">Annuleren</Button>
+          <Button type="button" onClick={async () => { if (await trigger()) setValue('step', 2); }}>
             <Users className="w-4 h-4 mr-2" />
-            {watch('participantType') === 'manual' ? 'Deelnemers toevoegen' : 'Event aanmaken'}
+            {participantType === 'manual' ? 'Deelnemers toevoegen' : 'Event aanmaken'}
           </Button>
         </div>
       </>
     );
   }
 
-  // --------- FLOW STAP 2: Participanten beheren ---------
+  // ---------------- STEP 2: MANUAL ------------------
 
   function Step2Manual() {
     return (
@@ -398,123 +342,116 @@ const step = watch('step');
           {participantFields.map((participant, idx) => (
             <div key={participant.id} className="flex items-center space-x-4">
               <div className="flex-grow grid grid-cols-2 gap-4">
-                <FormField
-  control={control}
-  name={`participants.${idx}.firstName`}
-  render={({ field }) => (
-    <Input
-      {...field}
-      placeholder="Voornaam"
-      className="block w-full rounded-md border-2 border-gray-300 shadow-sm focus:border-warm-olive focus:ring-warm-olive"
-      required
-      disabled={idx === 0}
-    />
-  )}
-/>
-                <FormField
-  control={control}
-  name={`participants.${idx}.lastName`}
-  render={({ field }) => (
-    <Input
-      {...field}
-      placeholder="Achternaam"
-      className="block w-full rounded-md border-2 border-gray-300 shadow-sm focus:border-warm-olive focus:ring-warm-olive"
-      required
-      disabled={idx === 0}
-    />
-  )}
-/>
+                <FormField control={control} name={`participants.${idx}.firstName`} render={({ field }) => (
+                  <Input {...field} placeholder="Voornaam" required disabled={idx === 0} />
+                )} />
+                <FormField control={control} name={`participants.${idx}.lastName`} render={({ field }) => (
+                  <Input {...field} placeholder="Achternaam" required disabled={idx === 0} />
+                )} />
               </div>
-              <button
-                type="button"
-                onClick={() => idx !== 0 && removeParticipant(idx)}
-                className="text-[#b34c4c] hover:text-red-800"
-                disabled={idx === 0} // Organizer nooit verwijderen
-              >
-                <X className="h-5 w-5" />
+              <button type="button" onClick={() => idx !== 0 && removeParticipant(idx)} disabled={idx === 0}>
+                <X className="h-5 w-5 text-red-600" />
               </button>
             </div>
           ))}
         </div>
-        <Button
-  type="button"
-  onClick={() => appendParticipant({
-    id: crypto.randomUUID(),
-    firstName: '',
-    lastName: '',
-    confirmed: false,
-    role: "participant",
-    status: "pending",
-    email: '',
-    addedAt: new Date().toISOString(),
-    // (optioneel): wishlistId, photoURL, profileId kunnen undefined blijven
-  })}
-  className="w-full border border-gray-300 text-accent px-4 py-2 rounded-md hover:bg-gray-50 flex items-center justify-center mt-4"
->
-  <Plus className="h-5 w-5 mr-2" />
-  Deelnemer toevoegen
-</Button>
+
+        <Button type="button" onClick={() => appendParticipant({
+          id: crypto.randomUUID(),
+          firstName: '',
+          lastName: '',
+          confirmed: false,
+          role: "participant",
+          status: "pending",
+          email: '',
+          addedAt: new Date().toISOString(),
+        })} className="w-full flex items-center justify-center mt-4">
+          <Plus className="h-5 w-5 mr-2" />Deelnemer toevoegen
+        </Button>
+
         <div className="flex justify-end space-x-4 mt-8">
-          <Button
-  type="button"
-  variant="outline"
-  onClick={() => setValue('step', 1)}
->
-  Ga terug
-</Button>
-          <Button
-            type="submit"
-            className="bg-gradient-to-r from-warm-olive to-cool-olive hover:from-cool-olive hover:to-warm-olive"
-          >
-            <Sparkles className="w-4 h-4 mr-2" />
-            Event aanmaken
+          <Button type="button" variant="outline" onClick={() => setValue('step', 1)}>Ga terug</Button>
+          <Button type="submit" className="bg-gradient-to-r from-warm-olive to-cool-olive hover:from-cool-olive hover:to-warm-olive">
+            <Sparkles className="w-4 h-4 mr-2" />Event aanmaken
           </Button>
         </div>
       </>
     );
   }
+// ---------------- STEP 2: SELF-REGISTER ------------------
 
-// --------- SUBMIT HANDLER --------
+  function Step2SelfRegister() {
+    const maxParticipants = watch('maxParticipants');
 
-const onSubmit = async (data: EventFormData) => {
-  const enrichedParticipants = prepareParticipants(data.participants, data.organizerProfileId);
+    return (
+      <>
+        <FormField control={control} name="maxParticipants" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Maximum aantal deelnemers</FormLabel>
+            <FormControl>
+              <Input
+                type="number"
+                min={1}
+                value={field.value ?? ''}
+                onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                placeholder="Bijv. 12"
+              />
+            </FormControl>
+            <FormDescription>
+              Stel een limiet op hoeveel deelnemers zichzelf kunnen registreren.
+            </FormDescription>
+            <FormMessage />
+          </FormItem>
+        )} />
 
-  const payload = {
-    name: data.name,
-    date: data.date instanceof Date ? data.date.toISOString() : String(data.date),
-    time: data.time ?? null,
-    endTime: null,
-    organizerProfileId: data.organizerProfileId,
-    organizer: currentUser.id,
-    budget: data.budget ?? 0,
-    maxParticipants: data.maxParticipants ?? 1000,
-    isLootjesEvent: data.drawNames,
-    allowSelfRegistration: data.participantType === 'self-register',
-    participants: enrichedParticipants,
-    registrationDeadline: data.registrationDeadline instanceof Date
-      ? data.registrationDeadline.toISOString()
-      : data.registrationDeadline ?? null,
-    // voeg extra fields toe indien nodig
-  };
-
-  try {
-    const result = await createEventAction(payload);
-    if (result?.success && result.eventId) {
-      toast.success('Event aangemaakt!');
-      router.push(`/dashboard/events/${result.eventId}`);
-    } else {
-      toast.error(result?.message || 'Fout bij aanmaken event');
-    }
-  } catch (err) {
-    toast.error('Onbekende fout opgetreden');
+        <div className="flex justify-end space-x-4 mt-8">
+          <Button type="button" variant="outline" onClick={() => setValue('step', 1)}>Ga terug</Button>
+          <Button type="submit" className="bg-gradient-to-r from-warm-olive to-cool-olive hover:from-cool-olive hover:to-warm-olive">
+            <Sparkles className="w-4 h-4 mr-2" />Event aanmaken
+          </Button>
+        </div>
+      </>
+    );
   }
-};
+  // ---------------- SUBMIT ------------------
+
+  const onSubmit = async (data: EventFormData) => {
+    const enrichedParticipants = prepareParticipants(data.participants, data.organizerProfileId);
+
+    const payload = {
+      name: data.name,
+      date: data.date instanceof Date ? data.date.toISOString() : String(data.date),
+      time: data.time ?? null,
+      endTime: null,
+      organizerProfileId: data.organizerProfileId,
+      organizer: currentUser.id,
+      budget: data.budget ?? 0,
+      maxParticipants: data.maxParticipants ?? 1000,
+      isLootjesEvent: data.drawNames,
+      allowSelfRegistration: data.participantType === 'self-register',
+      participants: enrichedParticipants,
+      registrationDeadline: data.registrationDeadline instanceof Date ? data.registrationDeadline.toISOString() : data.registrationDeadline ?? null,
+    };
+
+    try {
+      const result = await createEventAction(payload);
+      if (result?.success && result.eventId) {
+        toast.success('Event aangemaakt!');
+        router.push(`/dashboard/event/${result.eventId}`);
+      } else {
+        toast.error(result?.message || 'Fout bij aanmaken event');
+      }
+    } catch {
+      toast.error('Onbekende fout opgetreden');
+    }
+  };
 
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {step === 1 && <Step1 />}
-        {(step === 2 && watch('participantType') === 'manual') && <Step2Manual />}
+        {step === 2 && watch('participantType') === 'manual' && <Step2Manual />}
+        {step === 2 && watch('participantType') === 'self-register' && <Step2SelfRegister />}
       </form>
     </Form>
   );
