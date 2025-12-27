@@ -6,85 +6,122 @@ import { X, Mail, Copy, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Zet hier de type-defs uit je codebase! (importeer indien centraal)
+type DialogContext =
+  | {
+      type: "event";
+      event: {
+        id: string;
+        name: string;
+      };
+      participant: {
+        firstName: string;
+        lastName: string;
+        email?: string;
+      };
+    }
+  | {
+      type: "search";
+      recipient: {
+        firstName: string;
+        lastName: string;
+        email?: string;
+      };
+    };
+
 interface WishlistRequestDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  participant: {
-    firstName: string;
-    lastName: string;
-    email?: string;
-  };
+  context: DialogContext;
 }
 
 export default function WishlistRequestDialog({
   isOpen,
   onClose,
-  participant,
+  context,
 }: WishlistRequestDialogProps) {
-  const baseMessage = useMemo(
-    () =>
-      `Hello ${participant.firstName},
+  // --- Dynamisch bericht ---
+  const { bericht, email, mailTo, whatsappLink } = useMemo(() => {
+    let bericht = "";
+    let email = "";
+    if (context.type === "event") {
+      const { event, participant } = context;
+      email = participant.email ?? "";
+      bericht = `👋 Hey ${participant.firstName},
 
-Would you like to create a wishlist so I can pick out a nice gift for you?
+Zin om deel te nemen aan het event "${event.name}" op Wish2Share?
 
-You can create your wishlist here: ${typeof window !== "undefined" ? window.location.origin : ""}/create-wishlist`,
-    [participant.firstName]
-  );
+Maak eenvoudig gratis je wishlist aan zodat je verrast kan worden!
+➡️ ${typeof window !== "undefined" ? window.location.origin : ""}/create-wishlist?eventId=${event.id}
 
-  const handleEmailShare = useCallback(() => {
-    if (!participant.email) {
-      toast.error("No email address available");
+Tot snel op het event!
+De Wish2Share-crew`;
+    } else {
+      // search/no result
+      const { recipient } = context;
+      email = recipient.email ?? "";
+      bericht = `Hey ${recipient.firstName},
+
+Maak ook een gratis wishlist bij Wish2Share! Zo kunnen vrienden/familie je écht verrassen.
+
+Direct je lijst aanmaken: ${typeof window !== "undefined" ? window.location.origin : ""}/create-wishlist
+
+Groetjes!
+De Wish2Share-community`;
+    }
+    return {
+      bericht,
+      email,
+      mailTo: email
+        ? `mailto:${email}?subject=Maak je wishlist aan op Wish2Share!&body=${encodeURIComponent(
+            bericht
+          )}`
+        : undefined,
+      whatsappLink: `https://wa.me/?text=${encodeURIComponent(bericht)}`,
+    };
+  }, [context]);
+
+  // --- Actions ---
+  const handleEmail = useCallback(() => {
+    if (!mailTo) {
+      toast.error("Geen e-mailadres beschikbaar.");
       return;
     }
-
-    const mailto = `mailto:${participant.email}?subject=Wishlist Request&body=${encodeURIComponent(
-      baseMessage
-    )}`;
-
-    window.location.href = mailto;
+    window.location.href = mailTo;
     onClose();
-  }, [participant.email, baseMessage, onClose]);
+  }, [mailTo, onClose]);
 
-  const handleWhatsAppShare = useCallback(() => {
-    const url = `https://wa.me/?text=${encodeURIComponent(baseMessage)}`;
-    window.open(url, "_blank");
+  const handleWhatsApp = useCallback(() => {
+    window.open(whatsappLink, "_blank");
     onClose();
-  }, [baseMessage, onClose]);
+  }, [whatsappLink, onClose]);
 
-  const handleCopyLink = useCallback(() => {
-    navigator.clipboard.writeText(baseMessage);
-    toast.success("Message copied to clipboard");
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(bericht);
+    toast.success("Bericht gekopieerd naar klembord!");
     onClose();
-  }, [baseMessage, onClose]);
+  }, [bericht, onClose]);
 
+  // --- UI ---
   return (
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            {/* Overlay */}
+          <div className="flex min-h-full items-center justify-center p-4 bg-black/40">
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.45 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black"
-              onClick={onClose}
-            />
-
-            {/* Dialog */}
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.92, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
+              exit={{ scale: 0.92, opacity: 0 }}
               className="relative w-full max-w-md rounded-lg bg-white shadow-2xl"
             >
               <div className="p-6">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold text-gray-900">
-                    Request Wishlist
+                    {context.type === "event"
+                      ? "Nodig uit voor event & verlanglijst"
+                      : "Persoon uitnodigen tot wishlist"}
                   </h2>
-
                   <button
                     onClick={onClose}
                     className="text-gray-400 hover:text-gray-500 transition"
@@ -92,39 +129,49 @@ You can create your wishlist here: ${typeof window !== "undefined" ? window.loca
                     <X className="h-6 w-6" />
                   </button>
                 </div>
-
-                {/* Description */}
+                {/* Beschrijving/intro */}
                 <p className="text-gray-600 mb-6 leading-relaxed">
-                  {participant.email
-                    ? "This person doesn't have a wishlist yet. Click 'invite' and we will take care of the rest!"
-                    : "This person is not registered yet. Enter their email address, click 'invite', and we will take care of the rest!"}
+                  {context.type === "event"
+                    ? `Deze persoon heeft nog geen wishlist voor het event. Verstuur een uitnodiging:`
+                    : `Deze persoon bestaat nog niet op Wish2Share. Je kan nu zelf een uitnodiging sturen!`}
                 </p>
-
-                {/* Buttons */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="mb-4 bg-slate-50 border rounded p-3 text-[15px] select-all text-gray-800 whitespace-pre-line">
+                  {bericht}
+                </div>
+                {/* Delen-knoppen */}
+                <div className="grid grid-cols-3 gap-4 mt-4">
                   <button
-                    onClick={handleEmailShare}
-                    disabled={!participant.email}
-                    className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 transition disabled:opacity-40"
+                    type="button"
+                    onClick={handleEmail}
+                    disabled={!email}
+                    className="flex flex-col items-center p-4 rounded-lg hover:bg-warm-beige transition disabled:opacity-40"
                   >
-                    <Mail className="h-8 w-8 text-gray-600 mb-2" />
-                    <span className="text-sm text-gray-600">E-mail</span>
+                    <Mail className="h-7 w-7 text-gray-600 mb-1" />
+                    <span className="text-xs text-gray-700">E-mail</span>
                   </button>
-
                   <button
-                    onClick={handleWhatsAppShare}
-                    className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 transition"
+                    type="button"
+                    onClick={handleWhatsApp}
+                    className="flex flex-col items-center p-4 rounded-lg hover:bg-warm-beige transition"
                   >
-                    <MessageCircle className="h-8 w-8 text-gray-600 mb-2" />
-                    <span className="text-sm text-gray-600">WhatsApp</span>
+                    <MessageCircle className="h-7 w-7 text-green-600 mb-1" />
+                    <span className="text-xs text-gray-700">WhatsApp</span>
                   </button>
-
                   <button
-                    onClick={handleCopyLink}
-                    className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 transition"
+                    type="button"
+                    onClick={handleCopy}
+                    className="flex flex-col items-center p-4 rounded-lg hover:bg-warm-beige transition"
                   >
-                    <Copy className="h-8 w-8 text-gray-600 mb-2" />
-                    <span className="text-sm text-gray-600">Copy</span>
+                    <Copy className="h-7 w-7 text-gray-600 mb-1" />
+                    <span className="text-xs text-gray-700">Kopieer</span>
+                  </button>
+                </div>
+                <div className="flex justify-end mt-7">
+                  <button
+                    onClick={onClose}
+                    className="px-5 py-2 text-sm font-medium text-gray-500 bg-gray-100 rounded hover:bg-gray-200"
+                  >
+                    Sluiten
                   </button>
                 </div>
               </div>

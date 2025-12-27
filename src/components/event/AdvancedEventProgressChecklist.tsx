@@ -81,24 +81,23 @@ const AdvancedEventProgressChecklist: FC<AdvancedEventProgressChecklistProps> = 
 
   // ✅ Helper: Check if participant purchased for event
   const hasParticipantPurchasedForEvent = (
-    participantId: string,
-    eventId: string,
-    wishlists: Record<string, Wishlist>
-  ): boolean => {
-    for (const wishlistId in wishlists) {
-      const wishlist = wishlists[wishlistId];
-      for (const item of wishlist.items || []) {
-        if (
-          item.purchasedBy &&
-          item.purchasedBy[eventId] &&
-          item.purchasedBy[eventId].includes(participantId)
-        ) {
-          return true;
-        }
+  participantId: string,
+  eventId: string,
+  wishlists: Record<string, Wishlist>
+): boolean => {
+  for (const wishlistId in wishlists) {
+    const wishlist = wishlists[wishlistId];
+    for (const item of wishlist.items || []) {
+      if (
+        item.multiPurchasedBy?.[eventId]?.includes(participantId)
+        // || item.purchasedBy === participantId   // optionele fallback
+      ) {
+        return true;
       }
     }
-    return false;
-  };
+  }
+  return false;
+};
 
   // ✅ Helper: Format names with limit
   const formatNamesWithLimit = (

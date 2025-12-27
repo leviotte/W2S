@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/client/firebase';
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { WishlistInviteHandler } from '@/app/wishlist/_components/WishlistInviteHandler';
+import WishlistRequestDialog from './WishlistRequestDialog';
 
 interface FormData {
   firstName: string;
@@ -17,12 +17,8 @@ interface FormData {
 export default function WishlistRequestForm() {
   const [formData, setFormData] = useState<FormData>({ firstName: '', lastName: '' });
   const [isLoading, setIsLoading] = useState(false);
-  const [suggestInvite, setSuggestInvite] = useState(false);
-  const [recipient, setRecipient] = useState<FormData & { email?: string }>({ 
-    firstName: '', 
-    lastName: '',
-    email: '' 
-  });
+  // Gebruik deze state om dialog te tonen mét ingevulde waarden
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -31,12 +27,11 @@ export default function WishlistRequestForm() {
     const last = formData.lastName.trim().toLowerCase();
 
     if (!first || !last) {
-      toast.error('Fill all required fields');
+      toast.error('Vul beide velden in.');
       return;
     }
 
     setIsLoading(true);
-    setSuggestInvite(false);
 
     try {
       const usersRef = collection(db, 'users');
@@ -49,17 +44,15 @@ export default function WishlistRequestForm() {
       const snap = await getDocs(q);
 
       if (snap.empty) {
-        setRecipient({ 
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: '' 
-        });
-        setSuggestInvite(true);
+        // Geen gebruiker gevonden → open de centrale invite dialog direct
+        setInviteDialogOpen(true);
+        setIsLoading(false);
         return;
       }
 
       if (snap.docs.length > 1) {
-        toast.error('Multiple people found. Please refine your search.');
+        toast.error('Meerdere mensen gevonden. Verfijn je zoekopdracht.');
+        setIsLoading(false);
         return;
       }
 
@@ -71,11 +64,11 @@ export default function WishlistRequestForm() {
         createdAt: serverTimestamp(),
       });
 
-      toast.success('Your invitation is sent.');
+      toast.success('Je uitnodiging is verzonden.');
       setFormData({ firstName: '', lastName: '' });
     } catch (err) {
       console.error(err);
-      toast.error('Unexpected error occurred');
+      toast.error('Onverwachte fout opgetreden');
     } finally {
       setIsLoading(false);
     }
@@ -84,15 +77,15 @@ export default function WishlistRequestForm() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="bg-white rounded-lg shadow-sm p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Look for Wish2Share-List</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Zoek naar een Wish2Share-List</h2>
         <p className="text-gray-600 mb-6">
-          Fill in the name of the person you're looking a Wish2Share-List for.
+          Vul de naam in van de persoon voor wie je een Wish2Share-lijst zoekt.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">First name *</label>
+              <label className="block text-sm font-medium text-gray-700">Voornaam *</label>
               <input
                 type="text"
                 value={formData.firstName}
@@ -100,13 +93,13 @@ export default function WishlistRequestForm() {
                   setFormData({ ...formData, firstName: e.target.value })
                 }
                 className="mt-1 block w-full rounded-md border-2 border-gray-300 shadow-sm focus:border-warm-olive focus:ring-warm-olive"
-                placeholder="First name"
+                placeholder="Voornaam"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Last name *</label>
+              <label className="block text-sm font-medium text-gray-700">Achternaam *</label>
               <input
                 type="text"
                 value={formData.lastName}
@@ -114,7 +107,7 @@ export default function WishlistRequestForm() {
                   setFormData({ ...formData, lastName: e.target.value })
                 }
                 className="mt-1 block w-full rounded-md border-2 border-gray-300 shadow-sm focus:border-warm-olive focus:ring-warm-olive"
-                placeholder="Last name"
+                placeholder="Achternaam"
                 required
               />
             </div>
@@ -127,14 +120,24 @@ export default function WishlistRequestForm() {
               className="bg-warm-olive text-white px-6 py-2 rounded-md hover:bg-cool-olive flex items-center"
             >
               {isLoading ? <LoadingSpinner size="sm" className="mr-2" /> : <Search className="h-5 w-5 mr-2" />}
-              Search
+              Zoek
             </button>
           </div>
         </form>
       </div>
 
-      {/* ✅ FIXED: Component doesn't need props */}
-      {suggestInvite && <WishlistInviteHandler />}
+      {/* Nieuwe invite dialog – op basis van inviteDialogOpen */}
+      <WishlistRequestDialog
+        isOpen={inviteDialogOpen}
+        onClose={() => setInviteDialogOpen(false)}
+        context={{
+          type: 'search',
+          recipient: {
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+          }
+        }}
+      />
     </div>
   );
 }

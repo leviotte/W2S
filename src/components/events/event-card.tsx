@@ -86,8 +86,7 @@ export default function EventCard({
       for (const item of wishlist.items || []) {
         if (
           item.purchasedBy &&
-          item.purchasedBy[eventId] &&
-          item.purchasedBy[eventId].includes(participantId)
+          item.multiPurchasedBy?.[eventId]?.includes(participantId)
         ) {
           return true;
         }

@@ -1,9 +1,11 @@
+// src/app/search/_components/search-results.tsx
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { WishlistInviteHandler } from './wishlist-invite-handler';
+import WishlistRequestDialog from '@/app/wishlist/_components/WishlistRequestDialog';
 import type { SearchState, SearchFormData } from '../types';
 
 interface SearchResultsProps {
@@ -13,6 +15,9 @@ interface SearchResultsProps {
 
 export function SearchResults({ state, searchData }: SearchResultsProps) {
   const { isSearching, hasSearched, filteredResults, error } = state;
+
+  // NEW: Voor het openen van onze centrale invite-dialog vanuit 'geen resultaten'
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
   // Loading state
   if (isSearching) {
@@ -70,14 +75,28 @@ export function SearchResults({ state, searchData }: SearchResultsProps) {
             </Link>
           ))}
         </div>
-
+        {/* Mogelijkheid om toch iemand uit te nodigen, eventueel via een 'Nodig uit'-knop */}
         <div className="text-center py-12">
-          <WishlistInviteHandler
-            recipientFirstName={searchData.firstName}
-            recipientLastName={searchData.lastName || ''}
-            recipientEmail=""
-          />
+          <button
+            type="button"
+            className="inline-block bg-warm-olive text-white px-5 py-2 rounded-md font-medium hover:bg-cool-olive"
+            onClick={() => setInviteDialogOpen(true)}
+          >
+            Persoon niet gevonden? Nodig uit!
+          </button>
         </div>
+        <WishlistRequestDialog
+          isOpen={inviteDialogOpen}
+          onClose={() => setInviteDialogOpen(false)}
+          context={{
+            type: 'search',
+            recipient: { 
+              firstName: searchData.firstName, 
+              lastName: searchData.lastName || '',
+              // Breid eventueel uit indien je e-mail wil tonen
+            }
+          }}
+        />
       </>
     );
   }
@@ -86,11 +105,27 @@ export function SearchResults({ state, searchData }: SearchResultsProps) {
   if (hasSearched) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500 mb-8">Geen resultaten.</p>
-        <WishlistInviteHandler
-          recipientFirstName={searchData.firstName}
-          recipientLastName={searchData.lastName || ''}
-          recipientEmail=""
+        <p className="text-gray-500 mb-8">
+          Geen resultaten.
+        </p>
+        {/* Hier bieden we altijd een invite-mogelijkheid via de dialog */}
+        <button
+          type="button"
+          className="inline-block bg-warm-olive text-white px-5 py-2 rounded-md font-medium hover:bg-cool-olive"
+          onClick={() => setInviteDialogOpen(true)}
+        >
+          Persoon niet gevonden? Nodig uit!
+        </button>
+        <WishlistRequestDialog
+          isOpen={inviteDialogOpen}
+          onClose={() => setInviteDialogOpen(false)}
+          context={{
+            type: 'search',
+            recipient: { 
+              firstName: searchData.firstName, 
+              lastName: searchData.lastName || '',
+            }
+          }}
         />
       </div>
     );

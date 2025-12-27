@@ -849,3 +849,69 @@ export async function toggleWishlistPrivacyAction(
     };
   }
 }
+/**
+ * Markeer Wishlist-Item als gekocht
+ */
+export async function purchaseWishlistItemAction(
+  wishlistId: string,
+  itemId: string,
+  purchaserUserId: string
+): Promise<ActionResult> {
+  try {
+    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
+    if (!doc.exists) return { success: false, error: 'Wishlist niet gevonden' };
+
+    const wishlistData = doc.data();
+    const items = wishlistData?.items || [];
+    const itemIndex = items.findIndex((item: WishlistItem) => String(item.id) === String(itemId));
+    if (itemIndex === -1) return { success: false, error: 'Item niet gevonden' };
+
+    items[itemIndex] = {
+      ...items[itemIndex],
+      purchasedBy: purchaserUserId,
+      purchasedAt: new Date().toISOString(),
+    };
+
+    await adminDb.collection('wishlists').doc(wishlistId).update({
+      items,
+      updatedAt: nowTimestamp(),
+    });
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Error bij aankopen' };
+  }
+}
+
+/**
+ * Undo koopactie (maak aankoop ongedaan)
+ */
+export async function undoPurchaseWishlistItemAction(
+  wishlistId: string,
+  itemId: string,
+): Promise<ActionResult> {
+  try {
+    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
+    if (!doc.exists) return { success: false, error: 'Wishlist niet gevonden' };
+
+    const wishlistData = doc.data();
+    const items = wishlistData?.items || [];
+    const itemIndex = items.findIndex((item: WishlistItem) => String(item.id) === String(itemId));
+    if (itemIndex === -1) return { success: false, error: 'Item niet gevonden' };
+
+    items[itemIndex] = {
+      ...items[itemIndex],
+      purchasedBy: null,
+      purchasedAt: null,
+    };
+
+    await adminDb.collection('wishlists').doc(wishlistId).update({
+      items,
+      updatedAt: nowTimestamp(),
+    });
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Error bij undo aankoop' };
+  }
+}

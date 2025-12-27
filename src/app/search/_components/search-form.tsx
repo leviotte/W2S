@@ -1,3 +1,4 @@
+// src/app/search/_components/search-form.tsx
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';

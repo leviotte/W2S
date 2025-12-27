@@ -181,3 +181,38 @@ a:disabled,
 [aria-disabled="true"] {
   cursor: not-allowed;
 }
+/* ========================================================================= */
+/*  MODAL/ALERTDIALOG OVERLAY OPTIMALISATIE FOR SHADCN/RADIX/ELK MODAL LAYER */
+/* ========================================================================= */
+/*
+ * Maakt alle Dialog/Modal overlays (Radix/AlertDialog, shadcn/ui) mooi donker,
+ * minder doorzichtig, betere readability voor Wish2Share (zowel light als dark)
+ */
+[data-state="open"].radix-AlertDialogOverlay,
+.radix-AlertDialogOverlay,
+.alert-dialog-overlay,
+[data-radix-popper-content-wrapper] .alert-dialog-overlay {
+  background: rgba(20, 20, 20, 0.55) !important;
+  /* Kan gerust tot 0.60 voor extra clarity, typisch 0.50 à 0.55 is optimaal */
+  backdrop-filter: blur(2px) saturate(150%);
+  /* Optioneel, als je dark/light kleurverschil wilt: */
+  /* transition: background 0.18s; */
+}
+
+/* Extra: paneel blijft wit/helder */
+.radix-AlertDialogContent,
+[role="alertdialog"] {
+  background-color: #fff !important;
+  /* of .bg-white/95 met Tailwind, maar hier iets meer wit, minder transparant */
+  color: #283618;
+  /* Je kan dit uitbreiden met border-radius, box-shadow... */
+}
+
+/* Optie: voor dark mode, indien gewenst automatisch sterker maken */
+/*
+.dark .radix-AlertDialogOverlay,
+.dark .alert-dialog-overlay,
+.dark [data-radix-popper-content-wrapper] .alert-dialog-overlay {
+  background: rgba(0,0,0,0.68) !important;
+}
+*/
