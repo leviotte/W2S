@@ -52,30 +52,25 @@ function extractSessionData(data: {
   isAdmin?: boolean;
   isPartner?: boolean;
 }) {
-  // ✅ Filter out base64 images - they can be 100KB+!
-  let cleanPhotoURL = data.photoURL;
-  
+  let cleanPhotoURL = data.photoURL ?? null; // ← nooit undefined
   if (cleanPhotoURL && cleanPhotoURL.startsWith('data:')) {
     console.warn('[Auth] ⚠️ Base64 image detected in photoURL - removing from session');
-    console.warn('[Auth] Use Firebase Storage URLs instead!');
-    cleanPhotoURL = null; // Don't store base64 in session!
+    cleanPhotoURL = null;
   }
-  
-  // Also check if photoURL is suspiciously long
+
   if (cleanPhotoURL && cleanPhotoURL.length > 500) {
     console.warn('[Auth] ⚠️ PhotoURL too long:', cleanPhotoURL.length, 'chars - removing');
     cleanPhotoURL = null;
   }
 
-  // ✅ EXPLICIT field selection, NO spread operator!
   return {
     id: data.id,
     email: data.email,
     firstName: data.firstName,
     lastName: data.lastName,
     displayName: data.displayName,
-    photoURL: cleanPhotoURL, // ← Now filtered!
-    username: data.username || null,
+    photoURL: cleanPhotoURL, // ✅ altijd string | null
+    username: data.username ?? null, // ✅ altijd string | null
     isAdmin: data.isAdmin || false,
     isPartner: data.isPartner || false,
   };

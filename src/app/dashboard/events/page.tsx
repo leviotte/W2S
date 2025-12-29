@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import EventsListSection from './_components/events-list-section';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { AuthenticatedSessionUser } from '@/types/session';
 
 export const metadata = {
   title: 'Mijn Evenementen - Wish2Share',
@@ -15,53 +16,53 @@ export const metadata = {
 };
 
 export default async function EventsPage() {
-  console.log('🔵 === EVENTS PAGE START ===');
-  
   const session = await getSession();
-  
-  console.log('🔵 Session:', {
-    isLoggedIn: session.isLoggedIn,
-    userId: session.user?.id,
-    email: session.user?.email,
-    firstName: session.user?.firstName,
-  });
 
-  if (!session.isLoggedIn || !session.user?.id) {
-    console.log('🔴 Not logged in, redirecting...');
+  // Altijd eerst discrimineren!
+  if (!session.user.isLoggedIn) {
     redirect('/?auth=login');
   }
+  const currentUser = session.user as AuthenticatedSessionUser;
 
-  const currentUser = session.user;
-  console.log('🔵 Fetching events for userId:', currentUser.id);
-
-  // ✅ Fetch events
   const allEvents = await getEventsForUser(currentUser.id);
-  
+
   console.log('🔵 Total events fetched:', allEvents.length);
-  console.log('🔵 Events:', allEvents.map(e => ({
-    id: e.id,
-    name: e.name,
-    date: e.date,
-    organizerId: e.organizerId,
-    organizer: e.organizer,
-    participantsCount: Object.keys(e.participants || {}).length,
-  })));
+  console.log(
+    '🔵 Events:',
+    allEvents.map((e) => ({
+      id: e.id,
+      name: e.name,
+      date: e.date,
+      organizerId: e.organizerId,
+      participantsCount: Object.keys(e.participants || {}).length,
+    }))
+  );
 
   const now = new Date();
-  
+
+  // ✅ Helper om een date string of Date object naar UTC timestamp te converteren
+  const toUTCTimestamp = (date: string | Date) => {
+    const d = new Date(date);
+    return Date.UTC(
+      d.getFullYear(),
+      d.getMonth(),
+      d.getDate(),
+      d.getHours(),
+      d.getMinutes(),
+      d.getSeconds(),
+      d.getMilliseconds()
+    );
+  };
+
+  const nowUTC = toUTCTimestamp(now);
+
   const upcomingEvents = allEvents
-    .filter(event => {
-      const eventDate = new Date(event.date);
-      return eventDate >= now;
-    })
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .filter((event) => toUTCTimestamp(event.date) >= nowUTC)
+    .sort((a, b) => toUTCTimestamp(a.date) - toUTCTimestamp(b.date));
 
   const pastEvents = allEvents
-    .filter(event => {
-      const eventDate = new Date(event.date);
-      return eventDate < now;
-    })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .filter((event) => toUTCTimestamp(event.date) < nowUTC)
+    .sort((a, b) => toUTCTimestamp(b.date) - toUTCTimestamp(a.date));
 
   console.log('🔵 Split events:', {
     upcoming: upcomingEvents.length,
@@ -70,9 +71,7 @@ export default async function EventsPage() {
 
   return (
     <div className="min-h-screen">
-      {/* ✅ GEEN bg-warm-beige hier - komt van layout! */}
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        
         {/* AANKOMENDE EVENEMENTEN */}
         <div className="mb-12">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
@@ -81,15 +80,19 @@ export default async function EventsPage() {
                 Aankomende evenementen
               </h1>
               <p className="text-gray-600 mt-1">
-                {upcomingEvents.length} {upcomingEvents.length === 1 ? 'evenement' : 'evenementen'}
+                {upcomingEvents.length}{' '}
+                {upcomingEvents.length === 1 ? 'evenement' : 'evenementen'}
               </p>
             </div>
-            
-            <Button 
+
+            <Button
               asChild
               className="bg-warm-olive hover:bg-cool-olive text-white shadow-md hover:shadow-lg transition-all rounded-md px-4 py-2"
             >
-              <Link href="/dashboard/events/create" className="flex items-center gap-2">
+              <Link
+                href="/dashboard/events/create"
+                className="flex items-center gap-2"
+              >
                 <Plus className="w-5 h-5" />
                 Nieuw Evenement
               </Link>
@@ -97,7 +100,7 @@ export default async function EventsPage() {
           </div>
 
           <Suspense fallback={<EventsGridSkeleton />}>
-            <EventsListSection 
+            <EventsListSection
               events={upcomingEvents}
               userId={currentUser.id}
               emptyMessage="Je hebt nog geen aankomende evenementen. Klik op 'Nieuw Evenement' om er een aan te maken!"
@@ -113,12 +116,13 @@ export default async function EventsPage() {
                 Afgelopen evenementen
               </h2>
               <p className="text-gray-600 mt-1">
-                {pastEvents.length} {pastEvents.length === 1 ? 'evenement' : 'evenementen'}
+                {pastEvents.length}{' '}
+                {pastEvents.length === 1 ? 'evenement' : 'evenementen'}
               </p>
             </div>
 
             <Suspense fallback={<EventsGridSkeleton />}>
-              <EventsListSection 
+              <EventsListSection
                 events={pastEvents}
                 userId={currentUser.id}
                 emptyMessage="Geen afgelopen evenementen."

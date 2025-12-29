@@ -7,14 +7,25 @@ import { Menu, X, Home, Search } from "lucide-react";
 import { useAuthStore } from "@/lib/store/use-auth-store";
 import { Button } from "@/components/ui/button";
 import { TeamSwitcher } from "@/app/profile/_components/TeamSwitcher";
+import type { UserProfile } from "@/types/user";
 
-export function Navbar() {
-  // ✅ Zustand auth store
-  const currentUser = useAuthStore((state) => state.currentUser);
+interface NavbarProps {
+  serverUser?: UserProfile | null;
+}
+
+export function Navbar({ serverUser }: NavbarProps) {
+  const currentUserClient = useAuthStore((state) => state.currentUser);
+  const isInitialized = useAuthStore((state) => state.isInitialized);
   const openLoginModal = useAuthStore((state) => state.openLoginModal);
   const openRegisterModal = useAuthStore((state) => state.openRegisterModal);
-  
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // combine server-side + client-side
+  const currentUser = serverUser || currentUserClient;
+
+  // wacht tot client init of serverUser beschikbaar
+  if (!isInitialized && !serverUser) return null;
 
   const menuItems = currentUser
     ? [
@@ -55,11 +66,10 @@ export function Navbar() {
               </Link>
             ))}
 
-            {/* ✅ TeamSwitcher (Profile Dropdown) */}
-            {currentUser && <TeamSwitcher />}
-
-            {/* ✅ Login/Register Buttons */}
-            {!currentUser && (
+            {/* TeamSwitcher of Login/Register */}
+            {currentUser ? (
+              <TeamSwitcher />
+            ) : (
               <>
                 <Button
                   onClick={openLoginModal}

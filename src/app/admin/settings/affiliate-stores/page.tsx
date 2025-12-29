@@ -7,9 +7,9 @@ import { AffiliateStoresStats } from './_components/affiliate-stores-stats';
 export default async function AffiliateStoresSettingsPage() {
   const session = await getServerSession();
 
-  if (!session?.user?.isAdmin) {
-    redirect('/');
-  }
+  if (!session.user.isLoggedIn || !session.user.isAdmin) {
+  redirect('/');
+}
 
   const stats = await getAffiliateStats();
 

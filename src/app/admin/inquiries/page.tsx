@@ -21,9 +21,9 @@ type Props = {
 export default async function AdminInquiriesPage({ searchParams }: Props) {
   const session = await getServerSession();
 
-  if (!session?.user?.isAdmin) {
-    redirect('/');
-  }
+  if (!session.user.isLoggedIn || !session.user.isAdmin) {
+  redirect('/');
+}
 
   const params = await searchParams;
   const page = parseInt(params.page || '1');

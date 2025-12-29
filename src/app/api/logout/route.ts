@@ -1,16 +1,22 @@
 // src/app/api/logout/route.ts
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth/actions';
+import { destroySession, getSession } from '@/lib/auth/actions';
 
 export async function POST() {
   try {
-    const session = await getSession();
-    session.destroy(); // Vernietigt de sessie en verwijdert de cookie
+    const { user } = await getSession();
+
+    // Alleen vernietigen als ingelogd
+    if (user.isLoggedIn) {
+      await destroySession();
+    }
 
     return NextResponse.json({ message: 'Succesvol uitgelogd' });
-    
   } catch (error: any) {
-    console.error('[Auth API] Logout Fout:', error.message);
-    return NextResponse.json({ error: 'Er is een fout opgetreden bij het uitloggen' }, { status: 500 });
+    console.error('[Auth API] Logout Fout:', error?.message ?? error);
+    return NextResponse.json(
+      { error: 'Er is een fout opgetreden bij het uitloggen' },
+      { status: 500 }
+    );
   }
 }

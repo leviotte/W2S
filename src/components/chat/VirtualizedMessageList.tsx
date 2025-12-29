@@ -3,13 +3,13 @@
 
 import React, { useEffect, useRef } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
-import type { ChatMessage } from '@/types/chat';
+import type { Message } from '@/types';
 import { shouldShowDate, formatChatDate } from '@/lib/utils/chat';
 import { ChatMessage as ChatMessageComponent } from '@/components/chat/ChatMessage';
 import { LoadingSpinner } from '../ui/loading-spinner';
 
 interface VirtualizedMessageListProps {
-  messages: ChatMessage[];
+  messages: Message[];
   eventId: string;
   currentUserId: string;
   onEdit?: (messageId: string, newText: string) => Promise<void>;

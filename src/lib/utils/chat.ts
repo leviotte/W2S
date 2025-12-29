@@ -1,12 +1,12 @@
 // src/lib/utils/chat.ts
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { nlBE } from 'date-fns/locale';
-import type { ChatMessage } from '@/types/chat';
+import type { Message } from '@/types';
 
 /**
  * Check if date separator should be shown
  */
-export function shouldShowDate(messages: ChatMessage[], index: number): boolean {
+export function shouldShowDate(messages: Message[], index: number): boolean {
   if (index === 0) return true;
 
   const currentMessage = messages[index];

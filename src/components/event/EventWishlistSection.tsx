@@ -92,13 +92,13 @@ export default function EventWishlistsSection({
       return;
     }
 
-    if (participant.wishlistId) {
+        if (participant.wishlistId) {
       router.push(
         `/dashboard/wishlist/${participant.wishlist.slug}/${eventId}?tab=wishlists&subTab=event-details`
       );
     } else {
       router.push(
-        `/dashboard/event/${eventId}/request/${participant.id}?tab=event&subTab=request&type=wishlist`
+        `/dashboard/event/${eventId}?tab=event&subTab=request&type=wishlist&participantId=${participant.id}`
       );
     }
   };

@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { getUserProfileByUsername } from '@/lib/server/data/users';
 import { getUserProfileAction } from '@/lib/server/actions/user-actions';
 import { getSubProfileById } from '@/lib/server/data/profiles'; // ✅ ADDED
-import { getUserWishlistsAction } from '@/lib/server/actions/wishlist';
+import { createWishlistAction } from '@/lib/server/actions/wishlist';
 import { getCurrentUser } from '@/lib/auth/actions';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import FollowButton from '@/components/followers/FollowButton';
@@ -73,7 +73,7 @@ if (!profileData) {
 
   // ✅ Voor sub-profiles, gebruik de userId om wishlists op te halen
   const wishlistOwnerId = isSubProfile ? profileData.id : profileData.id;
-  const wishlistsResult = await getUserWishlistsAction(wishlistOwnerId);
+  const wishlistsResult = await createWishlistAction(wishlistOwnerId);
   const wishlists = wishlistsResult.success && wishlistsResult.data ? wishlistsResult.data : [];
 
   const wishlistsRecord = wishlists.reduce<Record<string, (typeof wishlists)[number]>>((acc, w) => {

@@ -1,80 +1,123 @@
 // src/app/dashboard/events/upcoming/_components/upcoming-events-client-page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import EventCard from "@/components/events/event-card";
-import { Button } from "@/components/ui/button";
-import type { Event } from "@/types/event";
-import { deleteEventAction } from "@/lib/server/actions/events";
 import { toast } from "sonner";
+import { deleteEventAction } from "@/lib/server/actions/events";
+import type { Event } from "@/types/event";
+import {
+  Card, CardContent, CardDescription, CardFooter,
+  CardHeader, CardTitle
+} from "@/components/ui/card";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Trash2, Loader2, ArrowRight } from "lucide-react";
 
 interface UpcomingEventsClientPageProps {
   initialEvents: Event[];
   userId: string;
 }
 
-export default function UpcomingEventsClientPage({
-  initialEvents,
-  userId,
-}: UpcomingEventsClientPageProps) {
+export default function UpcomingEventsClientPage({ initialEvents, userId }: UpcomingEventsClientPageProps) {
   const router = useRouter();
-  const [events, setEvents] = useState(initialEvents);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
-  // Filter upcoming events
-  const upcomingEvents = events.filter((event) => {
-    const now = new Date();
-    const eventDate = new Date(event.date);
-    
-    if (event.time) {
-      const dateTime = new Date(`${event.date}T${event.time}`);
-      return dateTime > now;
-    } else {
-      eventDate.setDate(eventDate.getDate() + 1);
-      return eventDate > now;
-    }
-  });
+  const formatDate = (dateString: string | Date) => {
+    const date = typeof dateString === "string" ? new Date(dateString) : dateString;
+    return new Intl.DateTimeFormat("nl-BE", { dateStyle: "long" }).format(date);
+  };
 
-  const handleDelete = async (eventId: string) => {
-    try {
-      await deleteEventAction(eventId);
-      setEvents(events.filter((e) => e.id !== eventId));
-      toast.success("Evenement verwijderd");
+  const handleDelete = async (eventId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDeleting(eventId);
+
+    const result = await deleteEventAction(eventId);
+
+    if (result.success) {
+      toast.success("Evenement succesvol verwijderd!");
       router.refresh();
-    } catch (error) {
-      console.error("Error deleting event:", error);
-      toast.error("Fout bij verwijderen evenement");
+    } else {
+      toast.error(result.message || "Kon het evenement niet verwijderen.");
     }
+
+    setIsDeleting(null);
+  };
+
+  const handleCardClick = (eventId: string) => {
+    router.push(`/dashboard/event/${eventId}`);
   };
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex items-center justify-start mb-4">
-        <h1 className="text-2xl font-bold text-accent my-2">
-          Aankomende evenementen
-        </h1>
-        <Button
-          className="bg-warm-olive text-white px-4 py-2 rounded-md hover:bg-cool-olive ml-4"
-          onClick={() => router.push("/dashboard/events/create")}
-        >
-          Nieuw Evenement
-        </Button>
-      </div>
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {initialEvents.map((event) => {
+        // fix: gebruik fallback voor organizerId
+        const isOrganizer = event.organizerId ? event.organizerId === userId : event.organizer === userId;
 
-      {upcomingEvents.length > 0 ? (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-          {upcomingEvents.map((event) => (
-            <EventCard
-              key={event.id}
-              event={event}
-              currentUserId={userId}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
-      ) : (
-        <p className="text-accent">Geen aankomende evenementen gevonden.</p>
-      )}
+        return (
+          <Card
+            key={event.id}
+            className="group relative flex flex-col justify-between transition-all duration-200 hover:shadow-lg cursor-pointer"
+            onClick={() => handleCardClick(event.id)}
+          >
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span className="truncate">{event.name}</span>
+              </CardTitle>
+              <CardDescription>
+                📅 {formatDate(event.date)}
+              </CardDescription>
+            </CardHeader>
+
+            {event.budget && event.budget > 0 && (
+              <CardContent>💰 Budget: €{event.budget}</CardContent>
+            )}
+
+            <CardFooter className="flex justify-between items-center border-t pt-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground group-hover:text-primary transition-colors">
+                <span>Bekijk details</span>
+                <ArrowRight className="h-4 w-4" />
+              </div>
+
+              {isOrganizer && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => e.stopPropagation()}
+                      disabled={isDeleting === event.id}
+                      className="hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      {isDeleting === event.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    </Button>
+                  </AlertDialogTrigger>
+
+                  <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Weet je het zeker?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Deze actie kan niet ongedaan gemaakt worden. Het evenement <strong>{event.name}</strong> wordt permanent verwijderd.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Annuleren</AlertDialogCancel>
+                      <AlertDialogAction onClick={(e) => handleDelete(event.id, e)} className="bg-destructive hover:bg-destructive/80">
+                        Verwijderen
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </CardFooter>
+          </Card>
+        );
+      })}
     </div>
   );
 }

@@ -1,4 +1,6 @@
 // src/app/layout.tsx
+import { cookies } from 'next/headers';
+import { getCurrentUser } from '@/lib/auth/actions';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
@@ -18,29 +20,23 @@ export const metadata: Metadata = {
   description: 'Deel eenvoudig je wenslijsten voor elke gelegenheid.',
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const currentUser = await getCurrentUser();
+
+  // ✅ Read active profile from cookie
+  const cookieStore = await cookies();
+  const activeProfileId = cookieStore.get('activeProfile')?.value || 'main-account';
+
   return (
     <html lang="nl" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
           <AuthProvider>
             <div className="relative flex min-h-screen flex-col bg-background">
-              <Navbar />
-              {/* ✅ GOED: flex-1 zonder extra padding */}
+              <Navbar serverUser={currentUser} /> {/* activeProfileId alleen toevoegen als NavbarProps dat ondersteunt */}
               <main className="flex-1">{children}</main>
               <Footer />
             </div>
-            
-            {/* Globale componenten */}
             <Toaster richColors position="top-center" />
             <AuthModalManager />
           </AuthProvider>

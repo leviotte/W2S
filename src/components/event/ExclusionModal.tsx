@@ -2,8 +2,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
 import { toast } from 'sonner';
+import { X } from 'lucide-react';
 
 import type { EventParticipant } from '@/types/event';
 import {
@@ -19,6 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
 interface ExclusionModalProps {
+  isOpen: boolean; // controlled open state
   participants: EventParticipant[];
   exclusions: Record<string, string[]>;
   onSave: (exclusions: Record<string, string[]>) => Promise<void>;
@@ -26,6 +27,7 @@ interface ExclusionModalProps {
 }
 
 export default function ExclusionModal({
+  isOpen,
   participants,
   exclusions: initialExclusions,
   onSave,
@@ -36,6 +38,7 @@ export default function ExclusionModal({
   );
   const [isSaving, setIsSaving] = useState(false);
 
+  // Sync with incoming exclusions
   useEffect(() => {
     setExclusions(initialExclusions || {});
   }, [initialExclusions]);
@@ -44,7 +47,7 @@ export default function ExclusionModal({
     personId: string,
     excludedId: string,
     isExcluded: boolean
-  ) => {
+  ): void => {
     setExclusions((prev) => {
       const newExclusions = { ...prev };
 
@@ -53,13 +56,11 @@ export default function ExclusionModal({
       }
 
       if (isExcluded) {
-        // Check if other person already has max exclusions
-        let count = 0;
-        Object.values(newExclusions).forEach((ids) => {
-          if (ids.includes(excludedId)) {
-            count += 1;
-          }
-        });
+        // Max exclusions check
+        const count = Object.values(newExclusions).reduce(
+          (acc, ids) => acc + (ids.includes(excludedId) ? 1 : 0),
+          0
+        );
 
         if (count >= participants.length - 3) {
           toast.error(
@@ -69,7 +70,7 @@ export default function ExclusionModal({
         }
 
         if (!newExclusions[personId].includes(excludedId)) {
-          newExclusions[personId] = [...newExclusions[personId], excludedId];
+          newExclusions[personId].push(excludedId);
         }
       } else {
         newExclusions[personId] = newExclusions[personId].filter(
@@ -81,17 +82,17 @@ export default function ExclusionModal({
     });
   };
 
-  const countRemainingOptions = (personId: string) => {
+  const countRemainingOptions = (personId: string): number => {
     const excluded = exclusions[personId] || [];
     return participants.length - 1 - excluded.length;
   };
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<void> => {
     setIsSaving(true);
     try {
       await onSave(exclusions);
-    } catch (error) {
-      console.error('Error saving exclusions:', error);
+    } catch (err) {
+      console.error('Error saving exclusions:', err);
       toast.error('Kon exclusions niet opslaan');
     } finally {
       setIsSaving(false);
@@ -99,7 +100,7 @@ export default function ExclusionModal({
   };
 
   return (
-    <Dialog open onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
         <DialogHeader>
           <DialogTitle>Exclusies Configureren</DialogTitle>

@@ -6,6 +6,8 @@ import { adminDb } from '@/lib/server/firebase-admin';
 import { getSession } from '@/lib/auth/actions';
 import type { SubProfile } from '@/types/user';
 import { nanoid } from 'nanoid';
+import type { AuthenticatedSessionUser } from '@/types/session';
+
 
 const subProfileSchema = z.object({
   firstName: z.string().min(1, "Voornaam is verplicht"),
@@ -27,25 +29,25 @@ type SubProfileData = z.infer<typeof subProfileSchema>;
 
 export async function createSubProfileAction(data: unknown) {
   const session = await getSession();
-  if (!session?.user?.id) {
+  if (!session.user.isLoggedIn) {
     return { success: false, error: 'Authenticatie vereist.' };
   }
+  // Vanaf hier gegarandeerd: session.user is AuthenticatedSessionUser
+  const userId = (session.user as AuthenticatedSessionUser).id;
 
   const validation = subProfileSchema.safeParse(data);
   if (!validation.success) {
-    return { 
-      success: false, 
-      error: 'Ongeldige data.', 
-      details: validation.error.flatten() 
+    return {
+      success: false,
+      error: 'Ongeldige data.',
+      details: validation.error.flatten()
     };
   }
-  
+
   const profileData = validation.data;
   const displayName = `${profileData.firstName} ${profileData.lastName}`.trim();
+  const managersArr = [userId];
 
-  const managersArr = [session.user.id];
-
-  // Zet emails array zoals in productie
   let emailsArr: { email: string; id: string }[] = [];
   if (profileData.email && profileData.email.length > 0) {
     emailsArr = [{
@@ -53,13 +55,12 @@ export async function createSubProfileAction(data: unknown) {
       id: nanoid(),
     }];
   }
-  // Je kan hier optioneel parentId, slug,... meegeven.
-  
+
   try {
     const profilesRef = adminDb.collection('profiles');
     const newProfileData = {
       ...profileData,
-      userId: session.user.id, // MAIN LINK!
+      userId: userId, // MAIN LINK!
       displayName,
       displayName_lowercase: displayName.toLowerCase(),
       isPublic: false,
@@ -67,7 +68,6 @@ export async function createSubProfileAction(data: unknown) {
       emails: emailsArr,
       createdAt: new Date(),
       updatedAt: new Date(),
-      // Let op: firebase zal null/undefined velden mogelijk droppen, dus alles initialiseren!
     };
 
     const newProfileRef = await profilesRef.add(newProfileData);
@@ -76,19 +76,18 @@ export async function createSubProfileAction(data: unknown) {
     revalidatePath('/dashboard/profiles');
     revalidatePath('/dashboard/add-profile');
 
-    return { 
-      success: true, 
-      data: { 
-        id: newProfileRef.id, 
-        ...newProfileData 
-      } 
+    return {
+      success: true,
+      data: {
+        id: newProfileRef.id,
+        ...newProfileData
+      }
     };
-
   } catch (error) {
     console.error("Fout bij aanmaken subprofiel:", error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Kon het profiel niet aanmaken in de database.' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Kon het profiel niet aanmaken in de database.'
     };
   }
 }
@@ -103,18 +102,18 @@ export async function getUserSubProfilesAction(): Promise<{
   data: SubProfile[];
 }> {
   const session = await getSession();
-  if (!session?.user?.id) {
+  if (!session.user.isLoggedIn) {
     return { success: false, error: 'Authenticatie vereist.', data: [] };
   }
+  const userId = (session.user as AuthenticatedSessionUser).id;
 
   try {
     const snapshot = await adminDb
       .collection('profiles')
-      .where('userId', '==', session.user.id)
+      .where('userId', '==', userId)
       .orderBy('createdAt', 'desc')
       .get();
 
-    // ✅ EXPLICIT TYPE CAST - TypeScript weet nu wat dit is!
     const profiles: SubProfile[] = snapshot.docs.map(doc => {
       const data = doc.data();
       return {
@@ -128,8 +127,8 @@ export async function getUserSubProfilesAction(): Promise<{
         gender: data.gender || null,
         address: data.address || null,
         isPublic: data.isPublic ?? false,
-        createdAt: data.createdAt?.toDate?.() || new Date(),
-        updatedAt: data.updatedAt?.toDate?.() || new Date(),
+        createdAt: data.createdAt?.toDate?.() ?? new Date(),
+        updatedAt: data.updatedAt?.toDate?.() ?? new Date(),
       } as SubProfile;
     });
 
@@ -139,16 +138,16 @@ export async function getUserSubProfilesAction(): Promise<{
     return { success: false, error: 'Kon profielen niet ophalen.', data: [] };
   }
 }
-
 // ============================================================================
 // GET SUBPROFILE BY ID
 // ============================================================================
 
 export async function getSubProfileByIdAction(profileId: string) {
   const session = await getSession();
-  if (!session?.user?.id) {
+  if (!session.user.isLoggedIn) {
     return { success: false, error: 'Authenticatie vereist.', data: null };
   }
+  const userId = (session.user as AuthenticatedSessionUser).id;
 
   try {
     const profileDoc = await adminDb.collection('profiles').doc(profileId).get();
@@ -160,7 +159,7 @@ export async function getSubProfileByIdAction(profileId: string) {
     const profileData = profileDoc.data();
     
     // ✅ Security check: Only owner can view
-    if (profileData?.userId !== session.user.id) {
+    if (profileData?.userId !== userId) {
       return { success: false, error: 'Geen toestemming.', data: null };
     }
 
@@ -188,9 +187,10 @@ export async function updateSubProfileAction(
   updates: Partial<SubProfileData>
 ) {
   const session = await getSession();
-  if (!session?.user?.id) {
+  if (!session.user.isLoggedIn) {
     return { success: false, error: 'Authenticatie vereist.' };
   }
+  const userId = (session.user as AuthenticatedSessionUser).id;
 
   try {
     const profileRef = adminDb.collection('profiles').doc(profileId);
@@ -201,7 +201,7 @@ export async function updateSubProfileAction(
     }
 
     const profileData = profileDoc.data();
-    if (profileData?.userId !== session.user.id) {
+    if (profileData?.userId !== userId) {
       return { success: false, error: 'Geen toestemming.' };
     }
 
@@ -239,9 +239,10 @@ export async function updateSubProfileAction(
 
 export async function deleteSubProfileAction(profileId: string) {
   const session = await getSession();
-  if (!session?.user?.id) {
+  if (!session.user.isLoggedIn) {
     return { success: false, error: 'Authenticatie vereist.' };
   }
+  const userId = (session.user as AuthenticatedSessionUser).id;
 
   try {
     const profileRef = adminDb.collection('profiles').doc(profileId);
@@ -252,7 +253,7 @@ export async function deleteSubProfileAction(profileId: string) {
     }
 
     const profileData = profileDoc.data();
-    if (profileData?.userId !== session.user.id) {
+    if (profileData?.userId !== userId) {
       return { success: false, error: 'Geen toestemming.' };
     }
 

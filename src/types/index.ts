@@ -10,7 +10,7 @@ export * from './address';
 export * from './user';
 
 // Chat & Task (independent)
-export * from './chat';
+export * from './message';
 export * from './task';
 
 // Product (independent - MOET VOOR WISHLIST)

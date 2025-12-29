@@ -14,7 +14,7 @@ export {
   destroySession, 
   getUserId, 
   getUserEmail,
-  isAuthenticated,
+  isAuthenticatedSession as isAuthenticated,
   isAdmin,
   isPartner,
 } from './session';

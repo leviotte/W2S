@@ -1,3 +1,4 @@
+// src/app/dashboard/events/past/_components/past-events-client-page.tsx
 "use client";
 
 import { useState } from "react";
@@ -6,23 +7,13 @@ import { toast } from "sonner";
 import { deleteEventAction } from "@/lib/server/actions/events";
 import type { Event } from "@/types/event";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
+  Card, CardContent, CardDescription, CardFooter,
+  CardHeader, CardTitle
 } from "@/components/ui/card";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Trash2, Loader2, ArrowRight } from "lucide-react";
@@ -32,10 +23,7 @@ interface PastEventsClientPageProps {
   currentUserId: string;
 }
 
-export function PastEventsClientPage({ 
-  initialEvents, 
-  currentUserId 
-}: PastEventsClientPageProps) {
+export function PastEventsClientPage({ initialEvents, currentUserId }: PastEventsClientPageProps) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
@@ -45,19 +33,18 @@ export function PastEventsClientPage({
   };
 
   const handleDelete = async (eventId: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card click
-    
+    e.stopPropagation();
     setIsDeleting(eventId);
-    
+
     const result = await deleteEventAction(eventId);
-    
+
     if (result.success) {
       toast.success("Evenement succesvol verwijderd!");
-      router.refresh(); // Revalidate server data
+      router.refresh();
     } else {
       toast.error(result.message || "Kon het evenement niet verwijderen.");
     }
-    
+
     setIsDeleting(null);
   };
 
@@ -96,17 +83,13 @@ export function PastEventsClientPage({
                       )}
                     </CardTitle>
                     <CardDescription>
-                      <span className="flex items-center gap-2">
-                        📅 {formatDate(event.date)}
-                      </span>
+                      📅 {formatDate(event.date)}
                     </CardDescription>
                   </CardHeader>
 
                   {event.budget && event.budget > 0 && (
                     <CardContent>
-                      <p className="text-sm text-muted-foreground">
-                        💰 Budget: €{event.budget}
-                      </p>
+                      💰 Budget: €{event.budget}
                     </CardContent>
                   )}
                 </div>
@@ -127,11 +110,7 @@ export function PastEventsClientPage({
                           disabled={isDeleting === event.id}
                           className="hover:bg-destructive/10 hover:text-destructive"
                         >
-                          {isDeleting === event.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
+                          {isDeleting === event.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                         </Button>
                       </AlertDialogTrigger>
 
@@ -144,13 +123,8 @@ export function PastEventsClientPage({
                         </AlertDialogHeader>
 
                         <AlertDialogFooter>
-                          <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
-                            Annuleren
-                          </AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={(e) => handleDelete(event.id, e)}
-                            className="bg-destructive hover:bg-destructive/80"
-                          >
+                          <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Annuleren</AlertDialogCancel>
+                          <AlertDialogAction onClick={(e) => handleDelete(event.id, e)} className="bg-destructive hover:bg-destructive/80">
                             Verwijderen
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -163,14 +137,12 @@ export function PastEventsClientPage({
           })}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center py-12 px-4">
-          <div className="text-center space-y-3">
-            <div className="text-6xl mb-4">📅</div>
-            <h3 className="text-xl font-semibold">Geen afgelopen evenementen</h3>
-            <p className="text-muted-foreground max-w-md">
-              Evenementen die verlopen zijn, verschijnen hier automatisch.
-            </p>
-          </div>
+        <div className="flex flex-col items-center justify-center py-12 px-4 text-center space-y-3">
+          <div className="text-6xl mb-4">📅</div>
+          <h3 className="text-xl font-semibold">Geen afgelopen evenementen</h3>
+          <p className="text-muted-foreground max-w-md">
+            Evenementen die verlopen zijn, verschijnen hier automatisch.
+          </p>
         </div>
       )}
     </div>

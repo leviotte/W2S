@@ -7,6 +7,7 @@ import { getSession } from '@/lib/auth/actions';
 import { adminDb, adminAuth } from '@/lib/server/firebase-admin';
 import { userProfileSchema, socialLinksSchema, type SocialLinks } from '@/types/user';
 import { passwordChangeSchema } from '@/lib/validators/settings';
+import type { AuthenticatedSessionUser } from '@/types/session';
 
 // --- State Definities voor useFormState ---
 
@@ -35,9 +36,10 @@ export async function updateUserPassword(
   formData: FormData
 ): Promise<PasswordFormState> {
   const session = await getSession();
-  if (!session?.user?.id) {
+  if (!session.user.isLoggedIn) {
     return { success: false, message: 'Authenticatie mislukt. Log opnieuw in.' };
   }
+  const userId = (session.user as AuthenticatedSessionUser).id;
 
   const rawData = Object.fromEntries(formData.entries());
   const parsed = passwordChangeSchema.safeParse(rawData);
@@ -52,7 +54,7 @@ export async function updateUserPassword(
   const { newPassword } = parsed.data;
 
   try {
-    await adminAuth.updateUser(session.user.id, { password: newPassword });
+    await adminAuth.updateUser(userId, { password: newPassword });
     return { success: true, message: 'Je wachtwoord is succesvol bijgewerkt.' };
   } catch (error) {
     console.error('Fout bij bijwerken van wachtwoord:', error);
@@ -64,13 +66,14 @@ export async function updateUserPassword(
 // Deze kun je later gebruiken met een vergelijkbaar formulier als de PasswordChangeSection
 
 export async function updateProfileInfo(
-    prevState: ProfileInfoFormState,
-    formData: FormData
+  prevState: ProfileInfoFormState,
+  formData: FormData
 ): Promise<ProfileInfoFormState> {
     const session = await getSession();
-    if (!session?.user?.id) {
+    if (!session.user.isLoggedIn) {
         return { success: false, message: 'Authenticatie mislukt.' };
     }
+    const userId = (session.user as AuthenticatedSessionUser).id;
 
     const dataToUpdate = {
         displayName: formData.get('displayName'),
@@ -93,8 +96,7 @@ export async function updateProfileInfo(
     }
 
     try {
-        // CORRECTIE: We updaten de 'users' collectie, niet 'profiles'
-        const userRef = adminDb.collection('users').doc(session.user.id);
+        const userRef = adminDb.collection('users').doc(userId);
         await userRef.update(validatedFields.data);
 
         revalidatePath('/dashboard/settings');
@@ -115,10 +117,10 @@ export async function updateProfileInfo(
 
 export async function updateSocialLinks(data: SocialLinks): Promise<{ success: boolean; message: string; }> {
     const session = await getSession();
-    if (!session?.user?.id) {
-        // Gebruik 'throw' zodat toast.promise de error kan vangen
+    if (!session.user.isLoggedIn) {
         throw new Error('Authenticatie mislukt. Log opnieuw in.');
     }
+    const userId = (session.user as AuthenticatedSessionUser).id;
 
     const validatedFields = socialLinksSchema.safeParse(data);
     if (!validatedFields.success) {
@@ -126,9 +128,9 @@ export async function updateSocialLinks(data: SocialLinks): Promise<{ success: b
     }
 
     try {
-        const userRef = adminDb.collection('users').doc(session.user.id);
+        const userRef = adminDb.collection('users').doc(userId);
         await userRef.update({
-            socials: validatedFields.data // Update het geneste 'socials' object
+            socials: validatedFields.data
         });
         
         revalidatePath('/dashboard/settings');

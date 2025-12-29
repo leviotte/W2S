@@ -1,46 +1,20 @@
 // src/lib/auth/get-server-session.ts
-import 'server-only';
 import { getSession } from './session';
+import type { SessionUser, AuthenticatedSessionUser, Session, isAuthenticated } from '@/types/session';
 
-/**
- * Server session return type
- */
-export type ServerSession = {
-  user: {
-    uid: string;
-    email: string;
-    displayName: string;
-    photoURL: string | null | undefined;
-    firstName: string;
-    lastName: string;
-    username: string | null | undefined;
-    isAdmin: boolean | undefined;
-    isPartner: boolean | undefined;
-  } | null;
-  isAdmin: boolean; // ✅ TOEGEVOEGD - voor makkelijke toegang
-};
+export async function getServerSession(): Promise<{ user: SessionUser }> {
+  const rawSession = await getSession();
 
-/**
- * Haal server session op
- * Gebruikt je bestaande Iron Session implementatie
- */
-export async function getServerSession(): Promise<ServerSession> {
-  const session = await getSession();
-  
-  const user = session.isLoggedIn && session.user ? {
-    uid: session.user.id,
-    email: session.user.email,
-    displayName: session.user.displayName,
-    photoURL: session.user.photoURL,
-    firstName: session.user.firstName,
-    lastName: session.user.lastName,
-    username: session.user.username,
-    isAdmin: session.user.isAdmin,
-    isPartner: session.user.isPartner,
-  } : null;
+  // Guest fallback
+  if (!rawSession || !('user' in rawSession) || !rawSession.user.isLoggedIn) {
+    return { user: { isLoggedIn: false } };
+  }
 
-  return {
-    user,
-    isAdmin: user?.isAdmin === true, // ✅ TOEGEVOEGD
+  // TS-safe assign
+  const user: AuthenticatedSessionUser = {
+    ...rawSession.user,
+    // Add any extra fields if needed!
   };
+
+  return { user };
 }

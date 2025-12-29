@@ -1,271 +1,144 @@
 // src/lib/auth/session.ts
-/**
- * Iron Session Configuration
- * 
- * Beveiligde server-side sessie management met iron-session.
- * Sessions worden encrypted opgeslagen in cookies.
- * 
- * ⚠️ BELANGRIJK: Cookies hebben een limiet van ~4KB
- * → Bewaar ALLEEN essentiële data, geen grote objecten!
- * 
- * @see https://github.com/vvo/iron-session
- */
-import 'server-only';
-import { getIronSession, type IronSession } from 'iron-session';
+'use server';
+
 import { cookies } from 'next/headers';
+import { createHmac, timingSafeEqual } from 'crypto';
+import {
+  sessionUserSchema,
+  type SessionUser,
+  type AuthenticatedSessionUser,
+} from '@/types/session';
 
-// ============================================================================
-// SESSION USER INTERFACE
-// ============================================================================
+const SESSION_COOKIE_NAME = 'wish2share_session';
+const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 dagen
+const SESSION_SECRET = process.env.SESSION_PASSWORD;
 
-export interface SessionUser {
-  // ✅ Essential identifiers
-  id: string;                    // Firebase UID
-  email: string;                 // User email
-  
-  // ✅ Display info (short strings only!)
-  firstName: string;             // Voor UI display
-  lastName: string;              // Voor UI display
-  displayName: string;           // Full name voor UI
-  photoURL?: string | null;      // Avatar URL (kort!)
-  username?: string | null;      // Username voor profile URLs
-  
-  // ✅ Role flags (tiny!)
-  isAdmin?: boolean;             // Admin access
-  isPartner?: boolean;           // Partner access
-  
-  // ✅ Timestamps (small)
-  createdAt: number;             // Session creation
-  lastActivity: number;          // Last activity
-  
-  // ❌ NIET IN SESSION:
-  // - Hele user profile objects
-  // - Arrays (wishlists, events, etc.)
-  // - Nested objects (address, preferences, etc.)
-  // → Deze haal je op uit Firestore wanneer nodig!
+if (!SESSION_SECRET || SESSION_SECRET.length < 32) {
+  throw new Error('[Session] SESSION_PASSWORD ontbreekt of is te kort (min 32 chars)');
 }
 
-// ============================================================================
-// SESSION DATA
-// ============================================================================
+// ===========================
+// Helpers
+// ===========================
 
-export interface SessionData {
-  user?: SessionUser;
-  isLoggedIn: boolean;
-}
+const base64UrlEncode = (str: string): string =>
+  Buffer.from(str, 'utf-8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 
-// ============================================================================
-// SESSION OPTIONS VALIDATION
-// ============================================================================
-
-function validateSessionPassword(): string {
-  const password = process.env.SESSION_PASSWORD;
-
-  if (!password) {
-    throw new Error(
-      '[Iron Session] Fatal Error: SESSION_PASSWORD environment variable is niet ingesteld.\n' +
-        'Voeg deze toe aan je .env.local file met een random string van minimaal 32 characters.'
-    );
-  }
-
-  if (password.length < 32) {
-    throw new Error(
-      `[Iron Session] Fatal Error: SESSION_PASSWORD moet minimaal 32 characters lang zijn.\n` +
-        `Huidige lengte: ${password.length} characters.\n` +
-        'Genereer een nieuwe random string van minimaal 32 characters.'
-    );
-  }
-
-  return password;
-}
-
-// ============================================================================
-// SESSION CONFIGURATION
-// ============================================================================
-
-// ✅ FIX: TYPO gecorrigeerd!
-export const sessionOptions = {
-  password: validateSessionPassword(),
-  cookieName: 'wish2share_session',
-  cookieOptions: {
-    // Secure cookies in productie (alleen HTTPS)
-    secure: process.env.NODE_ENV === 'production',
-    // HttpOnly voorkomt JavaScript toegang tot de cookie
-    httpOnly: true,
-    // SameSite beschermt tegen CSRF attacks
-    sameSite: 'lax' as const,
-    // Cookie verloopt na 30 dagen
-    maxAge: 60 * 60 * 24 * 30, // 30 dagen in seconden
-    // Path waar de cookie geldig is
-    path: '/',
-  },
-  // TTL (Time To Live) van de sessie data
-  ttl: 60 * 60 * 24 * 30, // 30 dagen in seconden
+const base64UrlDecode = (str: string): string => {
+  let input = str.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = input.length % 4;
+  if (pad) input += '='.repeat(4 - pad);
+  return Buffer.from(input, 'base64').toString('utf-8');
 };
 
-// ============================================================================
-// CORE SESSION FUNCTIONS
-// ============================================================================
+const hashValue = (value: string): string =>
+  createHmac('sha256', SESSION_SECRET!).update(value).digest('hex');
 
-/**
- * Get the current session
- * ✅ ENIGE PLEK waar getIronSession wordt aangeroepen
- */
-export async function getSession(): Promise<IronSession<SessionData>> {
-  // GEEN await → cookies() is sync en geeft een CookieStore!
-  const cookieStore = await cookies();
-  return getIronSession<SessionData>(cookieStore, sessionOptions);
+const safeTimingEqual = (a: string, b: string): boolean =>
+  a.length === b.length &&
+  timingSafeEqual(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'));
+
+// ===========================
+// Core Session Logic
+// ===========================
+
+export async function getSession(): Promise<{ user: SessionUser }> {
+  try {
+    const cookieStore = await cookies();
+    const rawCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+
+    if (!rawCookie) return { user: { isLoggedIn: false } };
+
+    const [payloadB64, signature] = rawCookie.split('.');
+    if (!payloadB64 || !signature) return { user: { isLoggedIn: false } };
+
+    const expectedSig = hashValue(payloadB64);
+    if (!safeTimingEqual(signature, expectedSig)) {
+      console.warn('[Session] Ongeldige cookie signature');
+      return { user: { isLoggedIn: false } };
+    }
+
+    const payloadStr = base64UrlDecode(payloadB64);
+    const parsed = JSON.parse(payloadStr);
+
+    const result = sessionUserSchema.safeParse(parsed);
+    if (!result.success) return { user: { isLoggedIn: false } };
+
+    return { user: result.data };
+  } catch (err) {
+    console.error('[Session] Fout bij parsen cookie:', err);
+    return { user: { isLoggedIn: false } };
+  }
 }
 
-/**
- * Create a new session with user data
- * ✅ AANGEROEPEN: Na succesvolle Firebase login/register via auth.ts
- */
-export async function createSession(userData: {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  photoURL?: string | null;
-  username?: string | null;
-  isAdmin?: boolean;
-  isPartner?: boolean;
-}) {
-  const session = await getSession();
+export async function createSession(
+  userData: Omit<AuthenticatedSessionUser, 'isLoggedIn' | 'createdAt' | 'lastActivity'>
+): Promise<void> {
   const now = Date.now();
-  
-  // ✅ KRITISCH: Alleen primitieve types, GEEN objecten/arrays!
-  session.user = {
-    id: userData.id,
-    email: userData.email,
-    firstName: userData.firstName,
-    lastName: userData.lastName,
-    displayName: userData.displayName,
-    photoURL: userData.photoURL || null,
-    username: userData.username || null,
-    isAdmin: userData.isAdmin || false,
-    isPartner: userData.isPartner || false,
+
+  const session: AuthenticatedSessionUser = {
+    ...userData,
+    isLoggedIn: true,
     createdAt: now,
     lastActivity: now,
   };
-  session.isLoggedIn = true;
-  
-  await session.save();
-  
-  // ✅ Cookie size debugging
-  const cookieSize = JSON.stringify(session.user).length;
-  console.log(`[Session] ✅ Session created for user: ${userData.email}`);
-  console.log(`[Session] 📊 Cookie size: ${cookieSize} bytes (max 4096)`);
-  
-  if (cookieSize > 2000) {
-    console.warn(`[Session] ⚠️  Cookie size is getting large: ${cookieSize} bytes`);
-  }
-  
-  if (cookieSize > 4096) {
-    console.error(`[Session] ❌ CRITICAL: Cookie exceeds 4KB limit! Size: ${cookieSize} bytes`);
-    throw new Error(`Session cookie too large: ${cookieSize} bytes (max 4096)`);
-  }
+
+  const payloadStr = JSON.stringify(session);
+  const payloadB64 = base64UrlEncode(payloadStr);
+  const signature = hashValue(payloadB64);
+  const cookieValue = `${payloadB64}.${signature}`;
+
+  const cookieStore = await cookies();
+  cookieStore.set({
+    name: SESSION_COOKIE_NAME,
+    value: cookieValue,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: SESSION_MAX_AGE,
+  });
 }
 
-/**
- * Destroy the current session
- * ✅ AANGEROEPEN: Bij logout
- */
-export async function destroySession() {
-  const session = await getSession();
-  session.destroy();
-  
-  console.log('[Session] 🔓 Session destroyed (logout)');
+export async function destroySession(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.set({
+    name: SESSION_COOKIE_NAME,
+    value: '',
+    path: '/',
+    maxAge: 0,
+  });
 }
 
-/**
- * Update session flags (admin/partner status)
- * ✅ GEBRUIK: Voor role updates zonder re-login
- */
-export async function updateSessionFlags(flags: {
-  isAdmin?: boolean;
-  isPartner?: boolean;
-}) {
-  const session = await getSession();
+// ===========================
+// Shortcuts
+// ===========================
 
-  if (!session.user) {
-    throw new Error('[Session] No active session to update');
-  }
-
-  session.user = {
-    ...session.user,
-    ...flags,
-    lastActivity: Date.now(),
-  };
-
-  await session.save();
-  
-  console.log(`[Session] 🔄 Session flags updated for user: ${session.user.email}`);
-}
-
-/**
- * Update session activity timestamp
- * ✅ GEBRUIK: Voor activity tracking (optioneel)
- */
-export async function updateSessionActivity(): Promise<void> {
-  try {
-    const session = await getSession();
-    if (session.isLoggedIn && session.user) {
-      session.user.lastActivity = Date.now();
-      await session.save();
-    }
-  } catch (error) {
-    console.error('[Session] Error updating session activity:', error);
-  }
-}
-
-// ============================================================================
-// HELPER FUNCTIONS (voor convenience)
-// ============================================================================
-
-/**
- * Get current authenticated user ID or null
- */
 export async function getUserId(): Promise<string | null> {
-  const session = await getSession();
-  return session.user?.id || null;
+  const { user } = await getSession();
+  return user.isLoggedIn ? user.id : null;
 }
 
-/**
- * Get current authenticated user email or null
- */
 export async function getUserEmail(): Promise<string | null> {
-  const session = await getSession();
-  return session.user?.email || null;
+  const { user } = await getSession();
+  return user.isLoggedIn ? user.email : null;
 }
 
-/**
- * Check if user is authenticated
- */
-export async function isAuthenticated(): Promise<boolean> {
-  const session = await getSession();
-  return session.isLoggedIn && !!session.user;
+export async function isAuthenticatedSession(): Promise<boolean> {
+  const { user } = await getSession();
+  return user.isLoggedIn === true;
 }
 
-/**
- * Check if user is admin
- */
 export async function isAdmin(): Promise<boolean> {
-  const session = await getSession();
-  return session.user?.isAdmin === true;
+  const { user } = await getSession();
+  return user.isLoggedIn === true && user.isAdmin === true;
 }
 
-/**
- * Check if user is partner
- */
 export async function isPartner(): Promise<boolean> {
-  const session = await getSession();
-  return session.user?.isPartner === true;
+  const { user } = await getSession();
+  return user.isLoggedIn === true && user.isPartner === true;
 }
-
-// ============================================================================
-// EXPORTS
-// ============================================================================
-
-export type { IronSession };

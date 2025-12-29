@@ -8,12 +8,15 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import TaskList from './TaskList';
-
-import { 
+import {
+  updateEventAction,
+  getEventByIdAction,
+  registerParticipantAction,
+  confirmParticipantAction,
   updateEventTasksAction,
   assignParticipantToTaskAction,
   removeParticipantFromTaskAction,
-  toggleTaskAction 
+  toggleTaskAction
 } from '@/lib/server/actions/events';
 
 import type { Event, EventParticipant } from '@/types/event';

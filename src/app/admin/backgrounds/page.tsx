@@ -11,9 +11,9 @@ type Props = {
 export default async function AdminBackgroundsPage({ searchParams }: Props) {
   const session = await getServerSession();
 
-  if (!session?.user?.isAdmin) {
-    redirect('/');
-  }
+  if (!session.user.isLoggedIn || !session.user.isAdmin) {
+  redirect('/');
+}
 
   const params = await searchParams;
   const type = (params.type as 'web' | 'wishlist' | 'event') || 'web';

@@ -6,7 +6,7 @@ import { MoreVertical, Edit2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { nlBE } from 'date-fns/locale';
 
-import type { ChatMessage as ChatMessageType } from '@/types/chat';
+import type { Message as ChatMessageType } from '@/types';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { cn } from '@/lib/utils';
 import {

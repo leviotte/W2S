@@ -15,7 +15,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
 
   return (
     <div className="min-h-screen bg-background">
-      {/* GEEN SIDEBAR - Full width layout */}
+      {/* Navbar wordt nu enkel in RootLayout getoond */}
       <main className="w-full">{children}</main>
     </div>
   );

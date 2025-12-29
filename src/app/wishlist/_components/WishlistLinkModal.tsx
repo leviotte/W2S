@@ -5,15 +5,12 @@ import { useState, useTransition, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Link as LinkIcon, Plus, RefreshCw } from "lucide-react";
-
 import { useCurrentUser } from "@/lib/store/use-auth-store";
 import {
-  getUserWishlistsAction,
   createWishlistAction,
   linkWishlistToEventAction,
 } from "@/lib/server/actions/wishlist";
 import type { Wishlist } from "@/types/wishlist";
-
 import {
   Dialog,
   DialogContent,
@@ -78,7 +75,7 @@ export function WishlistLinkModal({
 
     setIsLoading(true);
     try {
-      const result = await getUserWishlistsAction(currentUser.id);
+      const result = await createWishlistAction(currentUser.id);
 
       if (result.success && result.data) {
         setWishlists(result.data);
@@ -172,7 +169,7 @@ export function WishlistLinkModal({
   if (linkResult.success) {
     toast.success("Wishlist aangemaakt en gekoppeld!");
     onOpenChange(false);
-    router.push(`/dashboard/wishlist/${result.data.slug}/${eventId}?tab=wishlists&subTab=details`);
+    router.push(`/dashboard/wishlists/create/${eventId}/${participantId || currentUser.id}`);
     router.refresh();
   } else {
     toast.error(linkResult.error || "Aanmaken gelukt, maar koppelen mislukt");

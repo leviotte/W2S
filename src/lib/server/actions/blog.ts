@@ -4,6 +4,7 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/server/firebase-admin';
 import { getSession } from '@/lib/auth/session';
+import type { Session, AuthenticatedSessionUser } from '@/types/session';
 import { revalidatePath, revalidateTag } from '@/lib/utils/revalidate';
 import { z } from 'zod';
 import { productSchema } from '@/types/product';
@@ -55,13 +56,23 @@ export type CreatePostFormState = {
 };
 
 // ============================================================================
-// HELPER FUNCTIONS
+// HELPERS
 // ============================================================================
 
 function fromFirestoreTimestamp(timestamp: any): Date {
   if (!timestamp) return new Date();
   if (typeof timestamp.toDate === 'function') return timestamp.toDate();
   return new Date(timestamp);
+}
+
+/**
+ * ✅ Helper om AuthenticatedSessionUser te garanderen
+ */
+function requireAuthUser(session: Session): AuthenticatedSessionUser {
+  if (!session.user.isLoggedIn) {
+    throw new Error('Authenticatie vereist');
+  }
+  return session.user;
 }
 
 // ============================================================================
@@ -109,47 +120,38 @@ export async function getAllPostsAction(options?: {
   limit?: number;
 }) {
   try {
-    let query = adminDb.collection('posts') as any;
+    let query: any = adminDb.collection('posts');
 
-    if (options?.published !== undefined) {
-      query = query.where('published', '==', options.published);
-    }
-    if (options?.featured !== undefined) {
-      query = query.where('featured', '==', options.featured);
-    }
-    if (options?.authorId) {
-      query = query.where('authorId', '==', options.authorId);
-    }
+    if (options?.published !== undefined) query = query.where('published', '==', options.published);
+    if (options?.featured !== undefined) query = query.where('featured', '==', options.featured);
+    if (options?.authorId) query = query.where('authorId', '==', options.authorId);
 
     query = query.orderBy('createdAt', 'desc');
-
-    if (options?.limit) {
-      query = query.limit(options.limit);
-    }
+    if (options?.limit) query = query.limit(options.limit);
 
     const snapshot = await query.get();
-    const posts: BlogPost[] = [];
+const posts: BlogPost[] = [];
 
-    for (const doc of snapshot.docs) {
-      const d = doc.data();
-      posts.push({
-        id: doc.id,
-        slug: d.slug ?? doc.id,
-        headTitle: d.headTitle ?? '',
-        headDescription: d.headDescription ?? '',
-        subDescription: d.subDescription ?? '',
-        headImage: d.headImage ?? '',
-        sections: d.sections ?? [],
-        author: d.author ?? undefined,
-        views: d.views ?? undefined,
-        createdAt: d.createdAt
-          ? fromFirestoreTimestamp(d.createdAt)
-          : new Date(),
-        updatedAt: d.updatedAt
-          ? fromFirestoreTimestamp(d.updatedAt)
-          : undefined,
-      });
-    }
+for (const doc of snapshot.docs as FirebaseFirestore.QueryDocumentSnapshot<BlogPost>[]) {
+  const d = doc.data();
+  posts.push({
+    id: doc.id,
+    slug: d.slug ?? doc.id,
+    headTitle: d.headTitle ?? '',
+    headDescription: d.headDescription ?? '',
+    subDescription: d.subDescription ?? '',
+    headImage: d.headImage ?? '',
+    sections: d.sections ?? [],
+    author: d.author ?? undefined,
+    views: d.views ?? undefined,
+    createdAt: d.createdAt
+      ? fromFirestoreTimestamp(d.createdAt)
+      : new Date(),
+    updatedAt: d.updatedAt
+      ? fromFirestoreTimestamp(d.updatedAt)
+      : undefined,
+  });
+}
 
     return { success: true, posts };
   } catch (error) {
@@ -164,10 +166,7 @@ export async function getAllPostsAction(options?: {
 
 export async function createPostAction(data: unknown) {
   try {
-    const session = await getSession();
-    if (!session.isLoggedIn || !session.user) {
-      return { success: false, error: 'Authenticatie vereist' };
-    }
+    const session = requireAuthUser(await getSession());
 
     const validationResult = createPostSchema.safeParse(data);
     if (!validationResult.success) {
@@ -179,22 +178,18 @@ export async function createPostAction(data: unknown) {
       };
     }
 
-    const userName =
-      session.user.displayName ||
-      `${session.user.firstName} ${session.user.lastName}`;
+    const userName = session.displayName || `${session.firstName} ${session.lastName}`;
 
     const newPost = {
       ...validationResult.data,
-      authorId: session.user.id,
+      authorId: session.id,
       authorName: userName,
       views: 0,
       likes: [],
       comments: [],
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
-      publishedAt: validationResult.data.published
-        ? FieldValue.serverTimestamp()
-        : null,
+      publishedAt: validationResult.data.published ? FieldValue.serverTimestamp() : null,
     };
 
     const docRef = await adminDb.collection('posts').add(newPost);
@@ -205,23 +200,17 @@ export async function createPostAction(data: unknown) {
     return { success: true, data: { id: docRef.id } };
   } catch (error) {
     console.error('Firestore fout:', error);
-    return {
-      success: false,
-      error: 'Post kon niet worden opgeslagen',
-    };
+    return { success: false, error: 'Post kon niet worden opgeslagen' };
   }
 }
 
 // ============================================================================
-// UPDATE POST ACTION - ✅ FIXED SIGNATURE
+// UPDATE POST ACTION
 // ============================================================================
 
 export async function updatePostAction(data: unknown) {
   try {
-    const session = await getSession();
-    if (!session.isLoggedIn || !session.user) {
-      return { success: false, error: 'Authenticatie vereist' };
-    }
+    const session = requireAuthUser(await getSession());
 
     const validationResult = updatePostSchema.safeParse(data);
     if (!validationResult.success) {
@@ -238,26 +227,16 @@ export async function updatePostAction(data: unknown) {
     const postRef = adminDb.collection('posts').doc(id);
     const postDoc = await postRef.get();
 
-    if (!postDoc.exists) {
-      return { success: false, error: 'Post niet gevonden' };
-    }
+    if (!postDoc.exists) return { success: false, error: 'Post niet gevonden' };
 
     const existingData = postDoc.data();
-    const isAuthor = existingData?.authorId === session.user.id;
-    const isAdmin = session.user.isAdmin === true;
+    const isAuthor = existingData?.authorId === session.id;
+    const isAdmin = session.isAdmin;
 
-    if (!isAuthor && !isAdmin) {
-      return { success: false, error: 'Geen toestemming' };
-    }
+    if (!isAuthor && !isAdmin) return { success: false, error: 'Geen toestemming' };
 
-    const updateData: any = {
-      ...postData,
-      updatedAt: FieldValue.serverTimestamp(),
-    };
-
-    if (postData.published && !existingData?.published) {
-      updateData.publishedAt = FieldValue.serverTimestamp();
-    }
+    const updateData: any = { ...postData, updatedAt: FieldValue.serverTimestamp() };
+    if (postData.published && !existingData?.published) updateData.publishedAt = FieldValue.serverTimestamp();
 
     await postRef.update(updateData);
 
@@ -269,10 +248,7 @@ export async function updatePostAction(data: unknown) {
     return { success: true, data: undefined };
   } catch (error) {
     console.error('Firestore fout:', error);
-    return {
-      success: false,
-      error: 'Post kon niet worden bijgewerkt',
-    };
+    return { success: false, error: 'Post kon niet worden bijgewerkt' };
   }
 }
 
@@ -282,29 +258,20 @@ export async function updatePostAction(data: unknown) {
 
 export async function deletePostAction(postId: string) {
   try {
-    if (!postId) {
-      return { success: false, error: 'Post ID ontbreekt' };
-    }
+    if (!postId) return { success: false, error: 'Post ID ontbreekt' };
 
-    const session = await getSession();
-    if (!session.isLoggedIn || !session.user) {
-      return { success: false, error: 'Authenticatie vereist' };
-    }
+    const session = requireAuthUser(await getSession());
 
     const postRef = adminDb.collection('posts').doc(postId);
     const postDoc = await postRef.get();
 
-    if (!postDoc.exists) {
-      return { success: false, error: 'Post niet gevonden' };
-    }
+    if (!postDoc.exists) return { success: false, error: 'Post niet gevonden' };
 
     const postData = postDoc.data();
-    const isAuthor = postData?.authorId === session.user.id;
-    const isAdmin = session.user.isAdmin === true;
+    const isAuthor = postData?.authorId === session.id;
+    const isAdmin = session.isAdmin;
 
-    if (!isAuthor && !isAdmin) {
-      return { success: false, error: 'Geen toestemming' };
-    }
+    if (!isAuthor && !isAdmin) return { success: false, error: 'Geen toestemming' };
 
     await postRef.delete();
 
@@ -327,10 +294,7 @@ export async function deletePostAction(postId: string) {
 export async function incrementViewCountAction(postId: string) {
   try {
     const postRef = adminDb.collection('posts').doc(postId);
-    await postRef.update({
-      views: FieldValue.increment(1),
-    });
-
+    await postRef.update({ views: FieldValue.increment(1) });
     return { success: true };
   } catch (error) {
     console.error('Error incrementing view count:', error);
@@ -344,30 +308,20 @@ export async function incrementViewCountAction(postId: string) {
 
 export async function toggleLikeAction(postId: string) {
   try {
-    const session = await getSession();
-    if (!session.isLoggedIn || !session.user) {
-      return { success: false, error: 'Authenticatie vereist' };
-    }
+    const session = requireAuthUser(await getSession());
+    const userId = session.id;
 
-    const userId = session.user.id;
     const postRef = adminDb.collection('posts').doc(postId);
     const postDoc = await postRef.get();
+    if (!postDoc.exists) return { success: false, error: 'Post niet gevonden' };
 
-    if (!postDoc.exists) {
-      return { success: false, error: 'Post niet gevonden' };
-    }
-
-    const likes = postDoc.data()?.likes || [];
+    const likes: string[] = postDoc.data()?.likes || [];
     const hasLiked = likes.includes(userId);
 
     if (hasLiked) {
-      await postRef.update({
-        likes: FieldValue.arrayRemove(userId),
-      });
+      await postRef.update({ likes: FieldValue.arrayRemove(userId) });
     } else {
-      await postRef.update({
-        likes: FieldValue.arrayUnion(userId),
-      });
+      await postRef.update({ likes: FieldValue.arrayUnion(userId) });
     }
 
     revalidateTag(`post-${postId}`);
@@ -385,30 +339,21 @@ export async function toggleLikeAction(postId: string) {
 
 export async function addCommentAction(postId: string, content: string) {
   try {
-    const session = await getSession();
-    if (!session.isLoggedIn || !session.user) {
-      return { success: false, error: 'Authenticatie vereist' };
-    }
+    const session = requireAuthUser(await getSession());
 
-    if (!content || content.trim().length === 0) {
-      return { success: false, error: 'Reactie mag niet leeg zijn' };
-    }
+    if (!content.trim()) return { success: false, error: 'Reactie mag niet leeg zijn' };
 
     const comment = {
       id: adminDb.collection('temp').doc().id,
-      userId: session.user.id,
-      userName:
-        session.user.displayName ||
-        `${session.user.firstName} ${session.user.lastName}`,
-      userPhoto: session.user.photoURL || null,
+      userId: session.id,
+      userName: session.displayName || `${session.firstName} ${session.lastName}`,
+      userPhoto: session.photoURL || null,
       content: content.trim(),
       createdAt: Timestamp.now(),
     };
 
     const postRef = adminDb.collection('posts').doc(postId);
-    await postRef.update({
-      comments: FieldValue.arrayUnion(comment),
-    });
+    await postRef.update({ comments: FieldValue.arrayUnion(comment) });
 
     revalidateTag(`post-${postId}`);
 

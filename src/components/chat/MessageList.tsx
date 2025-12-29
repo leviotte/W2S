@@ -2,7 +2,7 @@
 'use client';
 
 import React from 'react';
-import type { ChatMessage as Message } from '@/types/chat';
+import type { Message as Message } from '@/types';
 import { ChatMessage as ChatMessageComponent } from './ChatMessage';
 import { shouldShowDate, formatChatDate } from '@/lib/utils/chat';
 

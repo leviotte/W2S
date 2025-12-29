@@ -83,16 +83,17 @@ async function loadWishlists(userId: string, activeProfileId: string): Promise<W
 
 export default async function WishlistsDashboardPage() {
   const session = await getSession();
-  if (!session.user) {
-    redirect('/login');
-  }
 
-  // Dit is ALLES wat je nodig hebt!
+  // ✅ Typesafe: Discrimineer altijd expliciet!
+  if (!session.user.isLoggedIn) {
+    redirect('/?auth=login');
+  }
+  const currentUser = session.user;
+
   const cookieStore = await cookies();
   const activeProfileId = cookieStore.get('activeProfile')?.value || 'main-account';
 
-  // Geef nu beide argumenten door
-  const wishlists = await loadWishlists(session.user.id, activeProfileId);
+  const wishlists = await loadWishlists(currentUser.id, activeProfileId);
 
   return (
     <div className="container mx-auto p-4">

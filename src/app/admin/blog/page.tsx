@@ -6,9 +6,9 @@ import { BlogTab } from './_components/blog-tab';
 export default async function AdminBlogPage() {
   const session = await getServerSession();
 
-  if (!session?.user?.isAdmin) {
-    redirect('/');
-  }
+  if (!session.user.isLoggedIn || !session.user.isAdmin) {
+  redirect('/');
+}
 
   return <BlogTab />;
 }

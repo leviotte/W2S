@@ -13,11 +13,11 @@ import ProductDetails from "@/components/products/ProductDetails";
 import {
   updateWishlistItemAction,
   deleteWishlistItemAction,
-  addWishlistItemAction,
+  addItemToWishlistAction,
   updateWishlistBackgroundAction,
   getBackgroundImagesAction,
   getBackgroundCategoriesAction,
-  purchaseWishlistItemAction,
+  markItemPurchasedAction,
   undoPurchaseWishlistItemAction,
 } from "@/lib/server/actions/wishlist";
 import type { WishlistItem } from "@/types/wishlist";
@@ -203,7 +203,7 @@ export function WishlistDetailClient({
     await Promise.all(
       pendingItems.map(async (product) => {
         const wishlistItem = productToWishlistItem(product);
-        const result = await addWishlistItemAction(wishlist.id, wishlistItem);
+        const result = await addItemToWishlistAction(wishlist.id, wishlistItem);
         if (!result.success) errors++;
       })
     );
@@ -229,7 +229,7 @@ export function WishlistDetailClient({
       ...item,
       isIncluded: true,
       images: item.images ? item.images : item.imageUrl ? [item.imageUrl] : [],
-      description: cleanHtml(item.description),
+      description: item.description ? cleanHtml(item.description) : undefined,
     });
   }
 
@@ -560,7 +560,7 @@ export function WishlistDetailClient({
           if (!buyItemId) return;
           const item = deduplicatedItems.find(i => String(i.id) === buyItemId);
           if (!currentUser?.id || !item) return;
-          const result = await purchaseWishlistItemAction(
+          const result = await markItemPurchasedAction(
             wishlist.id,
             String(item.id),
             currentUser.id

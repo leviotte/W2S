@@ -7,9 +7,9 @@ import { MetricsTab } from './_components/metrics-tab';
 export default async function AdminMetricsPage() {
   const session = await getServerSession();
 
-  if (!session?.user?.isAdmin) {
-    redirect('/');
-  }
+  if (!session.user.isLoggedIn || !session.user.isAdmin) {
+  redirect('/');
+}
 
   const data = await getMetricsData();
 

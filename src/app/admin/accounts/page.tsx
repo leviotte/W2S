@@ -5,9 +5,9 @@ import { redirect } from 'next/navigation';
 export default async function AdminAccountsPage() {
   const session = await getServerSession();
 
-  if (!session?.user?.isAdmin) {
-    redirect('/');
-  }
+  if (!session.user.isLoggedIn || !session.user.isAdmin) {
+  redirect('/');
+}
 
   return (
     <div className="space-y-6">

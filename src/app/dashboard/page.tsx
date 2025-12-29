@@ -1,8 +1,9 @@
 // src/app/dashboard/page.tsx
+import { cookies } from 'next/headers';
 import { getCurrentUser } from '@/lib/auth/actions';
 import { redirect } from 'next/navigation';
-import { getEventCountsAction } from '@/lib/server/actions/events';
-import { getWishlistStatsForUser } from '@/lib/server/actions/wishlist';
+import { getUserEventsAction } from '@/lib/server/actions/events';
+import { getWishlistStatsForUser } from '@/lib/server/data/user-stats';
 import { getFollowCountsAction, getFollowersAction, getFollowingAction } from '@/lib/server/actions/follow-actions';
 import DashEventCards from '@/components/dashboard/dash-event-cards';
 import FollowersFollowingCards from '@/components/followers/followers-following-cards';
@@ -15,7 +16,6 @@ export const metadata = {
   description: 'Jouw persoonlijk dashboard',
 };
 
-// ✅ FIX: searchParams is nu een Promise
 interface Props {
   searchParams: Promise<{ tab?: string; subTab?: string }>;
 }
@@ -27,22 +27,21 @@ export default async function DashboardPage({ searchParams }: Props) {
     redirect('/?auth=login');
   }
 
-  // ✅ FIX: Await searchParams!
   const { tab, subTab } = await searchParams;
 
-  // TODO: Implementeer activeProfile logic (uit cookies of session)
-  // Voor nu gebruiken we gewoon de main account
-  const activeProfileId = 'main-account';
+  // ✅ cookies() is async
+  const cookieStore = await cookies();
+  const activeProfileId = cookieStore.get("activeProfile")?.value || "main-account";
+
   const isProfile = activeProfileId !== 'main-account';
   const userId = isProfile ? activeProfileId : user.id;
   const profileName = isProfile ? 'Profile' : user.firstName || user.displayName;
 
-  // ========================================================================
-  // FOLLOWERS TAB
-  // ========================================================================
+  // -----------------------------------------------------------------------
+  // Followers tab
+  // -----------------------------------------------------------------------
   if (tab === 'user' && subTab === 'followers') {
     const result = await getFollowersAction(userId);
-    
     if (!result.success) {
       return <div className="container p-4">Error: {result.error}</div>;
     }
@@ -74,9 +73,7 @@ export default async function DashboardPage({ searchParams }: Props) {
                     <div className="flex-1">
                       <p className="font-medium">{item.displayName}</p>
                       {item.address?.city && (
-                        <p className="text-sm text-muted-foreground">
-                          {item.address.city}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{item.address.city}</p>
                       )}
                     </div>
                   </Link>
@@ -89,12 +86,11 @@ export default async function DashboardPage({ searchParams }: Props) {
     );
   }
 
-  // ========================================================================
-  // FOLLOWING TAB
-  // ========================================================================
+  // -----------------------------------------------------------------------
+  // Following tab
+  // -----------------------------------------------------------------------
   if (tab === 'user' && subTab === 'following') {
     const result = await getFollowingAction(userId);
-    
     if (!result.success) {
       return <div className="container p-4">Error: {result.error}</div>;
     }
@@ -108,7 +104,7 @@ export default async function DashboardPage({ searchParams }: Props) {
           <CardContent>
             {result.data.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
-                Niet volgend gevonden.
+                Je volgt nog niemand. Zoek vrienden in de searchpage en volg ze om op de hoogte te blijven van hun wishlists!
               </p>
             ) : (
               <div className="space-y-3">
@@ -126,9 +122,7 @@ export default async function DashboardPage({ searchParams }: Props) {
                     <div className="flex-1">
                       <p className="font-medium">{item.displayName}</p>
                       {item.address?.city && (
-                        <p className="text-sm text-muted-foreground">
-                          {item.address.city}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{item.address.city}</p>
                       )}
                     </div>
                   </Link>
@@ -141,11 +135,11 @@ export default async function DashboardPage({ searchParams }: Props) {
     );
   }
 
-  // ========================================================================
-  // DEFAULT DASHBOARD (EXACT ALS OUDE VERSIE!)
-  // ========================================================================
+  // -----------------------------------------------------------------------
+  // Default dashboard
+  // -----------------------------------------------------------------------
   const [eventStats, wishlistStats, followCounts] = await Promise.all([
-    getEventCountsAction(userId),
+    getUserEventsAction(userId),
     getWishlistStatsForUser(userId, isProfile),
     getFollowCountsAction(userId),
   ]);
@@ -158,21 +152,17 @@ export default async function DashboardPage({ searchParams }: Props) {
     : { followers: 0, following: 0 };
 
   return (
-    <main className="p-2 sm:p-4">
-      {/* ✅ EXACT zoals oude DashboardInfo.tsx */}
+    <div className="container max-w-4xl mx-auto p-4">
       <h1 className="text-2xl font-bold text-accent my-2">
         {profileName}'s Dashboard
       </h1>
 
-      <DashEventCards
-        events={eventStats}
-        wishlists={wishlistStats}
-      />
+      <DashEventCards events={eventStats} wishlists={wishlistStats} />
 
       <FollowersFollowingCards
         followersCount={followStats.followers}
         followingCount={followStats.following}
       />
-    </main>
+    </div>
   );
 }

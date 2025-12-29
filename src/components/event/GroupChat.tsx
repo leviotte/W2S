@@ -1,15 +1,16 @@
 // src/components/event/GroupChat.tsx
 "use client";
 
+import { useMemo } from "react";
 import MessageList from "../chat/MessageList";
 import ChatInput from "../chat/ChatInput";
-import { ChatMessage } from "@/types";
+import { Message } from "@/types";
 import { useScrollToBottom } from "../../hooks/useScrollToBottom";
 import { X } from "lucide-react";
 
 interface GroupChatProps {
   eventId: string;
-  messages: ChatMessage[];
+  messages: Message[] | undefined; // ✅ undefined kan ook
   onSendMessage: (
     text: string,
     isAnonymous: boolean,
@@ -31,7 +32,25 @@ export default function GroupChat({
   onClose,
   currentUserId,
 }: GroupChatProps) {
-  const chatContainerRef = useScrollToBottom([messages]);
+  // ✅ Zorg dat messages altijd correct gestructureerd zijn
+  const safeMessages: Message[] = useMemo(() => {
+    if (!messages) return [];
+    return messages.map((msg) => ({
+      id: msg.id,
+      userId: msg.userId ?? msg.senderId ?? "unknown",
+      userName: msg.userName ?? "Unknown User",
+      timestamp: msg.timestamp ?? new Date().toISOString(),
+      text: msg.text ?? msg.content ?? "",
+      isAnonymous: msg.isAnonymous ?? false,
+      edited: msg.edited ?? false,
+      read: msg.read ?? false,
+      gifUrl: msg.gifUrl,
+      senderId: msg.senderId,
+      replyTo: msg.replyTo,
+    }));
+  }, [messages]);
+
+  const chatContainerRef = useScrollToBottom([safeMessages]);
 
   return (
     <div
@@ -57,7 +76,7 @@ export default function GroupChat({
         className="flex-1 overflow-y-auto scroll-smooth scrollbar-thin scrollbar-thumb-warm-olive scrollbar-track-transparent bg-cover bg-center"
       >
         <MessageList
-          messages={messages}
+          messages={safeMessages}
           eventId={eventId}
           currentUserId={currentUserId}
           onEdit={onEditMessage}

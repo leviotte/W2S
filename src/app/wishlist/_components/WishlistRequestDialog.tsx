@@ -15,6 +15,7 @@ type DialogContext =
         name: string;
       };
       participant: {
+        id: string; 
         firstName: string;
         lastName: string;
         email?: string;
@@ -52,7 +53,7 @@ export default function WishlistRequestDialog({
 Zin om deel te nemen aan het event "${event.name}" op Wish2Share?
 
 Maak eenvoudig gratis je wishlist aan zodat je verrast kan worden!
-➡️ ${typeof window !== "undefined" ? window.location.origin : ""}/create-wishlist?eventId=${event.id}
+➡️ ${typeof window !== "undefined" ? window.location.origin : ""}/dashboard/wishlists/create/${event.id}/${participant.id}
 
 Tot snel op het event!
 De Wish2Share-crew`;

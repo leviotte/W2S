@@ -6,9 +6,13 @@ import { revalidatePath } from 'next/cache';
 import { nowTimestamp } from '@/lib/utils/time';
 import { getSession } from '@/lib/auth/actions';
 import type { UserProfile } from '@/types/user';
-import type { UpdateWishlistItemData } from '@/types/wishlist';
-import type { Wishlist, WishlistItem } from '@/types/wishlist';
-import { serializeWishlist, serializeWishlistItem, serializeUserProfile } from '@/lib/utils/serializers';
+import type { BackgroundCategory, BackgroundImage } from '@/types/background';
+import type { Wishlist, WishlistItem, UpdateWishlistItemData, CreateWishlistData } from '@/types/wishlist';
+import {
+  serializeWishlist,
+  serializeWishlistItem,
+  serializeUserProfile,
+} from '@/lib/utils/serializers';
 
 export interface ActionResult<T = any> {
   success: boolean;
@@ -18,68 +22,63 @@ export interface ActionResult<T = any> {
   message?: string;
 }
 
-export interface CreateWishlistData {
-  name: string;
-  description?: string;
-  isPublic?: boolean;
-  backgroundImage?: string;
-  minPrice?: number;
-  maxPrice?: number;
-  ownerName?: string;
-  participantIds?: string[];
-  items?: WishlistItem[];
-  profileId?: string | null;
-  tags?: string[];
-  category?: string | null;
-}
-export interface UpdateWishlistData {
-  name?: string;
-  description?: string;
-  isPublic?: boolean;
-  backgroundImage?: string;
-  minPrice?: number;
-  maxPrice?: number;
-  tags?: string[];
-  category?: string | null;
-  profileId?: string | null;
-}
-
-export interface CreateWishlistParams {
-  userId: string;
-  data: CreateWishlistData;
-}
+// ============================================================================
+// CREATE / UPDATE WISHLIST
+// ============================================================================
 
 export async function createWishlistAction({
   userId,
-  data
-}: CreateWishlistParams): Promise<ActionResult<{ id: string; slug: string }>> {
+  data,
+}: { userId: string; data: CreateWishlistData }): Promise<ActionResult<{ id: string; slug: string }>> {
   try {
-    const slug = data.name
+    const slugBase = data.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
+
     const existingSnapshot = await adminDb
       .collection('wishlists')
-      .where('slug', '==', slug)
+      .where('slug', '==', slugBase)
       .limit(1)
       .get();
-    const finalSlug = existingSnapshot.empty ? slug : `${slug}-${Date.now()}`;
 
-    const wishlistData = {
-      ...data,
+    const finalSlug = existingSnapshot.empty ? slugBase : `${slugBase}-${Date.now()}`;
+
+    const wishlistData: Wishlist = {
+      id: '', // Firestore auto-ID
       userId,
-      ownerId: userId, // backwards compat alleen; gebruik overal userId!
-      participantIds: data.participantIds ?? [userId],
-      slug: finalSlug,
+      ownerId: userId,
+      ownerName: data.ownerName,
+      name: data.name,
+      description: data.description ?? undefined,
       isPublic: data.isPublic ?? false,
-      items: Array.isArray(data.items) ? data.items : [],
+      backgroundImage: data.backgroundImage ?? undefined,
+      items: data.items ?? [],
       sharedWith: [],
       createdAt: nowTimestamp(),
       updatedAt: nowTimestamp(),
-      profileId: data.profileId ?? null,
+      profileId: data.profileId ?? undefined,
+      eventId: data.eventId ?? undefined,
+      participantId: data.participantId ?? undefined,
+      slug: finalSlug,
+      tags: data.tags ?? [],
+      category: data.category ?? undefined,
+      minPrice: data.minPrice ?? 0,
+      maxPrice: data.maxPrice ?? 0,
+      participantIds: data.participantIds ?? [userId],
     };
 
     const docRef = await adminDb.collection('wishlists').add(wishlistData);
+
+    // Event linking
+    if (data.eventId && data.participantId) {
+      await linkWishlistToEventAction({
+        eventId: data.eventId,
+        wishlistId: docRef.id,
+        participantId: data.participantId,
+      });
+    }
+
     revalidatePath('/dashboard/wishlists');
     revalidatePath(`/wishlist/${finalSlug}`);
 
@@ -92,50 +91,23 @@ export async function createWishlistAction({
   }
 }
 
-export async function getUserWishlistsAction(userId: string): Promise<ActionResult<Wishlist[]>> {
-  try {
-    const wishlistsSnapshot = await adminDb
-      .collection('wishlists')
-      .where('userId', '==', userId)
-      .orderBy('createdAt', 'desc')
-      .get();
-
-    const wishlists = wishlistsSnapshot.docs.map((doc) => serializeWishlist(doc.data(), doc.id));
-    return { success: true, data: wishlists };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Kon wishlists niet ophalen',
-    };
-  }
-}
-/**
- * ✅ Update wishlist metadata
- */
 export async function updateWishlistAction(
   wishlistId: string,
-  updates: UpdateWishlistData
+  updates: Partial<Wishlist>
 ): Promise<ActionResult> {
   try {
-    const updateData: any = {
+    await adminDb.collection('wishlists').doc(wishlistId).update({
       ...updates,
       updatedAt: nowTimestamp(),
-    };
+    });
 
-    await adminDb.collection('wishlists').doc(wishlistId).update(updateData);
-
-    // Get slug for revalidation
     const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
     const slug = doc.data()?.slug;
-
     revalidatePath('/dashboard/wishlists');
-    if (slug) {
-      revalidatePath(`/wishlist/${slug}`);
-    }
+    if (slug) revalidatePath(`/wishlist/${slug}`);
 
     return { success: true };
   } catch (error) {
-    console.error('updateWishlistAction error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Kon wishlist niet bijwerken',
@@ -143,25 +115,18 @@ export async function updateWishlistAction(
   }
 }
 
-/**
- * ✅ Delete a wishlist
- */
 export async function deleteWishlistAction(wishlistId: string): Promise<ActionResult> {
   try {
-    // Get slug before deletion for revalidation
     const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
     const slug = doc.data()?.slug;
 
     await adminDb.collection('wishlists').doc(wishlistId).delete();
 
     revalidatePath('/dashboard/wishlists');
-    if (slug) {
-      revalidatePath(`/wishlist/${slug}`);
-    }
+    if (slug) revalidatePath(`/wishlist/${slug}`);
 
     return { success: true };
   } catch (error) {
-    console.error('deleteWishlistAction error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Kon wishlist niet verwijderen',
@@ -170,215 +135,123 @@ export async function deleteWishlistAction(wishlistId: string): Promise<ActionRe
 }
 
 // ============================================================================
-// WISHLIST ITEMS OPERATIONS
+// WISHLIST ITEMS
 // ============================================================================
 
-/**
- * ✅ Add item to wishlist - FIXED met quantity-based deduplication
- */
 export async function addItemToWishlistAction(
   wishlistId: string,
   item: Partial<WishlistItem>
 ): Promise<ActionResult> {
   try {
-    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
+    const docRef = adminDb.collection('wishlists').doc(wishlistId);
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) return { success: false, error: 'Wishlist niet gevonden' };
 
-    if (!doc.exists) {
-      return { success: false, error: 'Wishlist niet gevonden' };
-    }
+    const wishlistData = docSnap.data() as Wishlist;
+    const items = wishlistData.items ?? [];
 
-    const wishlistData = doc.data();
-    const items = wishlistData?.items || [];
+    const existingIndex = items.findIndex((i) => String(i.id) === String(item.id));
 
-    // ✅ CHECK: Bestaat dit product al? (match op id = EAN/ASIN)
-    const existingItemIndex = items.findIndex(
-      (existing: WishlistItem) => String(existing.id) === String(item.id)
-    );
-
-    let updatedItems;
+    let updatedItems: WishlistItem[];
     let message = 'Item toegevoegd';
 
-    if (existingItemIndex !== -1) {
-      // ✅ Product bestaat al → verhoog quantity
-      updatedItems = items.map((existing: WishlistItem, index: number) => {
-        if (index === existingItemIndex) {
-          return {
-            ...existing,
-            quantity: (existing.quantity || 1) + (item.quantity || 1),
-            // ✅ Update prijs/afbeelding voor het geval die gewijzigd zijn
-            price: item.price ?? existing.price,
-            imageUrl: item.imageUrl ?? existing.imageUrl,
-            updatedAt: nowTimestamp(),
-          };
-        }
-        return existing;
-      });
+    if (existingIndex !== -1) {
+      updatedItems = items.map((i, idx) =>
+        idx === existingIndex
+          ? {
+              ...i,
+              quantity: (i.quantity ?? 1) + (item.quantity ?? 1),
+              price: item.price ?? i.price,
+              imageUrl: item.imageUrl ?? i.imageUrl,
+              updatedAt: nowTimestamp(),
+            }
+          : i
+      );
       message = 'Aantal verhoogd';
     } else {
-      // ✅ Nieuw product → voeg toe
-      const newItem = {
-        ...item,
-        id: item.id, // ✅ Gebruik EAN/ASIN als ID
-        productId: item.productId || item.id,
-        title: item.title || '',
-        description: item.description || '',
-        url: item.url || '',
-        imageUrl: item.imageUrl || (item as any).image || '',
-        price: item.price || 0,
-        quantity: item.quantity || 1,
+      const newItem: WishlistItem = {
+        source: item.source ?? 'Internal',
+        id: item.id!,
+        productId: item.productId ?? item.id!,
+        title: item.title ?? '',
+        description: item.description ?? '',
+        url: item.url ?? '',
+        imageUrl: item.imageUrl ?? '',
+        price: item.price ?? 0,
+        quantity: item.quantity ?? 1,
         isReserved: false,
-        source: item.source || 'Internal',
-        platforms: item.platforms || {},
+        isPurchased: false,
+        platforms: item.platforms ?? {},
         addedAt: nowTimestamp(),
         updatedAt: nowTimestamp(),
       };
-
       updatedItems = [...items, newItem];
     }
 
-    await adminDb.collection('wishlists').doc(wishlistId).update({
-      items: updatedItems,
-      updatedAt: nowTimestamp(),
-    });
+    await docRef.update({ items: updatedItems, updatedAt: nowTimestamp() });
 
-    const slug = wishlistData?.slug;
     revalidatePath('/dashboard/wishlists');
-    if (slug) {
-      revalidatePath(`/wishlist/${slug}`);
-    }
+    if (wishlistData.slug) revalidatePath(`/wishlist/${wishlistData.slug}`);
 
     return { success: true, message };
   } catch (error) {
-    console.error('addItemToWishlistAction error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Kon item niet toevoegen',
-    };
+    return { success: false, error: error instanceof Error ? error.message : 'Kon item niet toevoegen' };
   }
 }
 
-/**
- * ✅ Add item to wishlist (alias for backwards compatibility)
- */
-export async function addWishlistItemAction(
-  wishlistId: string,
-  item: Partial<WishlistItem>
-): Promise<ActionResult> {
-  return addItemToWishlistAction(wishlistId, item);
-}
-
-/**
- * ✅ Update wishlist item
- */
 export async function updateWishlistItemAction({
   wishlistId,
   itemId,
   updates,
 }: UpdateWishlistItemData): Promise<ActionResult> {
   try {
-    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
+    const docRef = adminDb.collection('wishlists').doc(wishlistId);
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) return { success: false, error: 'Wishlist niet gevonden' };
 
-    if (!doc.exists) {
-      return { success: false, error: 'Wishlist niet gevonden' };
-    }
+    const wishlistData = docSnap.data() as Wishlist;
+    const items = wishlistData.items ?? [];
 
-    const wishlistData = doc.data();
-    const items = wishlistData?.items || [];
+    const index = items.findIndex((i) => String(i.id) === String(itemId));
+    if (index === -1) return { success: false, error: 'Item niet gevonden' };
 
-    const itemIndex = items.findIndex(
-      (item: WishlistItem) => String(item.id) === String(itemId)
-    );
+    items[index] = { ...items[index], ...updates, updatedAt: nowTimestamp() };
 
-    if (itemIndex === -1) {
-      return { success: false, error: 'Item niet gevonden' };
-    }
+    await docRef.update({ items, updatedAt: nowTimestamp() });
 
-    items[itemIndex] = {
-      ...items[itemIndex],
-      ...updates,
-      updatedAt: nowTimestamp(),
-    };
-
-    await adminDb.collection('wishlists').doc(wishlistId).update({
-      items,
-      updatedAt: nowTimestamp(),
-    });
-
-    const slug = wishlistData?.slug;
     revalidatePath('/dashboard/wishlists');
-    if (slug) {
-      revalidatePath(`/wishlist/${slug}`);
-    }
+    if (wishlistData.slug) revalidatePath(`/wishlist/${wishlistData.slug}`);
 
     return { success: true };
   } catch (error) {
-    console.error('updateWishlistItemAction error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Kon item niet bijwerken',
-    };
+    return { success: false, error: error instanceof Error ? error.message : 'Kon item niet bijwerken' };
   }
 }
 
-/**
- * ✅ Delete wishlist item
- */
-export async function deleteWishlistItemAction(
-  wishlistId: string,
-  itemId: string
-): Promise<ActionResult> {
+export async function deleteWishlistItemAction(wishlistId: string, itemId: string): Promise<ActionResult> {
   try {
-    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
+    const docRef = adminDb.collection('wishlists').doc(wishlistId);
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) return { success: false, error: 'Wishlist niet gevonden' };
 
-    if (!doc.exists) {
-      return { success: false, error: 'Wishlist niet gevonden' };
-    }
+    const wishlistData = docSnap.data() as Wishlist;
+    const updatedItems = (wishlistData.items ?? []).filter((i) => String(i.id) !== String(itemId));
 
-    const wishlistData = doc.data();
-    const items = wishlistData?.items || [];
+    await docRef.update({ items: updatedItems, updatedAt: nowTimestamp() });
 
-    const filteredItems = items.filter(
-      (item: WishlistItem) => String(item.id) !== String(itemId)
-    );
-
-    await adminDb.collection('wishlists').doc(wishlistId).update({
-      items: filteredItems,
-      updatedAt: nowTimestamp(),
-    });
-
-    const slug = wishlistData?.slug;
     revalidatePath('/dashboard/wishlists');
-    if (slug) {
-      revalidatePath(`/wishlist/${slug}`);
-    }
+    if (wishlistData.slug) revalidatePath(`/wishlist/${wishlistData.slug}`);
 
     return { success: true };
   } catch (error) {
-    console.error('deleteWishlistItemAction error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Kon item niet verwijderen',
-    };
+    return { success: false, error: error instanceof Error ? error.message : 'Kon item niet verwijderen' };
   }
 }
 
-/**
- * ✅ Remove item from wishlist (alias for backwards compatibility)
- */
-export async function removeItemFromWishlistAction(
-  wishlistId: string,
-  itemId: string
-): Promise<ActionResult> {
-  return deleteWishlistItemAction(wishlistId, itemId);
-}
-
 // ============================================================================
-// RESERVATION OPERATIONS
+// RESERVATIONS & PURCHASE
 // ============================================================================
 
-/**
- * ✅ Reserve an item
- */
 export async function reserveItemAction(
   wishlistId: string,
   itemId: string,
@@ -386,343 +259,70 @@ export async function reserveItemAction(
   userName: string
 ): Promise<ActionResult> {
   try {
-    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
+    const docRef = adminDb.collection('wishlists').doc(wishlistId);
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) return { success: false, error: 'Wishlist niet gevonden' };
 
-    if (!doc.exists) {
-      return { success: false, error: 'Wishlist niet gevonden' };
-    }
+    const wishlistData = docSnap.data() as Wishlist;
+    const items = wishlistData.items ?? [];
+    const index = items.findIndex((i) => String(i.id) === String(itemId));
+    if (index === -1) return { success: false, error: 'Item niet gevonden' };
+    if (items[index].isReserved) return { success: false, error: 'Item is al gereserveerd' };
 
-    const wishlistData = doc.data();
-    const items = wishlistData?.items || [];
-
-    const itemIndex = items.findIndex(
-      (item: WishlistItem) => String(item.id) === String(itemId)
-    );
-
-    if (itemIndex === -1) {
-      return { success: false, error: 'Item niet gevonden' };
-    }
-
-    if (items[itemIndex].isReserved) {
-      return { success: false, error: 'Item is al gereserveerd' };
-    }
-
-    items[itemIndex] = {
-      ...items[itemIndex],
+    items[index] = {
+      ...items[index],
       isReserved: true,
       reservedBy: userId,
       reservedByName: userName,
-      reservedAt: nowTimestamp(),
       updatedAt: nowTimestamp(),
     };
 
-    await adminDb.collection('wishlists').doc(wishlistId).update({
-      items,
-      updatedAt: nowTimestamp(),
-    });
-
-    const slug = wishlistData?.slug;
+    await docRef.update({ items, updatedAt: nowTimestamp() });
     revalidatePath('/dashboard/wishlists');
-    if (slug) {
-      revalidatePath(`/wishlist/${slug}`);
-    }
+    if (wishlistData.slug) revalidatePath(`/wishlist/${wishlistData.slug}`);
 
     return { success: true };
   } catch (error) {
-    console.error('reserveItemAction error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Kon item niet reserveren',
-    };
+    return { success: false, error: error instanceof Error ? error.message : 'Kon item niet reserveren' };
   }
 }
 
-/**
- * ✅ Unreserve an item
- */
-export async function unreserveItemAction(
+export async function markItemPurchasedAction(
   wishlistId: string,
-  itemId: string
+  itemId: string,
+  purchasedBy: string
 ): Promise<ActionResult> {
   try {
-    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
+    const docRef = adminDb.collection('wishlists').doc(wishlistId);
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) return { success: false, error: 'Wishlist niet gevonden' };
 
-    if (!doc.exists) {
-      return { success: false, error: 'Wishlist niet gevonden' };
-    }
+    const wishlistData = docSnap.data() as Wishlist;
+    const items = wishlistData.items ?? [];
+    const index = items.findIndex((i) => String(i.id) === String(itemId));
+    if (index === -1) return { success: false, error: 'Item niet gevonden' };
 
-    const wishlistData = doc.data();
-    const items = wishlistData?.items || [];
-
-    const itemIndex = items.findIndex(
-      (item: WishlistItem) => String(item.id) === String(itemId)
-    );
-
-    if (itemIndex === -1) {
-      return { success: false, error: 'Item niet gevonden' };
-    }
-
-    items[itemIndex] = {
-      ...items[itemIndex],
-      isReserved: false,
-      reservedBy: null,
-      reservedByName: null,
-      reservedAt: null,
+    items[index] = {
+      ...items[index],
+      isPurchased: true,
+      purchasedBy,
       updatedAt: nowTimestamp(),
     };
 
-    await adminDb.collection('wishlists').doc(wishlistId).update({
-      items,
-      updatedAt: nowTimestamp(),
-    });
-
-    const slug = wishlistData?.slug;
+    await docRef.update({ items, updatedAt: nowTimestamp() });
     revalidatePath('/dashboard/wishlists');
-    if (slug) {
-      revalidatePath(`/wishlist/${slug}`);
-    }
+    if (wishlistData.slug) revalidatePath(`/wishlist/${wishlistData.slug}`);
 
     return { success: true };
   } catch (error) {
-    console.error('unreserveItemAction error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Kon reservering niet verwijderen',
-    };
+    return { success: false, error: error instanceof Error ? error.message : 'Kon aankoop niet registreren' };
   }
 }
 
 // ============================================================================
-// SHARING OPERATIONS
+// EVENT LINKING
 // ============================================================================
 
-/**
- * ✅ Share wishlist with someone
- */
-export async function shareWishlistAction(
-  wishlistId: string,
-  userId: string
-): Promise<ActionResult> {
-  try {
-    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
-
-    if (!doc.exists) {
-      return { success: false, error: 'Wishlist niet gevonden' };
-    }
-
-    const wishlistData = doc.data();
-    const sharedWith = wishlistData?.sharedWith || [];
-
-    if (sharedWith.includes(userId)) {
-      return { success: false, error: 'Al gedeeld met deze gebruiker' };
-    }
-
-    sharedWith.push(userId);
-
-    await adminDb.collection('wishlists').doc(wishlistId).update({
-      sharedWith,
-      updatedAt: nowTimestamp(),
-    });
-
-    const slug = wishlistData?.slug;
-    revalidatePath('/dashboard/wishlists');
-    if (slug) {
-      revalidatePath(`/wishlist/${slug}`);
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error('shareWishlistAction error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Kon wishlist niet delen',
-    };
-  }
-}
-
-/**
- * ✅ Unshare wishlist
- */
-export async function unshareWishlistAction(
-  wishlistId: string,
-  userId: string
-): Promise<ActionResult> {
-  try {
-    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
-
-    if (!doc.exists) {
-      return { success: false, error: 'Wishlist niet gevonden' };
-    }
-
-    const wishlistData = doc.data();
-    const sharedWith = wishlistData?.sharedWith || [];
-
-    const filteredSharedWith = sharedWith.filter((id: string) => id !== userId);
-
-    await adminDb.collection('wishlists').doc(wishlistId).update({
-      sharedWith: filteredSharedWith,
-      updatedAt: nowTimestamp(),
-    });
-
-    const slug = wishlistData?.slug;
-    revalidatePath('/dashboard/wishlists');
-    if (slug) {
-      revalidatePath(`/wishlist/${slug}`);
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error('unshareWishlistAction error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Kon delen niet verwijderen',
-    };
-  }
-}
-
-// ============================================================================
-// BACKGROUND & CUSTOMIZATION
-// ============================================================================
-
-/**
- * ✅ Update wishlist background
- */
-export async function updateWishlistBackgroundAction(
-  wishlistId: string,
-  backgroundImage: string
-): Promise<ActionResult> {
-  try {
-    await adminDb.collection('wishlists').doc(wishlistId).update({
-      backgroundImage,
-      updatedAt: nowTimestamp(),
-    });
-
-    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
-    const slug = doc.data()?.slug;
-
-    revalidatePath('/dashboard/wishlists');
-    if (slug) {
-      revalidatePath(`/wishlist/${slug}`);
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error('updateWishlistBackgroundAction error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Kon achtergrond niet bijwerken',
-    };
-  }
-}
-
-/**
- * ✅ Get all background images for wishlists
- */
-export async function getBackgroundImagesAction(): Promise<ActionResult<any[]>> {
-  try {
-    const snapshot = await adminDb.collection('WishlistBackImages').get();
-
-    const images = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
-    return { success: true, data: images };
-  } catch (error) {
-    console.error('getBackgroundImagesAction error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Kon achtergronden niet ophalen',
-    };
-  }
-}
-
-/**
- * ✅ Get background categories
- */
-export async function getBackgroundCategoriesAction(): Promise<ActionResult<any[]>> {
-  try {
-    const snapshot = await adminDb.collection('backgroundCategories').get();
-
-    const categories = snapshot.docs
-      .map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }))
-      .filter((cat: any) => cat.type === 'wishlist');
-
-    return { success: true, data: categories };
-  } catch (error) {
-    console.error('getBackgroundCategoriesAction error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Kon categorieën niet ophalen',
-    };
-  }
-}
-
-// ============================================================================
-// DASHBOARD STATS (voor dashboard overview)
-// ============================================================================
-
-export type WishlistStats = {
-  total: number;
-  public: number;
-  private: number;
-};
-
-/**
- * ✅ Haalt wishlist statistieken op voor een specifieke user of profile
- * Gebruikt voor dashboard overview cards
- */
-export async function getWishlistStatsForUser(
-  userId: string,
-  isProfile: boolean = false
-): Promise<WishlistStats> {
-  try {
-    const wishlistsRef = adminDb.collection('wishlists');
-    
-    // Query afhankelijk van of het een profile of user is
-    const query = isProfile
-      ? wishlistsRef.where('profileId', '==', userId)
-      : wishlistsRef.where('userId', '==', userId).where('profileId', '==', null);
-
-    const snapshot = await query.get();
-    
-    let publicCount = 0;
-    let privateCount = 0;
-
-    snapshot.docs.forEach(doc => {
-      const data = doc.data();
-      if (data.isPrivate || !data.isPublic) {
-        privateCount++;
-      } else {
-        publicCount++;
-      }
-    });
-
-    return {
-      total: snapshot.size,
-      public: publicCount,
-      private: privateCount,
-    };
-  } catch (error) {
-    console.error('Error fetching wishlist stats:', error);
-    return {
-      total: 0,
-      public: 0,
-      private: 0,
-    };
-  }
-}
-
-// ============================================================================
-// EVENT LINKING OPERATIONS
-// ============================================================================
-
-/**
- * ✅ Link wishlist to event participant
- */
 export async function linkWishlistToEventAction({
   eventId,
   wishlistId,
@@ -731,187 +331,101 @@ export async function linkWishlistToEventAction({
   eventId: string;
   wishlistId: string;
   participantId: string;
-}): Promise<ActionResult> {
+}): Promise<void> {
   try {
     const eventRef = adminDb.collection('events').doc(eventId);
-    const eventDoc = await eventRef.get();
-    
-    if (!eventDoc.exists) {
-      return { success: false, error: 'Event niet gevonden' };
-    }
-    
-    const eventData = eventDoc.data();
-    const participants = eventData?.participants || {};
-    
-    // Find participant (can be by key or by id in value)
-    let participantKey: string | null = null;
-    
-    // Check if participantId is a direct key
-    if (participants[participantId]) {
-      participantKey = participantId;
-    } else {
-      // Search by id in participant objects
-      for (const [key, participant] of Object.entries(participants)) {
-        if ((participant as any).id === participantId) {
-          participantKey = key;
-          break;
-        }
-      }
-    }
-    
-    if (!participantKey) {
-      return { success: false, error: 'Deelnemer niet gevonden in event' };
-    }
-    
-    // Update participant with wishlistId
-    participants[participantKey] = {
-      ...participants[participantKey],
-      wishlistId,
-    };
-    
-    await eventRef.update({ 
-      participants,
-      updatedAt: nowTimestamp(),
-    });
-    
-    // Revalidate paths
-    revalidatePath(`/dashboard/event/${eventId}`);
-    revalidatePath('/dashboard/wishlists');
-    
-    return { success: true };
+    await eventRef.set(
+      {
+        wishlists: { [participantId]: wishlistId },
+        updatedAt: nowTimestamp(),
+      },
+      { merge: true }
+    );
   } catch (error) {
     console.error('linkWishlistToEventAction error:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Kon wishlist niet koppelen aan event' 
-    };
   }
 }
-export async function getWishlistBySlugAction(
-  slug: string,
-): Promise<{ success: boolean; data?: Wishlist | null; error?: string }> {
+export async function getWishlistsByOwnerId(
+  ownerId: string
+): Promise<{ success: true; data: Wishlist[] } | { success: false; error: string }> {
   try {
     const snapshot = await adminDb
       .collection('wishlists')
-      .where('slug', '==', slug)
-      .limit(1)
+      .where('userId', '==', ownerId)
       .get();
-    if (snapshot.empty) {
-      return { success: false, data: null, error: 'Niet gevonden' };
-    }
-    const doc = snapshot.docs[0];
-    return { success: true, data: serializeWishlist(doc.data(), doc.id) };
-  } catch (err) {
-    return { success: false, data: null, error: (err as Error).message };
-  }
-}
 
-export async function getWishlistOwnerAction(
-  userId: string,
-): Promise<{ success: boolean; data?: UserProfile | null; error?: string }> {
-  try {
-    const doc = await adminDb.collection('users').doc(userId).get();
-    if (!doc.exists) {
-      return { success: false, data: null, error: 'Gebruiker niet gevonden' };
-    }
-    return { success: true, data: serializeUserProfile(doc.data(), doc.id) };
-  } catch (err) {
-    return { success: false, data: null, error: (err as Error).message };
+    const wishlists = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Wishlist[];
+
+    return { success: true, data: wishlists };
+  } catch (error) {
+    console.error('Error fetching wishlists:', error);
+    return { success: false, error: 'Kon wishlists niet ophalen.' };
   }
 }
-export async function toggleWishlistPrivacyAction(
+export async function updateWishlistBackgroundAction(
   wishlistId: string,
-  isPrivate: boolean
-): Promise<{ success: boolean; error?: string }> {
+  backgroundImage: string
+): Promise<ActionResult> {
   try {
-    const session = await getSession();
-    if (!session?.user) return { success: false, error: 'Niet geautoriseerd' };
+    const docRef = adminDb.collection('wishlists').doc(wishlistId);
+    await docRef.update({ backgroundImage, updatedAt: nowTimestamp() });
 
-    const wishlistDoc = await adminDb.collection('wishlists').doc(wishlistId).get();
-    if (!wishlistDoc.exists) return { success: false, error: 'Wishlist niet gevonden' };
-    const wishlistData = wishlistDoc.data();
-
-    if (wishlistData?.ownerId !== session.user.id) {
-      return { success: false, error: 'Niet geautoriseerd om deze wishlist te wijzigen' };
-    }
-
-    await adminDb.collection('wishlists').doc(wishlistId).update({
-      isPublic: !isPrivate,
-      updatedAt: nowTimestamp(),
-    });
-
+    const doc = await docRef.get();
+    const slug = doc.data()?.slug;
+    revalidatePath(`/wishlist/${slug}`);
     revalidatePath('/dashboard/wishlists');
+
     return { success: true };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Kon privacy niet wijzigen',
-    };
+    return { success: false, error: error instanceof Error ? error.message : 'Kon achtergrond niet bijwerken' };
   }
 }
-/**
- * Markeer Wishlist-Item als gekocht
- */
-export async function purchaseWishlistItemAction(
-  wishlistId: string,
-  itemId: string,
-  purchaserUserId: string
-): Promise<ActionResult> {
+export async function getBackgroundImagesAction(): Promise<ActionResult<BackgroundImage[]>> {
   try {
-    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
-    if (!doc.exists) return { success: false, error: 'Wishlist niet gevonden' };
-
-    const wishlistData = doc.data();
-    const items = wishlistData?.items || [];
-    const itemIndex = items.findIndex((item: WishlistItem) => String(item.id) === String(itemId));
-    if (itemIndex === -1) return { success: false, error: 'Item niet gevonden' };
-
-    items[itemIndex] = {
-      ...items[itemIndex],
-      purchasedBy: purchaserUserId,
-      purchasedAt: new Date().toISOString(),
-    };
-
-    await adminDb.collection('wishlists').doc(wishlistId).update({
-      items,
-      updatedAt: nowTimestamp(),
-    });
-
-    return { success: true };
+    const snapshot = await adminDb.collection('backgroundImages').get();
+    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as BackgroundImage[];
+    return { success: true, data };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Error bij aankopen' };
+    return { success: false, error: error instanceof Error ? error.message : 'Kon achtergrondafbeeldingen niet ophalen' };
   }
 }
 
-/**
- * Undo koopactie (maak aankoop ongedaan)
- */
-export async function undoPurchaseWishlistItemAction(
-  wishlistId: string,
-  itemId: string,
-): Promise<ActionResult> {
+export async function getBackgroundCategoriesAction(): Promise<ActionResult<BackgroundCategory[]>> {
   try {
-    const doc = await adminDb.collection('wishlists').doc(wishlistId).get();
-    if (!doc.exists) return { success: false, error: 'Wishlist niet gevonden' };
+    const snapshot = await adminDb.collection('backgroundCategories').get();
+    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as BackgroundCategory[];
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Kon achtergrondcategorieën niet ophalen' };
+  }
+}
+export async function undoPurchaseWishlistItemAction(wishlistId: string, itemId: string): Promise<ActionResult> {
+  try {
+    const docRef = adminDb.collection('wishlists').doc(wishlistId);
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) return { success: false, error: 'Wishlist niet gevonden' };
 
-    const wishlistData = doc.data();
-    const items = wishlistData?.items || [];
-    const itemIndex = items.findIndex((item: WishlistItem) => String(item.id) === String(itemId));
-    if (itemIndex === -1) return { success: false, error: 'Item niet gevonden' };
+    const wishlistData = docSnap.data() as Wishlist;
+    const items = wishlistData.items ?? [];
+    const index = items.findIndex((i) => String(i.id) === String(itemId));
+    if (index === -1) return { success: false, error: 'Item niet gevonden' };
 
-    items[itemIndex] = {
-      ...items[itemIndex],
-      purchasedBy: null,
-      purchasedAt: null,
+    items[index] = {
+      ...items[index],
+      isPurchased: false,
+      purchasedBy: undefined,
+      updatedAt: nowTimestamp(),
     };
 
-    await adminDb.collection('wishlists').doc(wishlistId).update({
-      items,
-      updatedAt: nowTimestamp(),
-    });
+    await docRef.update({ items, updatedAt: nowTimestamp() });
+    revalidatePath('/dashboard/wishlists');
+    if (wishlistData.slug) revalidatePath(`/wishlist/${wishlistData.slug}`);
 
     return { success: true };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Error bij undo aankoop' };
+    return { success: false, error: error instanceof Error ? error.message : 'Kon aankoop niet ongedaan maken' };
   }
 }

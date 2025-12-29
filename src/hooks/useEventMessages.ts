@@ -2,16 +2,16 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import type { ChatMessage } from '@/types/chat';
+import type { Message } from '@/types';
 
-export function useEventMessages(initialMessages: ChatMessage[] = []) {
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+export function useEventMessages(initialMessages: Message[] = []) {
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
 
   const sendMessage = useCallback(
     (text: string, userId: string, userName: string, anonymousMode: boolean, gifUrl?: string) => {
       const messageId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      const message: ChatMessage = {
+      const message: Message = {
         id: messageId,
         text: text,
         userId: userId,

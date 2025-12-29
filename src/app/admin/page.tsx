@@ -22,9 +22,9 @@ export const metadata = {
 export default async function AdminPage() {
   const session = await getServerSession();
 
-  if (!session?.user?.isAdmin) {
-    redirect('/');
-  }
+  if (!session.user.isLoggedIn || !session.user.isAdmin) {
+  redirect('/');
+}
 
   const adminSections = [
     {
