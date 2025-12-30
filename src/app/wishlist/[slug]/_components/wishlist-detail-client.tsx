@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { productToWishlistItem } from "@/lib/utils/product-helpers";
 
-interface WishlistDetailClientProps {
+export interface WishlistDetailClientProps {
   wishlist: any;
   owner: any;
   currentUser: UserProfile | null;

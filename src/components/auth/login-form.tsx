@@ -8,14 +8,12 @@ import { z } from 'zod';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { signInWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
-import { useRouter } from 'next/navigation';
 
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { SocialAuthButtons } from './social-auth-buttons';
 import { getClientAuth } from '@/lib/client/firebase';
-import { completeLoginAction } from '@/lib/server/actions/auth';
 
 const loginFormSchema = z.object({
   email: z.string().email('Ongeldig e-mailadres.'),
@@ -25,21 +23,19 @@ const loginFormSchema = z.object({
 type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 interface LoginFormProps {
-  onSuccess?: () => void;
+  onSuccess?: (idToken: string) => Promise<void>; // ✅ idToken doorgeven aan server action
   onSwitchToRegister?: () => void;
   onSwitchToForgotPassword?: () => void;
-  returnUrl?: string;
+  returnUrl?: string; // kan nog gebruikt worden voor fallback redirect
 }
 
 export function LoginForm({ 
   onSuccess, 
   onSwitchToRegister, 
-  onSwitchToForgotPassword,
-  returnUrl 
+  onSwitchToForgotPassword
 }: LoginFormProps) {
   const [isPending, startTransition] = useTransition();
   const [showPassword, setShowPassword] = useState(false);
-  const router = useRouter();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -50,12 +46,7 @@ export function LoginForm({
     startTransition(async () => {
       try {
         const auth = getClientAuth();
-        const userCredential = await signInWithEmailAndPassword(
-          auth, 
-          data.email, 
-          data.password
-        );
-        
+        const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
         const user = userCredential.user;
 
         if (!user.emailVerified) {
@@ -74,27 +65,17 @@ export function LoginForm({
         }
 
         const idToken = await user.getIdToken();
-        const result = await completeLoginAction(idToken);
 
-        if (result.success) {
+        if (onSuccess) {
+          await onSuccess(idToken); // ✅ call server action
           toast.success('Welkom terug!');
-          
-          if (onSuccess) {
-            onSuccess();
-          }
-          
-          const redirectTo = returnUrl || result.data?.redirectTo || '/dashboard';
-          router.push(redirectTo);
-          router.refresh();
-        } else {
-          toast.error(result.error || 'Login mislukt');
         }
 
       } catch (error: any) {
         console.error("Firebase login error:", error);
-        
+
         let errorMessage = 'Er is een onbekende fout opgetreden.';
-        
+
         if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
           errorMessage = 'Ongeldige login-gegevens. Controleer je e-mail en wachtwoord.';
         } else if (error.code === 'auth/user-not-found') {
@@ -102,7 +83,7 @@ export function LoginForm({
         } else if (error.code === 'auth/too-many-requests') {
           errorMessage = 'Te veel mislukte pogingen. Probeer het later opnieuw.';
         }
-        
+
         toast.error('Login mislukt', { description: errorMessage });
       }
     });
@@ -147,7 +128,6 @@ export function LoginForm({
             name="password"
             render={({ field }) => (
               <FormItem>
-                {/* ✅ Label met "Vergeten?" rechts - EXACT als productie */}
                 <div className="flex items-center justify-between">
                   <FormLabel className="text-gray-700">Wachtwoord</FormLabel>
                   {onSwitchToForgotPassword && (
@@ -205,13 +185,12 @@ export function LoginForm({
         </form>
       </Form>
 
-      {/* ✅ DIVIDER - FIXED! Lijntje stopt bij tekst */}
+      {/* Divider */}
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t border-[#6B8E23]" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          {/* ✅ bg-slate-50 zorgt dat tekst NIET doorstreept wordt */}
           <span className="bg-slate-50 px-2 text-gray-500">of log in met</span>
         </div>
       </div>

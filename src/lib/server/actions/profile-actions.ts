@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/server/firebase-admin';
-import { getSession } from '@/lib/auth/session';
+import { getSession } from '@/lib/auth/session.server';
 import { addressSchema, UserProfile, userProfileSchema } from '@/types/user';
 
 // ====================================================================
@@ -63,7 +63,7 @@ async function getUserProfiles(ids: string[]): Promise<UserProfile[]> {
 
 export async function updatePersonalInfo(prevState: FormState, formData: FormData): Promise<FormState> {
   const session = await getSession();
-  if (!session.user.isLoggedIn) return { message: 'Authenticatie mislukt.', success: false };
+  if (!session.user?.isLoggedIn) return { message: 'Authenticatie mislukt.', success: false };
 
   const rawData = {
     firstName: formData.get('firstName'),
@@ -98,7 +98,7 @@ export async function updatePersonalInfo(prevState: FormState, formData: FormDat
 
 export async function updateAddress(prevState: FormState, formData: FormData): Promise<FormState> {
   const session = await getSession();
-  if (!session.user.isLoggedIn) return { message: 'Authenticatie mislukt.', success: false };
+  if (!session.user?.isLoggedIn) return { message: 'Authenticatie mislukt.', success: false };
 
   const parsed = addressSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) {
@@ -119,7 +119,7 @@ export async function updateAddress(prevState: FormState, formData: FormData): P
 
 export async function addManagerByEmailAction(prevState: FormState, formData: FormData): Promise<FormState> {
   const session = await getSession();
-  if (!session.user.isLoggedIn) return { message: 'Authenticatie mislukt.', success: false };
+  if (!session.user?.isLoggedIn) return { message: 'Authenticatie mislukt.', success: false };
 
   const parsed = AddManagerSchema.safeParse({
     email: formData.get('email'),
@@ -151,7 +151,7 @@ export async function addManagerByEmailAction(prevState: FormState, formData: Fo
 
 export async function removeManagerByIdAction(prevState: FormState, formData: FormData): Promise<FormState> {
   const session = await getSession();
-  if (!session.user.isLoggedIn) return { message: 'Authenticatie mislukt.', success: false };
+  if (!session.user?.isLoggedIn) return { message: 'Authenticatie mislukt.', success: false };
 
   const parsed = RemoveManagerSchema.safeParse({
     managerId: formData.get('managerId'),
@@ -180,7 +180,7 @@ export async function removeManagerByIdAction(prevState: FormState, formData: Fo
 
 export async function updatePhotoURL(photoURL: string): Promise<ActionResponse<null>> {
   const session = await getSession();
-  if (!session.user.isLoggedIn) return { success: false, error: 'Authenticatie mislukt.' };
+  if (!session.user?.isLoggedIn) return { success: false, error: 'Authenticatie mislukt.' };
 
   if (!z.string().url().safeParse(photoURL).success) return { success: false, error: 'Ongeldige foto URL.' };
 
@@ -197,7 +197,7 @@ export async function updatePhotoURL(photoURL: string): Promise<ActionResponse<n
 
 export async function togglePublicStatus(isPublic: boolean): Promise<ToggleStatusResponse> {
   const session = await getSession();
-  if (!session.user.isLoggedIn) return { success: false, error: 'Authenticatie mislukt.' };
+  if (!session.user?.isLoggedIn) return { success: false, error: 'Authenticatie mislukt.' };
 
   const newStatus = !!isPublic;
 
@@ -257,7 +257,7 @@ export async function searchUsersAction(query: string): Promise<ActionResponse<U
 
 export async function addManagerAction(profileId: string, managerId: string): Promise<ActionResponse<null>> {
   const session = await getSession();
-  if (!session.user.isLoggedIn || session.user.id !== profileId) return { success: false, error: 'Ongeautoriseerd' };
+  if (!session.user?.isLoggedIn || session.user.id !== profileId) return { success: false, error: 'Ongeautoriseerd' };
   if (profileId === managerId) return { success: false, error: 'Je kan jezelf niet toevoegen.' };
 
   try {
@@ -275,7 +275,7 @@ export async function addManagerAction(profileId: string, managerId: string): Pr
 
 export async function removeManagerAction(profileId: string, managerId: string): Promise<ActionResponse<null>> {
   const session = await getSession();
-  if (!session.user.isLoggedIn || session.user.id !== profileId) return { success: false, error: 'Ongeautoriseerd' };
+  if (!session.user?.isLoggedIn || session.user.id !== profileId) return { success: false, error: 'Ongeautoriseerd' };
 
   try {
     await adminDb.collection('users').doc(profileId).update({

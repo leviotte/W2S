@@ -353,12 +353,17 @@ export default function EventCard({
     }
   };
 
-  const formatDate = (dateString: any) => {
-    if (!dateString) return "Invalid date";
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return "Invalid date";
-    return new Intl.DateTimeFormat("nl-BE").format(date);
-  };
+  const formatDate = (dateString?: string) => {
+  if (!dateString) return "Onbekende datum";
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return "Onbekende datum";
+  return new Intl.DateTimeFormat("nl-BE", {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  }).format(date);
+};
 
   const handleCardClick = () => {
     router.push(`/dashboard/event/${event.id}`); // ✅ CORRECT!
@@ -390,7 +395,7 @@ export default function EventCard({
               <div>
                 <h2 className="text-xl font-bold text-accent">{event.name}</h2>
                 <CardDescription className="text-gray-500">
-                  Datum: {formatDate(event.date)}
+                  Datum: {formatDate(event.startDateTime)}
                 </CardDescription>
               </div>
             </div>
@@ -425,13 +430,12 @@ export default function EventCard({
           <p className="text-gray-500 mb-2 min-h-[24px]">
             {event.budget ? `Budget: €${event.budget}` : ""}
           </p>
-          {event.date && (
-            <CountdownTimer
-              targetDate={event.date}
-              targetTime={event.time || "00:00"}
-              isRed // ✅ ROOD zoals productie!
-            />
-          )}
+          {event.startDateTime && (
+  <CountdownTimer
+    targetDate={event.startDateTime}
+    isRed
+  />
+)}
           <div className="mt-4 border-t border-gray-100 pt-3">
             <h3 className="text-sm font-semibold text-gray-700 mb-1">
               To-do lijst:

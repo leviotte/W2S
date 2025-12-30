@@ -4,18 +4,16 @@
 import { useMemo } from "react";
 import MessageList from "../chat/MessageList";
 import ChatInput from "../chat/ChatInput";
-import { Message } from "@/types";
-import { useScrollToBottom } from "../../hooks/useScrollToBottom";
+import type { Message } from "@/types";
+import type { EventMessage } from "@/types/event";
+import { useScrollToBottom } from "@/hooks/useScrollToBottom";
 import { X } from "lucide-react";
+import { mapEventMessagesToMessages } from "@/hooks/useEventMessages";
 
 interface GroupChatProps {
   eventId: string;
-  messages: Message[] | undefined; // ✅ undefined kan ook
-  onSendMessage: (
-    text: string,
-    isAnonymous: boolean,
-    gifUrl?: string
-  ) => Promise<void>;
+  messages: EventMessage[] | Message[] | undefined;
+  onSendMessage: (text: string, isAnonymous: boolean, gifUrl?: string) => Promise<void>;
   onEditMessage?: (messageId: string, newText: string) => Promise<void>;
   onDeleteMessage?: (messageId: string) => Promise<void>;
   onClose?: () => void;
@@ -31,24 +29,20 @@ export default function GroupChat({
   onDeleteMessage,
   onClose,
   currentUserId,
+  currentUserName,
 }: GroupChatProps) {
-  // ✅ Zorg dat messages altijd correct gestructureerd zijn
+  // ✅ Zorg dat alle berichten altijd Message[] zijn
   const safeMessages: Message[] = useMemo(() => {
     if (!messages) return [];
-    return messages.map((msg) => ({
-      id: msg.id,
-      userId: msg.userId ?? msg.senderId ?? "unknown",
-      userName: msg.userName ?? "Unknown User",
-      timestamp: msg.timestamp ?? new Date().toISOString(),
-      text: msg.text ?? msg.content ?? "",
-      isAnonymous: msg.isAnonymous ?? false,
-      edited: msg.edited ?? false,
-      read: msg.read ?? false,
-      gifUrl: msg.gifUrl,
-      senderId: msg.senderId,
-      replyTo: msg.replyTo,
-    }));
-  }, [messages]);
+
+    // Als messages EventMessage[] is, mappen naar Message[]
+    if ((messages as EventMessage[])[0]?.senderId && !(messages as Message[])[0]?.userId) {
+      return mapEventMessagesToMessages(messages as EventMessage[], currentUserId, currentUserName);
+    }
+
+    // Anders: assume Message[]
+    return messages as Message[];
+  }, [messages, currentUserId, currentUserName]);
 
   const chatContainerRef = useScrollToBottom([safeMessages]);
 

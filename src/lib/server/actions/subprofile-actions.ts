@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { adminDb } from '@/lib/server/firebase-admin';
-import { getSession } from '@/lib/auth/actions';
+import { getSession } from '@/lib/auth/session.server';
 import type { SubProfile } from '@/types/user';
 import { nanoid } from 'nanoid';
 import type { AuthenticatedSessionUser } from '@/types/session';
@@ -29,7 +29,7 @@ type SubProfileData = z.infer<typeof subProfileSchema>;
 
 export async function createSubProfileAction(data: unknown) {
   const session = await getSession();
-  if (!session.user.isLoggedIn) {
+  if (!session.user?.isLoggedIn) {
     return { success: false, error: 'Authenticatie vereist.' };
   }
   // Vanaf hier gegarandeerd: session.user is AuthenticatedSessionUser
@@ -102,7 +102,7 @@ export async function getUserSubProfilesAction(): Promise<{
   data: SubProfile[];
 }> {
   const session = await getSession();
-  if (!session.user.isLoggedIn) {
+  if (!session.user?.isLoggedIn) {
     return { success: false, error: 'Authenticatie vereist.', data: [] };
   }
   const userId = (session.user as AuthenticatedSessionUser).id;
@@ -144,7 +144,7 @@ export async function getUserSubProfilesAction(): Promise<{
 
 export async function getSubProfileByIdAction(profileId: string) {
   const session = await getSession();
-  if (!session.user.isLoggedIn) {
+  if (!session.user?.isLoggedIn) {
     return { success: false, error: 'Authenticatie vereist.', data: null };
   }
   const userId = (session.user as AuthenticatedSessionUser).id;
@@ -187,7 +187,7 @@ export async function updateSubProfileAction(
   updates: Partial<SubProfileData>
 ) {
   const session = await getSession();
-  if (!session.user.isLoggedIn) {
+  if (!session.user?.isLoggedIn) {
     return { success: false, error: 'Authenticatie vereist.' };
   }
   const userId = (session.user as AuthenticatedSessionUser).id;
@@ -239,7 +239,7 @@ export async function updateSubProfileAction(
 
 export async function deleteSubProfileAction(profileId: string) {
   const session = await getSession();
-  if (!session.user.isLoggedIn) {
+  if (!session.user?.isLoggedIn) {
     return { success: false, error: 'Authenticatie vereist.' };
   }
   const userId = (session.user as AuthenticatedSessionUser).id;

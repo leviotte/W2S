@@ -294,7 +294,7 @@ export function UpdatePostForm({ post }: UpdatePostFormProps) {
                   price: item.price,
                   ean: item.ean,
                   category: item.category,
-                  description: item.description,
+                  description: item.description ?? undefined,
                   rating: item.rating,
                   reviewCount: item.reviewCount,
                   ageGroup: item.ageGroup,

@@ -229,7 +229,7 @@ export default function EventParticipationPage() {
         <CardHeader>
           <CardTitle className="text-2xl">Deelnemen aan: {event.name}</CardTitle>
           <CardDescription>
-            Georganiseerd op {format(new Date(event.date), "d MMMM yyyy", { locale: nlBE })}
+            Georganiseerd op {format(new Date(event.startDateTime), "d MMMM yyyy", { locale: nlBE })}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

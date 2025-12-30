@@ -1,3 +1,4 @@
+// src/components/event/EventDetailClient.tsx
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -7,8 +8,9 @@ import { db } from '@/lib/client/firebase';
 import { toast } from 'sonner';
 import { MessageSquareMore } from 'lucide-react';
 
-import type { Event, EventParticipant } from '@/types/event';
-import type { SessionUser, Message } from '@/types';
+import type { Event, EventParticipant, EventMessage } from '@/types/event';
+import type { SessionUser, AuthenticatedSessionUser } from '@/types/session';
+import type { Message } from '@/types/message';
 
 import { useEventParticipants } from '@/hooks/useEventParticipants';
 import { useEventMessages } from '@/hooks/useEventMessages';
@@ -16,10 +18,10 @@ import { useEventMessages } from '@/hooks/useEventMessages';
 import EventDetails from '@/components/event/EventDetails';
 import DrawnNameSection from './DrawnNameSection';
 import { PartyPrepsSection } from '../party-preps/PartyPrepsSection';
-import AdvancedEventProgressChecklist from './AdvancedEventProgressChecklist';
+import AdvancedEventProgressChecklist from './EventProgressChecklist';
 import ParticipantProgress from '@/components/event/ParticipantProgress';
 import EventWishlistsSection from './EventWishlistSection';
-import GroupChat from './GroupChat';
+import GroupChat from '@/components/event/GroupChat';
 import ExclusionModal from '@/components/event/ExclusionModal';
 import WishlistRequestDialog from '@/app/wishlist/_components/WishlistRequestDialog';
 import { LoadingSpinner } from '../ui/loading-spinner';
@@ -27,7 +29,7 @@ import { LoadingSpinner } from '../ui/loading-spinner';
 interface EventDetailClientProps {
   eventId: string;
   initialEvent: Event;
-  sessionUser: SessionUser;
+  sessionUser: AuthenticatedSessionUser; // strikt type
 }
 
 export default function EventDetailClient({
@@ -37,15 +39,12 @@ export default function EventDetailClient({
 }: EventDetailClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const participantId = searchParams.get('participantId');
+  const participantId = searchParams.get('participantId') ?? undefined;
   const openWishlistRequestModal =
     searchParams.get('type') === 'wishlist' &&
     searchParams.get('subTab') === 'request';
 
-  // ============================
-  // STATE
-  // ============================
-  const [event, setEvent] = useState<Event | null>(initialEvent);
+  const [event, setEvent] = useState<Event>(initialEvent);
   const [currentUserId, setCurrentUserId] = useState<string>(sessionUser.id);
   const [wishlists, setWishlists] = useState<Record<string, any>>({});
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -84,28 +83,29 @@ export default function EventDetailClient({
     (participants: Record<string, EventParticipant> | EventParticipant[] | undefined) => {
       if (!participants) return [];
       if (Array.isArray(participants)) return participants;
-      return Object.entries(participants).map(([id, p]) => ({ participantId: id, ...p }));
-
+      return Object.entries(participants).map(([id, p]) => ({ ...p, id }));
     },
     []
   );
 
-  const mapMessages = useCallback((messages: any[] | undefined): Message[] => {
-    if (!messages) return [];
-    return messages.map((msg) => ({
-      id: msg.id,
-      userId: msg.userId ?? msg.senderId ?? 'unknown',
-      userName: msg.userName ?? 'Unknown User',
-      timestamp: msg.timestamp ?? new Date().toISOString(),
-      text: msg.text ?? msg.content ?? '',
-      isAnonymous: msg.isAnonymous ?? false,
-      edited: msg.edited ?? false,
-      read: msg.read ?? false,
-      gifUrl: msg.gifUrl,
-      senderId: msg.senderId,
-      replyTo: msg.replyTo,
-    }));
-  }, []);
+  // Converteer EventMessages -> Message[]
+  const mapMessages = useCallback(
+    (messages: EventMessage[] | undefined): Message[] => {
+      if (!messages) return [];
+      return messages.map((msg) => ({
+        id: msg.id,
+        userId: msg.senderId,
+        userName: 'Unknown User', // fallback, kan eventueel uit participants gehaald worden
+        text: msg.content ?? '',
+        timestamp: msg.timestamp ?? new Date().toISOString(),
+        isAnonymous: false,
+        edited: false,
+        read: false,
+        senderId: msg.senderId,
+      }));
+    },
+    []
+  );
 
   // ============================
   // REALTIME EVENT LISTENER
@@ -113,22 +113,21 @@ export default function EventDetailClient({
   useEffect(() => {
     if (!eventId) return;
 
-    const unsubscribe = onSnapshot(
-      doc(db, 'events', eventId),
-      (docSnap) => {
-        if (!docSnap.exists()) return;
+    const unsubscribe = onSnapshot(doc(db, 'events', eventId), (docSnap) => {
+      if (!docSnap.exists()) return;
 
-        const rawData = { id: docSnap.id, ...docSnap.data() };
-        const converted = convertFirestoreTimestamps(rawData);
+      const rawData = { id: docSnap.id, ...docSnap.data() };
+      const converted = convertFirestoreTimestamps(rawData);
 
-        setEvent({
-          ...converted,
-          participants: participantsRecordToArray(converted.participants),
-          messages: mapMessages(converted.messages),
-        } as Event);
-      },
-      (err) => console.error('Realtime listener error:', err)
-    );
+      const participantsArray = participantsRecordToArray(converted.participants);
+      const messagesArray = mapMessages(converted.messages);
+
+      setEvent({
+        ...converted,
+        participants: participantsArray,
+        messages: messagesArray,
+      } as Event);
+    });
 
     return () => unsubscribe();
   }, [eventId, convertFirestoreTimestamps, participantsRecordToArray, mapMessages]);
@@ -229,10 +228,9 @@ export default function EventDetailClient({
 
   const handleSendMessage = useCallback(
     async (text: string, isAnonymous: boolean, gifUrl?: string) => {
-      if (!currentUserId) return;
-      sendMessage(text, currentUserId, `${sessionUser.firstName} ${sessionUser.lastName}`, isAnonymous, gifUrl);
+      await sendMessage(text, isAnonymous, gifUrl);
     },
-    [currentUserId, sendMessage, sessionUser.firstName, sessionUser.lastName]
+    [sendMessage]
   );
 
   const wishlistParticipant = useMemo(
@@ -313,24 +311,14 @@ export default function EventDetailClient({
 
         {/* RIGHT */}
         <div className="flex flex-col gap-5">
-          {event.isLootjesEvent && isOrganizer && (
-            <div className="backdrop-blur-sm bg-white/40 rounded-lg shadow-sm p-6">
-              <h3 className="text-lg font-semibold mb-4">Exclusies instellen</h3>
-              {canShowExclusion ? (
-                <button
-                  onClick={() => setExclusions(exclusions)}
-                  className="w-full py-2 bg-warm-olive hover:bg-cool-olive text-white rounded"
-                >
-                  Exclusies maken
-                </button>
-              ) : (
-                <p className="text-gray-600">
-                  {event.drawnNames && Object.keys(event.drawnNames).length > 0
-                    ? 'De namen zijn al getrokken.'
-                    : 'Niet genoeg deelnemers.'}
-                </p>
-              )}
-            </div>
+          {event.isLootjesEvent && isOrganizer && canShowExclusion && (
+            <ExclusionModal
+              isOpen={true}
+              exclusions={exclusions}
+              participants={participants ?? []}
+              onClose={() => {}}
+              onSave={handleSaveExclusions}
+            />
           )}
 
           {/* DESKTOP CHAT */}
@@ -339,7 +327,7 @@ export default function EventDetailClient({
               eventId={event.id}
               messages={mapMessages(event.messages)}
               currentUserId={currentUserId}
-              currentUserName={`${sessionUser.firstName} ${sessionUser.lastName}`}
+              currentUserName={`${sessionUser.firstName ?? ''} ${sessionUser.lastName ?? ''}`}
               onSendMessage={handleSendMessage}
               onEditMessage={editMessage}
               onDeleteMessage={deleteMessage}
@@ -361,7 +349,7 @@ export default function EventDetailClient({
                     eventId={event.id}
                     messages={mapMessages(event.messages)}
                     currentUserId={currentUserId}
-                    currentUserName={`${sessionUser.firstName} ${sessionUser.lastName}`}
+                    currentUserName={`${sessionUser.firstName ?? ''} ${sessionUser.lastName ?? ''}`}
                     onSendMessage={handleSendMessage}
                     onEditMessage={editMessage}
                     onDeleteMessage={deleteMessage}
@@ -386,20 +374,9 @@ export default function EventDetailClient({
               id: wishlistParticipant.id,
               firstName: wishlistParticipant.firstName,
               lastName: wishlistParticipant.lastName,
-              email: wishlistParticipant.email,
+              email: wishlistParticipant.email ?? undefined,
             },
           }}
-        />
-      )}
-
-      {/* Exclusion Modal */}
-      {event.isLootjesEvent && isOrganizer && canShowExclusion && (
-        <ExclusionModal
-          isOpen={true}
-          exclusions={exclusions}
-          participants={participants ?? []}
-          onClose={() => {}}
-          onSave={handleSaveExclusions}
         />
       )}
     </>

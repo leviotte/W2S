@@ -151,15 +151,29 @@ export default function CreateEventForm({ currentUser, profiles }: CreateEventFo
   // ========================================================================
   // FORM SUBMIT
   // ========================================================================
+  const buildStartDateTimeISO = (date: Date | null, time: string) => {
+  if (!date) return undefined;
+
+  if (!time) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  }
+
+  const [hours, minutes] = time.split(':').map(Number);
+  const d = new Date(date);
+  d.setHours(hours, minutes, 0, 0);
+  return d.toISOString();
+};
+
   const onSubmit = async (data: FormValues) => {
     const enrichedParticipants = prepareParticipants(data.participants);
 
     const payload: Partial<Event> = {
       name: data.name,
       description: data.description,
-      date: data.date?.toISOString() ?? undefined,
-      time: data.time ?? null,
-      endTime: null,
+      startDateTime: buildStartDateTimeISO(data.date, data.time),
+      endDateTime: null,
       organizer: currentUser.id,
       budget: data.budget ?? 0,
       maxParticipants: data.maxParticipants ?? 1000,

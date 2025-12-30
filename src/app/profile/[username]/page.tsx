@@ -1,143 +1,70 @@
 // src/app/profile/[username]/page.tsx
-
 import { notFound } from 'next/navigation';
-import { getUserProfileByUsername } from '@/lib/server/data/users';
-import { getUserProfileAction } from '@/lib/server/actions/user-actions';
-import { getSubProfileById } from '@/lib/server/data/profiles'; // ✅ ADDED
-import { createWishlistAction } from '@/lib/server/actions/wishlist';
-import { getCurrentUser } from '@/lib/auth/actions';
-import { UserAvatar } from '@/components/shared/user-avatar';
-import FollowButton from '@/components/followers/FollowButton';
-import FollowersFollowingCount from '@/components/followers/FollowersFollowingCount';
+import { Suspense } from 'react';
+import { getUserProfileByUsername, getManagedProfiles } from '@/lib/server/data/users';
 import WishlistsSection from '@/app/wishlist/_components/WishlistsSection';
-import { Card, CardContent } from '@/components/ui/card';
+import { UserAvatar } from '@/components/shared/user-avatar';
+import FollowButton from '@/components/shared/follow-button';
+import FollowersFollowingCount from '@/components/followers/FollowersFollowingCount';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getCurrentUser } from '@/lib/auth/actions';
 
-export const revalidate = 60;
-
-export default async function UserProfilePage({
-  params,
-}: {
-  params: Promise<{ username: string }>;
-}) {
-  const { username } = await params;
-
-let profileData = await getUserProfileByUsername(username);
-let isSubProfile = false;
-
-if (!profileData) {
-  const subProfile = await getSubProfileById(username);
-
-  if (subProfile) {
-    profileData = {
-      id: subProfile.id,
-      userId: subProfile.userId,
-      firstName: subProfile.firstName,
-      lastName: subProfile.lastName,
-      displayName: subProfile.displayName,
-      photoURL: subProfile.photoURL,
-      isPublic: subProfile.isPublic,
-      gender: subProfile.gender,
-      birthdate: subProfile.birthdate,
-      createdAt: subProfile.createdAt,
-      updatedAt: subProfile.updatedAt,
-      username: null,
-      email: null,
-    } as any;
-
-    isSubProfile = true;
-  }
+interface ProfilePageProps {
+  params: { username: string };
 }
 
-if (!profileData) {
-  notFound();
-}
+export default async function ProfilePage({ params }: ProfilePageProps) {
+  const { username } = params;
 
-  const viewer = await getCurrentUser();
-  const viewerId = viewer?.id ?? null;
-  const isOwnProfile = isSubProfile 
-    ? viewerId === profileData.userId  // Voor sub-profiles, check tegen userId (de manager)
-    : viewerId === profileData.id;     // Voor users, check tegen profile id
+  // server fetch
+  const userProfile = await getUserProfileByUsername(username);
+  if (!userProfile) return notFound();
 
-  if (!isOwnProfile && !profileData.isPublic) {
-    return (
-      <div className="container mx-auto max-w-4xl p-4 text-center py-16">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">
-          Privé Profiel
-        </h1>
-        <p className="text-gray-600">
-          Dit profiel is niet publiek zichtbaar.
-        </p>
-      </div>
-    );
-  }
+  const managedProfiles = await getManagedProfiles(userProfile.id);
+  const allProfiles = [userProfile, ...managedProfiles];
 
-  // ✅ Voor sub-profiles, gebruik de userId om wishlists op te halen
-  const wishlistOwnerId = isSubProfile ? profileData.id : profileData.id;
-  const wishlistsResult = await createWishlistAction(wishlistOwnerId);
-  const wishlists = wishlistsResult.success && wishlistsResult.data ? wishlistsResult.data : [];
+  const wishlists: Record<string, any> = {};
+  allProfiles.forEach((profile) => {
+    wishlists[profile.id] = {
+      id: profile.id,
+      name: `${profile.displayName || profile.firstName}’s Wishlist`,
+      description: `Een mooie wishlist van ${profile.displayName || profile.firstName}`,
+      items: [],
+      isPublic: true,
+      slug: `wishlist-${profile.id}`,
+    };
+  });
 
-  const wishlistsRecord = wishlists.reduce<Record<string, (typeof wishlists)[number]>>((acc, w) => {
-    acc[w.id] = w;
-    return acc;
-  }, {});
+  const currentUser = await getCurrentUser();
+  const isOwnProfile = currentUser?.id === userProfile.id;
 
   return (
-    <div className="container mx-auto max-w-4xl p-4">
-      <Card className="overflow-hidden">
-        <div className="relative h-32 md:h-48 bg-gradient-to-r from-primary/20 to-primary/10" />
-        
-        <CardContent className="p-4 sm:p-6">
-          <div className="relative flex flex-col items-center sm:flex-row sm:items-end -mt-16 sm:-mt-20">
-            <UserAvatar
-              photoURL={profileData.photoURL}
-              firstName={profileData.firstName}
-              lastName={profileData.lastName}
-              name={profileData.displayName}
-              size="xl"
-              className="h-24 w-24 md:h-32 md:w-32 border-4 border-card"
-            />
-            
-            <div className="mt-4 sm:ml-6 flex-grow text-center sm:text-left">
-              <div className="flex items-center gap-2 justify-center sm:justify-start">
-                <h1 className="text-2xl font-bold">{profileData.displayName}</h1>
-                {isSubProfile && (
-                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                    Beheerd Profiel
-                  </span>
-                )}
-              </div>
-              {profileData.username && (
-                <p className="text-sm text-muted-foreground">@{profileData.username}</p>
-              )}
-            </div>
-            
-            <div className="mt-4 sm:mt-0">
-              {!isOwnProfile && viewerId && !isSubProfile && (
-                <FollowButton
-                  currentUserId={viewerId}
-                  targetId={profileData.id}
-                />
-              )}
-            </div>
+    <div className="space-y-6">
+      <Card>
+        <CardContent className="flex flex-col md:flex-row items-center gap-6">
+          <UserAvatar profile={userProfile} size="xl" />
+          <div className="flex flex-col gap-2">
+            <h1 className="text-2xl font-bold">{userProfile.displayName || `${userProfile.firstName} ${userProfile.lastName}`}</h1>
+            <Suspense fallback={<div>Laden...</div>}>
+              <FollowersFollowingCount userId={userProfile.id} isTargetProfile />
+            </Suspense>
           </div>
-          
-          {!isSubProfile && (
-            <div className="mt-6 flex justify-center sm:justify-start">
-              <FollowersFollowingCount 
-                userId={profileData.id} 
-                isTargetProfile={!isOwnProfile}
+          <div className="ml-auto">
+            {!isOwnProfile && (
+              <FollowButton
+                currentUserId={currentUser?.id || ''}
+                targetId={userProfile.id}
+                isTargetProfile
+                isCurrentUserProfile={false}
               />
-            </div>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
 
-      <div className="mt-6">
-        <WishlistsSection 
-          wishlists={wishlistsRecord}
-          isOwnProfile={isOwnProfile}
-        />
-      </div>
+      <Suspense fallback={<div>Laden...</div>}>
+        <WishlistsSection wishlists={wishlists} isOwnProfile={isOwnProfile} />
+      </Suspense>
     </div>
   );
 }

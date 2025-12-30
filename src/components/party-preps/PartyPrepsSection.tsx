@@ -12,7 +12,6 @@ import {
   updateEventAction,
   getEventByIdAction,
   registerParticipantAction,
-  confirmParticipantAction,
   updateEventTasksAction,
   assignParticipantToTaskAction,
   removeParticipantFromTaskAction,
@@ -28,22 +27,23 @@ function isFirestoreTimestamp(value: any): value is { toDate: () => Date } {
 }
 
 // ✅ Serialize tasks to plain objects
-const serializeTasks = (tasks: TaskFromFirestore[]): TaskSerialized[] => {
+const serializeTasks = (tasks: (TaskFromFirestore | Partial<TaskFromFirestore>)[]): TaskFromFirestore[] => {
   return tasks.map(task => ({
-    id: task.id,
-    title: task.title,
-    description: task.description,
-    completed: task.completed,
-    assignedParticipants: task.assignedParticipants,
-    createdAt: task.createdAt instanceof Date 
-      ? task.createdAt.toISOString()
-      : typeof task.createdAt === 'string'
-      ? task.createdAt
-      : isFirestoreTimestamp(task.createdAt)
-      ? task.createdAt.toDate().toISOString()
-      : new Date().toISOString()
+    id: task.id || crypto.randomUUID(),
+    title: task.title || 'Nieuwe Taak',
+    description: task.description || '',
+    completed: task.completed ?? false,
+    assignedParticipants: task.assignedParticipants ?? [],
+    createdAt: task.createdAt
+      ? isFirestoreTimestamp(task.createdAt)
+        ? task.createdAt.toDate()
+        : typeof task.createdAt === 'string'
+        ? new Date(task.createdAt)
+        : task.createdAt
+      : new Date(),
   }));
 };
+
 
 interface PartyPrepsSectionProps {
   event: Event;
@@ -62,7 +62,15 @@ export function PartyPrepsSection({
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [isPending, startTransition] = useTransition();
 
-  const tasks = (event.tasks || []) as TaskFromFirestore[];
+  const tasks = serializeTasks(
+  (event.tasks || []).map(t => ({
+    ...t,
+    assignedParticipants: t.assignedTo, // map assignedTo → assignedParticipants
+    createdAt: new Date(),              // fallback
+    description: '',                    // fallback
+  }))
+);
+
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,27 +88,27 @@ export function PartyPrepsSection({
     };
 
     startTransition(async () => {
-      const serializedTasks = serializeTasks([...tasks, newTask]);
-      const result = await updateEventTasksAction(event.id, serializedTasks);
-      
-      if (result.success) {
-        toast.success('Taak toegevoegd!');
-        setNewTaskTitle('');
-        setShowAddTask(false);
-      } else {
-        toast.error(result.message || 'Kon taak niet toevoegen');
-      }
-    });
+  const updatedTasks = serializeTasks([...tasks, newTask]);
+  const result = await updateEventTasksAction(event.id, updatedTasks);
+  if (result.success) {
+    toast.success('Taak toegevoegd!');
+    setNewTaskTitle('');
+    setShowAddTask(false);
+  } else {
+    toast.error(result.message || 'Kon taak niet toevoegen');
+  }
+});
   };
 
   const handleToggleTask = async (taskId: string) => {
-    startTransition(async () => {
-      const result = await toggleTaskAction(event.id, taskId);
-      if (!result.success) {
-        toast.error(result.message || 'Toggle mislukt');
-      }
-    });
-  };
+  startTransition(async () => {
+    const updatedTasks = serializeTasks(
+      tasks.map(t => (t.id === taskId ? { ...t, completed: !t.completed } : t))
+    );
+    const result = await updateEventTasksAction(event.id, updatedTasks);
+    if (!result.success) toast.error(result.message || 'Toggle mislukt');
+  });
+};
 
   const handleDeleteTask = async (taskId: string) => {
     const updatedTasks = tasks.filter(task => task.id !== taskId);

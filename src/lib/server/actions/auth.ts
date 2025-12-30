@@ -2,7 +2,7 @@
 'use server';
 
 import { adminAuth, adminDb } from '@/lib/server/firebase-admin';
-import { createSession, destroySession } from '@/lib/auth/session';
+import { createSession, destroySession } from '@/lib/auth/session.server';
 import { revalidatePath } from 'next/cache';
 
 // ============================================================================

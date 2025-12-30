@@ -5,7 +5,7 @@ import {
   getEventStatsForUser,
   getWishlistStatsForUser,
   getFollowStatsForUser,
-} from '@/lib/server/data/user-stats';
+} from '@/lib/server/data/dashboard-stats';
 import DashboardStatsView from '@/components/dashboard/dashboard-stats-view';
 
 export const metadata = {

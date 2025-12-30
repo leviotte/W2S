@@ -9,6 +9,7 @@ import { useCurrentUser } from "@/lib/store/use-auth-store";
 import {
   createWishlistAction,
   linkWishlistToEventAction,
+  getWishlistsByOwnerId,
 } from "@/lib/server/actions/wishlist";
 import type { Wishlist } from "@/types/wishlist";
 import {
@@ -35,7 +36,7 @@ interface WishlistLinkModalProps {
   onOpenChange: (open: boolean) => void;
   eventId: string;
   eventName: string;
-  participantId?: string; // ✅ Optional: for linking to specific participant
+  participantId?: string;
 }
 
 export function WishlistLinkModal({
@@ -49,7 +50,6 @@ export function WishlistLinkModal({
   const currentUser = useCurrentUser();
   const [isPending, startTransition] = useTransition();
 
-  // State
   const [wishlists, setWishlists] = useState<Wishlist[]>([]);
   const [selectedWishlistId, setSelectedWishlistId] = useState<string>("");
   const [newWishlistName, setNewWishlistName] = useState("");
@@ -60,13 +60,12 @@ export function WishlistLinkModal({
     if (open && currentUser) {
       loadWishlists();
     } else if (!open) {
-      // Reset state when modal closes
       setSelectedWishlistId("");
       setNewWishlistName("");
     }
   }, [open, currentUser]);
 
-  // ✅ useCallback for performance
+  // ✅ Load wishlists callback
   const loadWishlists = useCallback(async () => {
     if (!currentUser) {
       toast.error("Je moet ingelogd zijn");
@@ -75,17 +74,18 @@ export function WishlistLinkModal({
 
     setIsLoading(true);
     try {
-      const result = await createWishlistAction(currentUser.id);
+      const result = await getWishlistsByOwnerId(currentUser.id);
 
-      if (result.success && result.data) {
-        setWishlists(result.data);
-        
-        // Auto-select if only one wishlist
-        if (result.data.length === 1) {
-          setSelectedWishlistId(result.data[0].id);
-        }
+      if (result.success) {
+        if (result.data) setWishlists(result.data);
+        if (result.data?.length === 1) setSelectedWishlistId(result.data[0].id);
       } else {
-        toast.error(result.error || "Kon wishlists niet laden");
+        // Type narrowing: TS weet hier dat error bestaat
+        if ('error' in result) {
+  toast.error(result.error ?? "Kon wishlists niet laden");
+} else {
+  toast.error("Kon wishlists niet laden");
+}
         setWishlists([]);
       }
     } catch (error) {
@@ -110,10 +110,9 @@ export function WishlistLinkModal({
     }
 
     const selectedWishlist = wishlists.find(w => w.id === selectedWishlistId);
-    
+
     startTransition(async () => {
       try {
-        // ✅ TODO: Create this server action!
         const result = await linkWishlistToEventAction({
           eventId,
           wishlistId: selectedWishlistId,
@@ -125,7 +124,7 @@ export function WishlistLinkModal({
           onOpenChange(false);
           router.refresh();
         } else {
-          toast.error(result.error || "Koppelen mislukt");
+          toast.error(result.error ?? "Koppelen mislukt");
         }
       } catch (error) {
         console.error("Link wishlist error:", error);
@@ -149,33 +148,31 @@ export function WishlistLinkModal({
     startTransition(async () => {
       try {
         const result = await createWishlistAction({
-  userId: currentUser.id, // <-- VOEG DEZE TOE!
-  data: {
-    name: newWishlistName.trim(),
-    description: `Wishlist voor ${eventName}`,
-    isPublic: false,
-    // Voeg andere velden toe indien nodig
-  }
-});
+          userId: currentUser.id,
+          data: {
+            name: newWishlistName.trim(),
+            description: `Wishlist voor ${eventName}`,
+            isPublic: false,
+          },
+        });
 
         if (result.success && result.data) {
-  // ✅ Link de nieuwe wishlist aan event - gebruik result.data.id als wishlistId!
-  const linkResult = await linkWishlistToEventAction({
-    eventId,
-    wishlistId: result.data.id, // <-- FIXED!
-    participantId: participantId || currentUser.id,
-  });
+          const linkResult = await linkWishlistToEventAction({
+            eventId,
+            wishlistId: result.data.id,
+            participantId: participantId || currentUser.id,
+          });
 
-  if (linkResult.success) {
-    toast.success("Wishlist aangemaakt en gekoppeld!");
-    onOpenChange(false);
-    router.push(`/dashboard/wishlists/create/${eventId}/${participantId || currentUser.id}`);
-    router.refresh();
-  } else {
-    toast.error(linkResult.error || "Aanmaken gelukt, maar koppelen mislukt");
-  }
-} else {
-          toast.error(result.error || "Kon wishlist niet aanmaken");
+          if (linkResult.success) {
+            toast.success("Wishlist aangemaakt en gekoppeld!");
+            onOpenChange(false);
+            router.push(`/dashboard/wishlists/create/${eventId}/${participantId || currentUser.id}`);
+            router.refresh();
+          } else {
+            toast.error(linkResult.error ?? "Aanmaken gelukt, maar koppelen mislukt");
+          }
+        } else {
+          toast.error(result.success === false ? result.error : "Kon wishlist niet aanmaken");
         }
       } catch (error) {
         console.error("Create wishlist error:", error);
@@ -188,19 +185,11 @@ export function WishlistLinkModal({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!open) return;
-      
-      // Escape to close
-      if (e.key === "Escape") {
-        onOpenChange(false);
-      }
-      
-      // Enter to submit (if one option is ready)
+
+      if (e.key === "Escape") onOpenChange(false);
       if (e.key === "Enter" && !isPending) {
-        if (selectedWishlistId) {
-          handleLinkExisting();
-        } else if (newWishlistName.trim()) {
-          handleCreateNew();
-        }
+        if (selectedWishlistId) handleLinkExisting();
+        else if (newWishlistName.trim()) handleCreateNew();
       }
     };
 
@@ -220,7 +209,7 @@ export function WishlistLinkModal({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* ✅ Existing Wishlist Section */}
+          {/* Existing Wishlist Section */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label htmlFor="existing-wishlist">Bestaande Wishlist</Label>
@@ -241,7 +230,7 @@ export function WishlistLinkModal({
               value={selectedWishlistId}
               onValueChange={(value) => {
                 setSelectedWishlistId(value);
-                setNewWishlistName(""); // Clear new wishlist input
+                setNewWishlistName("");
               }}
               disabled={isPending || isLoading}
             >
@@ -268,76 +257,46 @@ export function WishlistLinkModal({
             </Select>
 
             <Button
-              className="w-full"
-              onClick={handleLinkExisting}
-              disabled={!selectedWishlistId || isPending || isLoading}
-            >
-              {isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Koppelen...
-                </>
-              ) : (
-                <>
-                  <LinkIcon className="mr-2 h-4 w-4" />
-                  Koppel Bestaande
-                </>
-              )}
-            </Button>
-          </div>
+  className="w-full"
+  onClick={handleLinkExisting}
+  disabled={!selectedWishlistId || isPending || isLoading}
+>
+  {(isPending || isLoading) ? (
+    <>
+      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      Koppelen...
+    </>
+  ) : (
+    <>
+      <LinkIcon className="mr-2 h-4 w-4" />
+      Koppel Bestaande
+    </>
+  )}
+</Button>
 
-          {/* ✅ Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <Separator />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Of
-              </span>
-            </div>
-          </div>
+<Button
+  className="w-full"
+  onClick={handleCreateNew}
+  disabled={!newWishlistName.trim() || isPending || isLoading}
+  variant="secondary"
+>
+  {(isPending || isLoading) ? (
+    <>
+      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      Aanmaken...
+    </>
+  ) : (
+    <>
+      <Plus className="mr-2 h-4 w-4" />
+      Maak Nieuwe Aan
+    </>
+  )}
+</Button>
 
-          {/* ✅ New Wishlist Section */}
-          <div className="space-y-4">
-            <Label htmlFor="new-wishlist">Nieuwe Wishlist Aanmaken</Label>
-
-            <Input
-              id="new-wishlist"
-              placeholder="Naam van de nieuwe wishlist..."
-              value={newWishlistName}
-              onChange={(e) => {
-                setNewWishlistName(e.target.value);
-                if (e.target.value.trim()) {
-                  setSelectedWishlistId(""); // Clear selection
-                }
-              }}
-              disabled={isPending || isLoading}
-              autoComplete="off"
-            />
-
-            <Button
-              className="w-full"
-              onClick={handleCreateNew}
-              disabled={!newWishlistName.trim() || isPending || isLoading}
-              variant="secondary"
-            >
-              {isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Aanmaken...
-                </>
-              ) : (
-                <>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Maak Nieuwe Aan
-                </>
-              )}
-            </Button>
           </div>
         </div>
 
-        {/* ✅ Footer Actions */}
+        {/* Footer */}
         <div className="flex justify-end gap-2 pt-2 border-t">
           <Button
             variant="outline"

@@ -2,72 +2,29 @@
 'use server';
 
 import { adminDb } from '@/lib/server/firebase-admin';
-import { getSession } from '@/lib/auth/session';
+import { getSession } from '@/lib/auth/session.server';
 import { Timestamp } from 'firebase-admin/firestore';
-import { Event, EventParticipant, normalizeEvent, participantsToRecord, participantsToArray } from '@/types/event';
+import {
+  Event,
+  EventParticipant,
+  normalizeEvent,
+  participantsToRecord,
+  participantsToArray,
+  tsToIso,
+  isoToTs,
+} from '@/types/event';
 
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-function participantsArrayToMap(participants: EventParticipant[]): Record<string, EventParticipant> {
-  return participantsToRecord(participants);
-}
+// =======================
+// AUTH UTILITY
+// =======================
 
 function isLoggedInUser(user: any): user is { id: string } {
   return user && typeof user.id === 'string';
 }
 
-// ============================================================================
-// READ ACTIONS - STRICT TYPED & TIMESTAMP-SAFE
-// ============================================================================
-
-export interface GetUserEventsParams {
-  userId: string;
-  filter?: 'upcoming' | 'past' | 'all';
-}
-
-export async function getUserEventsAction(params: GetUserEventsParams): Promise<{ success: boolean; data?: Event[] }> {
-  const { userId, filter = 'all' } = params;
-  const eventsRef = adminDb.collection('events');
-
-  // Haal events op waar de user organizer is of participant
-  const [organizerSnap, participantSnap] = await Promise.all([
-    eventsRef.where('organizer', '==', userId).get(),
-    eventsRef.where(`participants.${userId}.id`, '==', userId).get(),
-  ]);
-
-  // Unieke events samenvoegen
-  const eventsMap = new Map<string, any>();
-  organizerSnap.forEach(doc => eventsMap.set(doc.id, { id: doc.id, ...doc.data() }));
-  participantSnap.forEach(doc => eventsMap.set(doc.id, { id: doc.id, ...doc.data() }));
-
-  // Normalize & sort
-  let events: Event[] = Array.from(eventsMap.values()).map(e => normalizeEvent(e))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-  // Filter
-  const now = new Date().toISOString();
-  if (filter === 'upcoming') events = events.filter(e => e.date >= now);
-  if (filter === 'past') events = events.filter(e => e.date < now);
-
-  return { success: true, data: events };
-}
-
-export async function getEventByIdAction(eventId: string): Promise<{ success: boolean; data?: Event }> {
-  const doc = await adminDb.collection('events').doc(eventId).get();
-  if (!doc.exists) return { success: false };
-
-  const data = doc.data();
-  if (!data) return { success: false };
-
-  // normalizeEvent zorgt dat timestamps als ISO string terugkomen
-  return { success: true, data: normalizeEvent({ id: doc.id, ...data }) };
-}
-
-// ============================================================================
-// CREATE ACTION
-// ============================================================================
+// =======================
+// CREATE EVENT
+// =======================
 
 export async function createEventAction(eventData: Partial<Event>) {
   const session = await getSession();
@@ -76,28 +33,30 @@ export async function createEventAction(eventData: Partial<Event>) {
   const userId = session.user.id;
   const eventId = crypto.randomUUID();
 
-  const participantsMap = Array.isArray(eventData.participants)
-    ? participantsArrayToMap(eventData.participants)
-    : eventData.participants ?? {};
+  // Zet deelnemers om naar array (Event type verwacht array)
+  const participantsArr: EventParticipant[] = participantsToArray(eventData.participants);
 
-  const eventDate = eventData.date ? new Date(eventData.date) : new Date();
-  const registrationDeadline = eventData.registrationDeadline ? new Date(eventData.registrationDeadline) : null;
+  const startTS = isoToTs(eventData.startDateTime) ?? Timestamp.now();
+  const endTS = isoToTs(eventData.endDateTime);
+  const registrationDeadlineTS = isoToTs(eventData.registrationDeadline);
 
-  const eventDoc: Omit<Event, 'id'> & { id: string } = {
+  const eventDoc: Event = {
     id: eventId,
     name: eventData.name?.trim() || 'Nieuw Evenement',
-    date: Timestamp.fromDate(eventDate),
-    time: eventData.time ?? null,
+    startDateTime: tsToIso(startTS)!,
+    endDateTime: endTS ? tsToIso(endTS)! : undefined,
     budget: eventData.budget ?? 0,
     organizer: userId,
     organizerId: userId,
-    profileId: eventData.profileId ?? null,
+    profileId: eventData.profileId ?? undefined,
     isLootjesEvent: eventData.isLootjesEvent ?? false,
-    registrationDeadline: registrationDeadline ? Timestamp.fromDate(registrationDeadline) : null,
+    registrationDeadline: registrationDeadlineTS ? tsToIso(registrationDeadlineTS)! : undefined,
     maxParticipants: eventData.maxParticipants ?? 1000,
-    participants: participantsMap,
-    currentParticipantCount: Object.keys(participantsMap).length,
-    backgroundImage: eventData.backgroundImage ?? 'https://firebasestorage.googleapis.com/v0/b/wish2share4u.firebasestorage.app/o/public%2FWebBackgrounds%2FStandaard%20achtergrond%20Event.jpg?alt=media',
+    participants: participantsArr,
+    currentParticipantCount: participantsArr.length,
+    backgroundImage:
+      eventData.backgroundImage ??
+      'https://firebasestorage.googleapis.com/v0/b/wish2share4u.firebasestorage.app/o/public%2FWebBackgrounds%2FStandaard%20achtergrond%20Event.jpg?alt=media',
     messages: [],
     lastReadTimestamps: {},
     drawnNames: {},
@@ -105,14 +64,14 @@ export async function createEventAction(eventData: Partial<Event>) {
     allowSelfRegistration: eventData.allowSelfRegistration ?? false,
     isInvited: eventData.isInvited ?? false,
     isPublic: eventData.isPublic ?? false,
-    createdAt: Timestamp.now(),
-    updatedAt: Timestamp.now(),
+    createdAt: tsToIso(Timestamp.now())!,
+    updatedAt: tsToIso(Timestamp.now())!,
     eventComplete: eventData.eventComplete ?? false,
-    theme: eventData.theme ?? null,
-    location: eventData.location ?? null,
-    description: eventData.description ?? null,
-    additionalInfo: eventData.additionalInfo ?? null,
-    imageUrl: eventData.imageUrl ?? null,
+    theme: eventData.theme ?? undefined,
+    location: eventData.location ?? undefined,
+    description: eventData.description ?? undefined,
+    additionalInfo: eventData.additionalInfo ?? undefined,
+    imageUrl: eventData.imageUrl ?? undefined,
   };
 
   await adminDb.collection('events').doc(eventId).set(eventDoc);
@@ -120,9 +79,9 @@ export async function createEventAction(eventData: Partial<Event>) {
   return { success: true, message: 'Evenement aangemaakt!', eventId };
 }
 
-// ============================================================================
-// UPDATE ACTION
-// ============================================================================
+// =======================
+// UPDATE EVENT
+// =======================
 
 export async function updateEventAction(eventId: string, updateData: Partial<Event>) {
   const session = await getSession();
@@ -133,24 +92,67 @@ export async function updateEventAction(eventId: string, updateData: Partial<Eve
   if (!doc.exists) return { success: false, message: 'Event niet gevonden' };
 
   const existingEvent = normalizeEvent({ id: doc.id, ...doc.data() });
+  if (existingEvent.organizer !== session.user.id) return { success: false, message: 'Alleen de organizer kan updaten' };
 
-  if (existingEvent.organizer !== session.user.id) {
-    return { success: false, message: 'Alleen de organizer kan updaten' };
-  }
+  const dataToUpdate: Partial<Event> = {
+    ...updateData,
+    updatedAt: tsToIso(Timestamp.now())!,
+  };
 
-  const dataToUpdate: Partial<Event> = { ...updateData, updatedAt: Timestamp.now() } as any;
-
-  if (updateData.date) dataToUpdate.date = Timestamp.fromDate(new Date(updateData.date));
-  if (updateData.registrationDeadline) dataToUpdate.registrationDeadline = Timestamp.fromDate(new Date(updateData.registrationDeadline));
+  if (updateData.startDateTime) dataToUpdate.startDateTime = updateData.startDateTime;
+  if (updateData.endDateTime) dataToUpdate.endDateTime = updateData.endDateTime ?? null;
+  if (updateData.registrationDeadline) dataToUpdate.registrationDeadline = updateData.registrationDeadline ?? null;
 
   await eventRef.update(dataToUpdate);
 
   return { success: true, message: 'Evenement bijgewerkt!' };
 }
 
-// ============================================================================
-// DELETE ACTION
-// ============================================================================
+// =======================
+// GET EVENT
+// =======================
+
+export async function getEventByIdAction(eventId: string): Promise<{ success: boolean; data?: Event }> {
+  const doc = await adminDb.collection('events').doc(eventId).get();
+  if (!doc.exists) return { success: false };
+
+  const data = doc.data();
+  if (!data) return { success: false };
+
+  const normalized = normalizeEvent(data);
+  return { success: true, data: normalized };
+}
+
+// =======================
+// GET EVENTS FOR USER
+// =======================
+
+export async function getEventsForUser(userId: string): Promise<Event[]> {
+  const eventsRef = adminDb.collection('events');
+
+  const organizerSnapshot = await eventsRef.where('organizer', '==', userId).get();
+  const allEventsSnapshot = await eventsRef.get();
+
+  const eventsMap = new Map<string, any>();
+  organizerSnapshot.docs.forEach(doc => eventsMap.set(doc.id, doc.data()));
+
+  allEventsSnapshot.docs.forEach(doc => {
+    const participants = doc.data()?.participants ?? {};
+    if (participants[userId] && !eventsMap.has(doc.id)) eventsMap.set(doc.id, doc.data());
+  });
+
+  const events: Event[] = [];
+  eventsMap.forEach(e => {
+    const normalized = normalizeEvent(e);
+    events.push(normalized);
+  });
+
+  return events.sort((a, b) => new Date(a.startDateTime).getTime() - new Date(b.startDateTime).getTime());
+}
+
+// =======================
+// DELETE EVENT
+// =======================
 
 export async function deleteEventAction(eventId: string) {
   const session = await getSession();
@@ -161,17 +163,15 @@ export async function deleteEventAction(eventId: string) {
   if (!doc.exists) return { success: false, message: 'Event niet gevonden' };
 
   const existingEvent = normalizeEvent({ id: doc.id, ...doc.data() });
-  if (existingEvent.organizer !== session.user.id) {
-    return { success: false, message: 'Alleen de organizer kan verwijderen' };
-  }
+  if (existingEvent.organizer !== session.user.id) return { success: false, message: 'Alleen de organizer kan verwijderen' };
 
   await eventRef.delete();
   return { success: true, message: 'Evenement verwijderd!' };
 }
 
-// ============================================================================
+// =======================
 // PARTICIPANT ACTIONS
-// ============================================================================
+// =======================
 
 export async function registerParticipantAction(eventId: string, participant: EventParticipant) {
   const eventRef = adminDb.collection('events').doc(eventId);
@@ -184,33 +184,15 @@ export async function registerParticipantAction(eventId: string, participant: Ev
   await eventRef.update({
     participants: updatedParticipants,
     currentParticipantCount: Object.keys(updatedParticipants).length,
-    updatedAt: Timestamp.now(),
+    updatedAt: tsToIso(Timestamp.now())!,
   });
 
   return { success: true, message: 'Deelnemer geregistreerd!' };
 }
 
-export async function confirmParticipantAction(eventId: string, participantId: string, confirmed = true) {
-  const eventRef = adminDb.collection('events').doc(eventId);
-  const doc = await eventRef.get();
-  if (!doc.exists) return { success: false, message: 'Event niet gevonden' };
-
-  const participants = doc.data()?.participants ?? {};
-  if (!participants[participantId]) return { success: false, message: 'Deelnemer niet gevonden' };
-
-  participants[participantId] = { ...participants[participantId], confirmed };
-
-  await eventRef.update({
-    participants,
-    updatedAt: Timestamp.now(),
-  });
-
-  return { success: true, message: 'Deelnemer status bijgewerkt!' };
-}
-
-// ============================================================================
+// =======================
 // TASK ACTIONS
-// ============================================================================
+// =======================
 
 export async function updateEventTasksAction(eventId: string, tasks: any[]) {
   const session = await getSession();
@@ -223,7 +205,7 @@ export async function updateEventTasksAction(eventId: string, tasks: any[]) {
   const existingEvent = normalizeEvent({ id: doc.id, ...doc.data() });
   if (existingEvent.organizer !== session.user.id) return { success: false, message: 'Alleen de organizer kan taken updaten' };
 
-  await eventRef.update({ tasks, updatedAt: Timestamp.now() });
+  await eventRef.update({ tasks, updatedAt: tsToIso(Timestamp.now())! });
 
   return { success: true, message: 'Taken bijgewerkt!' };
 }
@@ -240,7 +222,7 @@ export async function assignParticipantToTaskAction(eventId: string, taskId: str
 
   tasks[taskIndex].assignedTo = [...new Set([...(tasks[taskIndex].assignedTo || []), participantId])];
 
-  await eventRef.update({ tasks, updatedAt: Timestamp.now() });
+  await eventRef.update({ tasks, updatedAt: tsToIso(Timestamp.now())! });
   return { success: true, message: 'Deelnemer toegewezen!' };
 }
 
@@ -256,7 +238,7 @@ export async function removeParticipantFromTaskAction(eventId: string, taskId: s
 
   tasks[taskIndex].assignedTo = (tasks[taskIndex].assignedTo || []).filter(id => id !== participantId);
 
-  await eventRef.update({ tasks, updatedAt: Timestamp.now() });
+  await eventRef.update({ tasks, updatedAt: tsToIso(Timestamp.now())! });
   return { success: true, message: 'Deelnemer verwijderd!' };
 }
 
@@ -272,6 +254,6 @@ export async function toggleTaskAction(eventId: string, taskId: string) {
 
   tasks[taskIndex].completed = !tasks[taskIndex].completed;
 
-  await eventRef.update({ tasks, updatedAt: Timestamp.now() });
+  await eventRef.update({ tasks, updatedAt: tsToIso(Timestamp.now())! });
   return { success: true, message: 'Taak status bijgewerkt!' };
 }

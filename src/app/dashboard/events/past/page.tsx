@@ -2,7 +2,7 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/actions';
 import { PastEventsClientPage } from './_components/past-events-client-page';
-import { getUserEventsAction } from '@/lib/server/actions/events';
+import { getEventsForUser } from '@/lib/server/actions/events';
 import type { Event } from '@/types/event';
 
 export default async function PastEventsPage() {
@@ -12,8 +12,12 @@ export default async function PastEventsPage() {
     redirect('/?modal=login&callbackUrl=/dashboard/event/past');
   }
 
-  const result = await getUserEventsAction({ userId: currentUser.id, filter: 'past' });
-  const pastEvents: Event[] = result.success && result.data ? result.data : [];
+  const resultData = await getEventsForUser(currentUser.id);
+
+// Omdat getEventsForUser alleen Event[] teruggeeft, hoef je geen .success check te doen
+const pastEvents: Event[] = resultData.filter(
+  e => new Date(e.startDateTime) < new Date()
+);
 
   return (
     <PastEventsClientPage

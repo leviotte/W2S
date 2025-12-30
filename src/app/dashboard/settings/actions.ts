@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { getSession } from '@/lib/auth/actions';
+import { getSession } from '@/lib/auth/session.server';
 import { adminDb, adminAuth } from '@/lib/server/firebase-admin';
 import { userProfileSchema, socialLinksSchema, type SocialLinks } from '@/types/user';
 import { passwordChangeSchema } from '@/lib/validators/settings';
@@ -36,7 +36,7 @@ export async function updateUserPassword(
   formData: FormData
 ): Promise<PasswordFormState> {
   const session = await getSession();
-  if (!session.user.isLoggedIn) {
+  if (!session.user?.isLoggedIn) {
     return { success: false, message: 'Authenticatie mislukt. Log opnieuw in.' };
   }
   const userId = (session.user as AuthenticatedSessionUser).id;
@@ -70,7 +70,7 @@ export async function updateProfileInfo(
   formData: FormData
 ): Promise<ProfileInfoFormState> {
     const session = await getSession();
-    if (!session.user.isLoggedIn) {
+    if (!session.user?.isLoggedIn) {
         return { success: false, message: 'Authenticatie mislukt.' };
     }
     const userId = (session.user as AuthenticatedSessionUser).id;
@@ -117,7 +117,7 @@ export async function updateProfileInfo(
 
 export async function updateSocialLinks(data: SocialLinks): Promise<{ success: boolean; message: string; }> {
     const session = await getSession();
-    if (!session.user.isLoggedIn) {
+    if (!session.user?.isLoggedIn) {
         throw new Error('Authenticatie mislukt. Log opnieuw in.');
     }
     const userId = (session.user as AuthenticatedSessionUser).id;

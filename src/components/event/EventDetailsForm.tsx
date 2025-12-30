@@ -40,18 +40,23 @@ interface Category {
 }
 
 // ✅ FIX: Robuuste conversie met null safety
-const toFormData = (event: Event): EventFormData => ({
-  name: event.name ?? '',
-  date: event.date ? format(new Date(event.date), 'yyyy-MM-dd') : '',
-  time: event.time ?? undefined,
-  endTime: event.endTime ?? undefined,
-  location: event.location ?? undefined,
-  theme: event.theme ?? undefined,
-  backgroundImage: event.backgroundImage ?? undefined,
-  additionalInfo: event.additionalInfo ?? undefined,
-  organizerPhone: event.organizerPhone ?? undefined,
-  organizerEmail: event.organizerEmail ?? undefined,
-});
+const toFormData = (event: Event): EventFormData => {
+  const start = event.startDateTime ? new Date(event.startDateTime) : null;
+  const end = event.endDateTime ? new Date(event.endDateTime) : null;
+
+  return {
+    name: event.name ?? '',
+    date: start ? format(start, 'yyyy-MM-dd') : '',
+    time: start ? format(start, 'HH:mm') : undefined,
+    endTime: end ? format(end, 'HH:mm') : undefined,
+    location: event.location ?? undefined,
+    theme: event.theme ?? undefined,
+    backgroundImage: event.backgroundImage ?? undefined,
+    additionalInfo: event.additionalInfo ?? undefined,
+    organizerPhone: event.organizerPhone ?? undefined,
+    organizerEmail: event.organizerEmail ?? undefined,
+  };
+};
 
 export default function EventDetailsForm({ initialData, onSave, onCancel }: EventDetailsFormProps) {
   const [formData, setFormData] = useState<EventFormData>(toFormData(initialData));
@@ -109,13 +114,24 @@ export default function EventDetailsForm({ initialData, onSave, onCancel }: Even
   }, [selectedCategory, backImages]);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const dataToSave: Partial<Event> = {
-      ...formData,
-      date: formData.date,
-    };
-    onSave(dataToSave);
+  e.preventDefault();
+
+  const startDateTime = formData.time
+    ? new Date(`${formData.date}T${formData.time}`).toISOString()
+    : new Date(`${formData.date}`).toISOString();
+
+  const endDateTime = formData.endTime
+    ? new Date(`${formData.date}T${formData.endTime}`).toISOString()
+    : undefined;
+
+  const dataToSave: Partial<Event> = {
+    ...formData,
+    startDateTime,
+    endDateTime,
   };
+
+  onSave(dataToSave);
+};
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;

@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Gift } from 'lucide-react';
 
-import { getSession } from '@/lib/auth/actions';
+import { getSession } from '@/lib/auth/session.server';
 import { adminDb } from '@/lib/server/firebase-admin';
 import { type Wishlist, type WishlistItem } from '@/types/wishlist';
 import { cookies } from 'next/headers';
@@ -85,7 +85,7 @@ export default async function WishlistsDashboardPage() {
   const session = await getSession();
 
   // ✅ Typesafe: Discrimineer altijd expliciet!
-  if (!session.user.isLoggedIn) {
+  if (!session.user?.isLoggedIn) {
     redirect('/?auth=login');
   }
   const currentUser = session.user;

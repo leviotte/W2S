@@ -4,7 +4,7 @@
 import { adminDb } from '@/lib/server/firebase-admin';
 import { revalidatePath } from 'next/cache';
 import { nowTimestamp } from '@/lib/utils/time';
-import { getSession } from '@/lib/auth/actions';
+import { getSession } from '@/lib/auth/session.server';
 import type { UserProfile } from '@/types/user';
 import type { BackgroundCategory, BackgroundImage } from '@/types/background';
 import type { Wishlist, WishlistItem, UpdateWishlistItemData, CreateWishlistData } from '@/types/wishlist';
@@ -331,20 +331,23 @@ export async function linkWishlistToEventAction({
   eventId: string;
   wishlistId: string;
   participantId: string;
-}): Promise<void> {
+}): Promise<ActionResult> {
   try {
     const eventRef = adminDb.collection('events').doc(eventId);
     await eventRef.set(
       {
-        wishlists: { [participantId]: wishlistId },
+        wishlists: { [participantId]: wishlistId }, // overschrijft altijd
         updatedAt: nowTimestamp(),
       },
       { merge: true }
     );
+    return { success: true };
   } catch (error) {
     console.error('linkWishlistToEventAction error:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Kon wishlist niet koppelen' };
   }
 }
+
 export async function getWishlistsByOwnerId(
   ownerId: string
 ): Promise<{ success: true; data: Wishlist[] } | { success: false; error: string }> {
@@ -427,5 +430,29 @@ export async function undoPurchaseWishlistItemAction(wishlistId: string, itemId:
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Kon aankoop niet ongedaan maken' };
+  }
+}
+export async function toggleWishlistPrivacyAction(
+  wishlistId: string,
+  makePublic: boolean
+): Promise<ActionResult> {
+  try {
+    const docRef = adminDb.collection('wishlists').doc(wishlistId);
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) return { success: false, error: 'Wishlist niet gevonden' };
+
+    await docRef.update({
+      isPublic: makePublic,
+      updatedAt: nowTimestamp(),
+    });
+
+    const slug = docSnap.data()?.slug;
+    revalidatePath('/dashboard/wishlists');
+    if (slug) revalidatePath(`/wishlist/${slug}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error('toggleWishlistPrivacyAction error:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Kon privacy niet wijzigen' };
   }
 }

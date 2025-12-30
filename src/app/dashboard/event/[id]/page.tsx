@@ -1,5 +1,6 @@
+// src/app/dashboard/event/[id]/page.tsx
 import { notFound, redirect } from "next/navigation";
-import { getSession } from "@/lib/auth/session";
+import { getSession } from "@/lib/auth/session.server";
 import { adminDb } from "@/lib/server/firebase-admin";
 import type { Event } from "@/types/event";
 import { eventSchema } from "@/types/event";

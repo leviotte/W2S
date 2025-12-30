@@ -1,4 +1,3 @@
-// src/components/event/EventDetails.tsx
 "use client";
 
 import { useState, useCallback, memo } from "react";
@@ -105,11 +104,14 @@ export default function EventDetails({ event, isOrganizer, updateEvent, particip
     }
   }, [updateEvent, participants]);
 
-  // ✅ Format date exactly like production
+  // ✅ Format ISO strings
   const formatEventDate = () => {
-    if (!event.date) return "";
-    
-    const dateStr = new Date(event.date).toLocaleDateString("en-GB", {
+    if (!event.startDateTime) return "";
+
+    const start = new Date(event.startDateTime);
+    const end = event.endDateTime ? new Date(event.endDateTime) : null;
+
+    const dateStr = start.toLocaleDateString("en-GB", {
       weekday: "long",
       day: "numeric",
       month: "long",
@@ -117,11 +119,9 @@ export default function EventDetails({ event, isOrganizer, updateEvent, particip
     });
 
     let timeStr = "";
-    if (event.time) {
-      timeStr = ` from ${event.time}`;
-      if (event.endTime) {
-        timeStr += ` to ${event.endTime}`;
-      }
+    timeStr = ` from ${start.getHours().toString().padStart(2,'0')}:${start.getMinutes().toString().padStart(2,'0')}`;
+    if (end) {
+      timeStr += ` to ${end.getHours().toString().padStart(2,'0')}:${end.getMinutes().toString().padStart(2,'0')}`;
     }
 
     return dateStr + timeStr;
@@ -143,7 +143,6 @@ export default function EventDetails({ event, isOrganizer, updateEvent, particip
 
   return (
     <>
-      {/* ✅ Confirmation Modal */}
       <ConfirmationModal
         isOpen={showConfirmation}
         onClose={() => setShowConfirmation(false)}
@@ -165,7 +164,6 @@ export default function EventDetails({ event, isOrganizer, updateEvent, particip
                 <Edit2 className="h-5 w-5" />
               </Button>
             )}
-            {/* ✅ Start Drawing Button (zoals productie) */}
             {isOrganizer && event.allowSelfRegistration && event.isLootjesEvent && (
               <Button
                 disabled={isLoading || event.allowDrawingNames}
@@ -179,16 +177,14 @@ export default function EventDetails({ event, isOrganizer, updateEvent, particip
         </CardHeader>
         
         <CardContent className="p-0">
-          {event.date && <CountdownTimer targetDate={event.date} targetTime={event.time ?? undefined} />}
+          {event.startDateTime && <CountdownTimer targetDate={event.startDateTime} />}
           
           <div className="mt-3 space-y-1.5">
-            {/* ✅ Date + Time (EXACT zoals productie) */}
             <div className="flex items-center">
               <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
               <span className="text-sm">{formatEventDate()}</span>
             </div>
 
-            {/* ✅ Location */}
             {event.location && (
               <div className="flex items-center">
                 <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
@@ -205,7 +201,6 @@ export default function EventDetails({ event, isOrganizer, updateEvent, particip
               </div>
             )}
 
-            {/* ✅ Theme (NIEUW!) */}
             {event.theme && (
               <div className="flex items-center">
                 <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
@@ -213,7 +208,6 @@ export default function EventDetails({ event, isOrganizer, updateEvent, particip
               </div>
             )}
 
-            {/* ✅ Additional Info */}
             {event.additionalInfo && (
               <div className="flex items-start">
                 <Info className="h-4 w-4 mr-2 flex-shrink-0 mt-0.5" />
@@ -221,7 +215,6 @@ export default function EventDetails({ event, isOrganizer, updateEvent, particip
               </div>
             )}
 
-            {/* ✅ ORGANIZER CONTACT DETAILS (NIEUW! - Exact zoals productie) */}
             {(event.organizerPhone || event.organizerEmail) && (
               <div className="mt-2 pt-2 border-t border-gray-200">
                 <h3 className="text-xs font-bold text-gray-700 mb-1">

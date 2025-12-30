@@ -1,4 +1,4 @@
-// app/components/FollowersFollowingCount.tsx
+// src/components/followers/FollowersFollowingCount.tsx
 "use client";
 
 import { useEffect, useState } from "react";

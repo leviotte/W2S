@@ -28,9 +28,10 @@ export default function UpcomingEventsClientPage({ initialEvents, userId }: Upco
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const formatDate = (dateString: string | Date) => {
-    const date = typeof dateString === "string" ? new Date(dateString) : dateString;
-    return new Intl.DateTimeFormat("nl-BE", { dateStyle: "long" }).format(date);
-  };
+  const date = typeof dateString === "string" ? new Date(dateString) : dateString;
+  return new Intl.DateTimeFormat("nl-BE", { dateStyle: "long" }).format(date);
+};
+
 
   const handleDelete = async (eventId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -69,8 +70,8 @@ export default function UpcomingEventsClientPage({ initialEvents, userId }: Upco
                 <span className="truncate">{event.name}</span>
               </CardTitle>
               <CardDescription>
-                📅 {formatDate(event.date)}
-              </CardDescription>
+  📅 {formatDate(event.startDateTime)}
+</CardDescription>
             </CardHeader>
 
             {event.budget && event.budget > 0 && (

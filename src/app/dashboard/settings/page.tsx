@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Separator } from "@/components/ui/separator";
 import PageTitle from "@/components/layout/page-title";
 
-import { getSession } from "@/lib/auth/actions";
+import { getSession } from "@/lib/auth/session.server";
 import { adminDb } from "@/lib/server/firebase-admin";
 import type { SocialLinks, UserProfile } from "@/types/user";
 
@@ -41,7 +41,7 @@ export default async function SettingsPage() {
   const session = await getSession();
 
   // ✅ Typesafe union-check
-  if (!session.user.isLoggedIn) redirect("/?auth=login");
+  if (!session.user?.isLoggedIn) redirect("/?auth=login");
 
   const settings = await getUserSettings(session.user.id);
   if (!settings) redirect("/dashboard");

@@ -34,7 +34,7 @@ export function ChatMessage({
   const [editText, setEditText] = useState(message.text || '');
 
   const isOwnMessage = message.userId === currentUserId || message.senderId === currentUserId;
-  const displayName = message.isAnonymous ? 'Anoniem' : message.userName || message.senderName;
+  const displayName = message.isAnonymous ? 'Anoniem' : message.userName;
 
   const handleSaveEdit = async () => {
     if (!onEdit || !editText.trim()) return;
@@ -59,19 +59,14 @@ export function ChatMessage({
     }
   };
 
-  // ✅ FIX: timestamp is altijd string in ChatMessage type
   const messageTime = new Date(message.timestamp);
 
-  // ✅ FIX: gebruik senderAvatar i.p.v. senderPhotoURL
   const avatarUser = {
     displayName: message.isAnonymous ? 'Anoniem' : displayName,
     photoURL: message.isAnonymous ? null : message.senderAvatar || null,
   };
 
-  // ✅ FIX: gebruik gif i.p.v. isGif
-  const messageContent = message.gif || message.gifUrl 
-    ? message.gifUrl || message.gif || message.text 
-    : message.text;
+  const messageContent = message.gifUrl || message.text || '';
 
   return (
     <div
@@ -129,8 +124,7 @@ export function ChatMessage({
                 : 'bg-white/80 backdrop-blur-sm text-gray-900 border border-gray-200'
             )}
           >
-            {/* ✅ FIX: gebruik gif i.p.v. isGif */}
-            {message.gif || message.gifUrl ? (
+            {message.gifUrl ? (
               <img
                 src={messageContent}
                 alt="GIF"

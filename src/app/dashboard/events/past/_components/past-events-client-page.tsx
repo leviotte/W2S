@@ -83,7 +83,7 @@ export function PastEventsClientPage({ initialEvents, currentUserId }: PastEvent
                       )}
                     </CardTitle>
                     <CardDescription>
-                      📅 {formatDate(event.date)}
+                      📅 {formatDate(event.startDateTime)}
                     </CardDescription>
                   </CardHeader>
 

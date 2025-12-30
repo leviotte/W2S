@@ -1,6 +1,6 @@
 // src/app/dashboard/add-profile/page.tsx
 import { AddProfileForm } from "@/app/profile/_components/AddProfileForm";
-import { getSession } from "@/lib/auth/session";
+import { getSession } from "@/lib/auth/session.server";
 import { redirect } from "next/navigation";
 
 export const metadata = {
@@ -11,7 +11,7 @@ export const metadata = {
 export default async function AddProfilePage() {
   const session = await getSession();
 
-  if (!session.user.isLoggedIn) {
+  if (!session.user?.isLoggedIn) {
     redirect("/");
   }
 

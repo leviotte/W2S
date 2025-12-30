@@ -1,7 +1,7 @@
 // src/app/dashboard/events/page.tsx
 import { Suspense } from 'react';
-import { getSession } from '@/lib/auth/session';
-import { getEventsForUser } from '@/lib/server/data/events';
+import { getSession } from '@/lib/auth/session.server';
+import { getEventsForUser } from '@/lib/server/actions/events';
 import { redirect } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -9,6 +9,7 @@ import { Plus } from 'lucide-react';
 import EventsListSection from './_components/events-list-section';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { AuthenticatedSessionUser } from '@/types/session';
+import type { Event } from '@/types/event';
 
 export const metadata = {
   title: 'Mijn Evenementen - Wish2Share',
@@ -18,13 +19,13 @@ export const metadata = {
 export default async function EventsPage() {
   const session = await getSession();
 
-  // Altijd eerst discrimineren!
-  if (!session.user.isLoggedIn) {
+  if (!session.user?.isLoggedIn) {
     redirect('/?auth=login');
   }
+
   const currentUser = session.user as AuthenticatedSessionUser;
 
-  const allEvents = await getEventsForUser(currentUser.id);
+  const allEvents: Event[] = await getEventsForUser(currentUser.id);
 
   console.log('🔵 Total events fetched:', allEvents.length);
   console.log(
@@ -32,15 +33,15 @@ export default async function EventsPage() {
     allEvents.map((e) => ({
       id: e.id,
       name: e.name,
-      date: e.date,
+      startDateTime: e.startDateTime,
       organizerId: e.organizerId,
-      participantsCount: Object.keys(e.participants || {}).length,
+      participantsCount: e.participants?.length ?? 0,
     }))
   );
 
   const now = new Date();
 
-  // ✅ Helper om een date string of Date object naar UTC timestamp te converteren
+  // ✅ Helper: date string of Date naar UTC timestamp
   const toUTCTimestamp = (date: string | Date) => {
     const d = new Date(date);
     return Date.UTC(
@@ -57,12 +58,12 @@ export default async function EventsPage() {
   const nowUTC = toUTCTimestamp(now);
 
   const upcomingEvents = allEvents
-    .filter((event) => toUTCTimestamp(event.date) >= nowUTC)
-    .sort((a, b) => toUTCTimestamp(a.date) - toUTCTimestamp(b.date));
+    .filter((event) => toUTCTimestamp(event.startDateTime) >= nowUTC)
+    .sort((a, b) => toUTCTimestamp(a.startDateTime) - toUTCTimestamp(b.startDateTime));
 
   const pastEvents = allEvents
-    .filter((event) => toUTCTimestamp(event.date) < nowUTC)
-    .sort((a, b) => toUTCTimestamp(b.date) - toUTCTimestamp(a.date));
+    .filter((event) => toUTCTimestamp(event.startDateTime) < nowUTC)
+    .sort((a, b) => toUTCTimestamp(b.startDateTime) - toUTCTimestamp(a.startDateTime));
 
   console.log('🔵 Split events:', {
     upcoming: upcomingEvents.length,
