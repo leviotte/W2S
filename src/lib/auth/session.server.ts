@@ -4,6 +4,7 @@ import 'server-only';
 import { cookies } from 'next/headers';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { sessionUserSchema, type AuthenticatedSessionUser } from '@/types/session';
+import type { NextRequest } from 'next/server';
 
 const SESSION_COOKIE = 'wish2share_session';
 const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 dagen
@@ -16,25 +17,28 @@ const sign = (value: string) =>
 const safeEqual = (a: string, b: string) =>
   a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
-export async function getSession(): Promise<{ user: AuthenticatedSessionUser | null }> {
+export async function getSession(req?: NextRequest): Promise<{ user: AuthenticatedSessionUser | null }> {
   try {
-    const cookieStore = await cookies();
+    const cookieStore = req ? req.cookies : await cookies();
     const raw = cookieStore.get(SESSION_COOKIE)?.value;
     if (!raw) return { user: null };
 
     const [payload, signature] = raw.split('.');
-    if (!payload || !signature || !safeEqual(sign(payload), signature)) return { user: null };
+    if (!payload || !signature) return { user: null };
 
-    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8'));
-    const parsed = sessionUserSchema.safeParse(decoded);
+    if (!safeEqual(sign(payload), signature)) return { user: null };
+
+    const user = JSON.parse(Buffer.from(payload, 'base64').toString('utf-8'));
+    const parsed = sessionUserSchema.safeParse(user);
     if (!parsed.success) return { user: null };
 
     return { user: parsed.data };
-  } catch (err) {
-    console.error('[Session] getSession error:', err);
+  } catch (e) {
+    console.error('[getSession error]', e);
     return { user: null };
   }
 }
+
 
 export async function createSession(
   userData: Omit<AuthenticatedSessionUser, 'isLoggedIn' | 'createdAt' | 'lastActivity'>

@@ -1,7 +1,7 @@
 // src/middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { cookies } from 'next/headers';
+import { getSession } from './src/lib/auth/session.server';
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -10,11 +10,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const cookieStore = await cookies();
-  const raw = cookieStore.get('wish2share_session')?.value;
-  const loggedIn = !!raw;
+  const session = await getSession(req);
+  const loggedIn = !!session.user;
 
-  if (pathname.startsWith('/dashboard') && !loggedIn) {
+  const protectedRoutes = ['/dashboard', '/admin'];
+
+  if (protectedRoutes.some(r => pathname.startsWith(r)) && !loggedIn) {
     return NextResponse.redirect(new URL('/?auth=login', req.url));
   }
 
