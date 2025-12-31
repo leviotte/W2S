@@ -4,7 +4,6 @@ import 'server-only';
 import { cookies } from 'next/headers';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { sessionUserSchema, type AuthenticatedSessionUser } from '@/types/session';
-import type { NextRequest } from 'next/server';
 
 const SESSION_COOKIE = 'wish2share_session';
 const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 dagen
@@ -17,18 +16,17 @@ const sign = (value: string) =>
 const safeEqual = (a: string, b: string) =>
   a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
-export async function getSession(req?: NextRequest): Promise<{ user: AuthenticatedSessionUser | null }> {
+export async function getSession(): Promise<{ user: AuthenticatedSessionUser | null }> {
   try {
-    const cookieStore = req ? req.cookies : await cookies();
+    const cookieStore = await cookies();
     const raw = cookieStore.get(SESSION_COOKIE)?.value;
     if (!raw) return { user: null };
 
     const [payload, signature] = raw.split('.');
     if (!payload || !signature) return { user: null };
-
     if (!safeEqual(sign(payload), signature)) return { user: null };
 
-    const user = JSON.parse(Buffer.from(payload, 'base64').toString('utf-8'));
+    const user = JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8'));
     const parsed = sessionUserSchema.safeParse(user);
     if (!parsed.success) return { user: null };
 
@@ -39,10 +37,7 @@ export async function getSession(req?: NextRequest): Promise<{ user: Authenticat
   }
 }
 
-
-export async function createSession(
-  userData: Omit<AuthenticatedSessionUser, 'isLoggedIn' | 'createdAt' | 'lastActivity'>
-) {
+export async function createSession(userData: Omit<AuthenticatedSessionUser, 'isLoggedIn' | 'createdAt' | 'lastActivity'>) {
   const now = Date.now();
   const session: AuthenticatedSessionUser = { ...userData, isLoggedIn: true, createdAt: now, lastActivity: now };
   const payload = Buffer.from(JSON.stringify(session)).toString('base64url');

@@ -1,58 +1,61 @@
 // src/components/auth/login-modal.tsx
 'use client';
 
-import { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { LoginForm } from './login-form';
-import { PasswordResetForm } from './PasswordResetForm';
+import { useState, useTransition } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { LoginFormServer } from './login-form.server';
+import { RegisterFormServer } from './register-form.server';
+import { toast } from 'sonner';
+import { LoginFormUI } from './login-form-ui';
+import { RegisterFormUI } from './register-form-ui';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSwitchToRegister?: () => void;
-  returnUrl?: string;
 }
 
-export function LoginModal({
-  isOpen,
-  onClose,
-  onSwitchToRegister,
-  returnUrl,
-}: LoginModalProps) {
-  const [isResettingPassword, setIsResettingPassword] = useState(false);
+export function LoginModal({ isOpen, onClose }: LoginModalProps) {
+  const [isPending, startTransition] = useTransition();
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+
+  const handleLogin = async (formData: any) => {
+    startTransition(async () => {
+      const result = await LoginFormServer(formData); // ✅ hier de server action
+      if (result.success) {
+        toast.success('Welkom terug!');
+        onClose();
+      } else {
+        toast.error(result.error || 'Login mislukt');
+      }
+    });
+  };
+
+  const handleRegister = async (formData: any) => {
+    startTransition(async () => {
+      const result = await RegisterFormServer(formData); // ✅ hier de server action
+      if (result.success) {
+        toast.success('Account aangemaakt!');
+        setMode('login');
+      } else {
+        toast.error(result.error || 'Registratie mislukt');
+      }
+    });
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-sm md:max-w-md">
-        <DialogHeader className="sr-only">
-          <DialogTitle>
-            {isResettingPassword ? 'Reset Wachtwoord' : 'Log in'}
-          </DialogTitle>
+        <DialogHeader>
+          <DialogTitle>{mode === 'login' ? 'Log in' : 'Registreer'}</DialogTitle>
           <DialogDescription>
-            {isResettingPassword 
-              ? 'Reset je Wish2Share wachtwoord' 
-              : 'Log in op je Wish2Share-account'}
+            {mode === 'login' ? 'Log in op je account' : 'Maak een nieuw account aan'}
           </DialogDescription>
         </DialogHeader>
-        
-        {isResettingPassword ? (
-          <PasswordResetForm
-            onSuccess={onClose}
-            onBackToLogin={() => setIsResettingPassword(false)}
-          />
+
+        {mode === 'login' ? (
+          <LoginFormUI onSubmit={handleLogin} onSwitchToRegister={() => setMode('register')} />
         ) : (
-          <LoginForm
-            onSuccess={onClose}
-            onSwitchToRegister={onSwitchToRegister}
-            onSwitchToForgotPassword={() => setIsResettingPassword(true)}
-            returnUrl={returnUrl}
-          />
+          <RegisterFormUI onSubmit={handleRegister} onSwitchToLogin={() => setMode('login')} />
         )}
       </DialogContent>
     </Dialog>

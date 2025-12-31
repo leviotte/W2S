@@ -2,7 +2,6 @@
 import Hero from '@/components/landing/hero';
 import SearchButton from '@/components/shared/search-button';
 import HowItWorks from '@/components/landing/HowItWorks';
-import Features from '@/components/landing/Features';
 
 export const metadata = {
   title: 'Wish2Share - Deel je wensen, deel geluk',

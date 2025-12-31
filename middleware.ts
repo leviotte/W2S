@@ -1,7 +1,6 @@
 // src/middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getSession } from './src/lib/auth/session.server';
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -10,11 +9,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const session = await getSession(req);
-  const loggedIn = !!session.user;
+  // Edge-safe session check
+  const sessionCookie = req.cookies.get('wish2share_session')?.value;
+  const loggedIn = !!sessionCookie; // TODO: optioneel decode/verify JWT edge-compatible
 
   const protectedRoutes = ['/dashboard', '/admin'];
-
   if (protectedRoutes.some(r => pathname.startsWith(r)) && !loggedIn) {
     return NextResponse.redirect(new URL('/?auth=login', req.url));
   }
