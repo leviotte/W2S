@@ -10,24 +10,12 @@ import { motion, AnimatePresence } from "framer-motion";
 type DialogContext =
   | {
       type: "event";
-      event: {
-        id: string;
-        name: string;
-      };
-      participant: {
-        id: string; 
-        firstName: string;
-        lastName: string;
-        email?: string;
-      };
+      event: { id: string; name: string };
+      participant: { id: string; firstName: string; lastName: string; email?: string };
     }
   | {
       type: "search";
-      recipient: {
-        firstName: string;
-        lastName: string;
-        email?: string;
-      };
+      recipient: { firstName: string; lastName: string; email?: string }; // verplicht
     };
 
 interface WishlistRequestDialogProps {

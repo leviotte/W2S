@@ -20,12 +20,65 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
 import { createEventAction } from '@/lib/server/actions/events';
-import type { EventParticipant, EventProfileOption, Event } from '@/types/event';
-import { eventSchema } from '@/types/event';
+import type { EventParticipant } from '@/types/event';
+import { z } from 'zod';
+
+// ================================
+// LOCALLY DEFINE EVENT SCHEMA & FORM DATA
+// ================================
+export const eventSchema = z.object({
+  name: z.string().min(1, "Naam is verplicht"),
+  description: z.string().optional(),
+  date: z.date(),
+  time: z.string().optional(),
+  budget: z.number().min(0).optional(),
+  maxParticipants: z.number().min(1).optional(),
+  drawNames: z.boolean(),
+  registrationDeadline: z.date().optional().nullable(),
+  participantType: z.enum(['manual','self-register']),
+  isPublic: z.boolean(),
+  participants: z.array(z.object({
+    id: z.string(),
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    email: z.string().optional(),
+    confirmed: z.boolean().optional(),
+    role: z.enum(['organizer','participant']).optional(),
+    status: z.enum(['pending','accepted','declined']).optional(),
+    addedAt: z.string().optional(),
+    wishlistId: z.string().optional(),
+    photoURL: z.string().optional(),
+    profileId: z.string().optional(),
+    name: z.string().optional(),
+  })).optional(),
+});
+
+export type EventFormData = {
+  name: string;
+  startDateTime: string;
+  endDateTime?: string;
+  organizer: string;
+  budget: number;
+  maxParticipants: number;
+  isLootjesEvent: boolean;
+  isPublic: boolean;
+  allowSelfRegistration: boolean;
+  participants?: EventParticipant[];
+  registrationDeadline?: string | null;
+};
+
 
 // ============================================================================
 // FORM TYPES
 // ============================================================================
+interface EventProfileOption {
+  id: string;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  photoURL?: string | null;
+  isMainProfile?: boolean;
+}
 interface FormValues {
   step: number;
   participantType: 'manual' | 'self-register';
@@ -36,6 +89,7 @@ interface FormValues {
   budget?: number;
   maxParticipants?: number;
   drawNames: boolean;
+  isPublic: boolean;
   registrationDeadline: Date | null;
   participants: Partial<EventParticipant>[];
 }
@@ -121,6 +175,7 @@ export default function CreateEventForm({ currentUser, profiles }: CreateEventFo
       budget: undefined,
       maxParticipants: undefined,
       drawNames: false,
+      isPublic: false,
       registrationDeadline: null,
       participants: defaultParticipants,
     },
@@ -167,34 +222,73 @@ export default function CreateEventForm({ currentUser, profiles }: CreateEventFo
 };
 
   const onSubmit = async (data: FormValues) => {
-    const enrichedParticipants = prepareParticipants(data.participants);
+  const isManual = data.participantType === 'manual';
+  const isSelfRegister = data.participantType === 'self-register';
 
-    const payload: Partial<Event> = {
-      name: data.name,
-      description: data.description,
-      startDateTime: buildStartDateTimeISO(data.date, data.time),
-      endDateTime: null,
-      organizer: currentUser.id,
-      budget: data.budget ?? 0,
-      maxParticipants: data.maxParticipants ?? 1000,
-      isLootjesEvent: data.drawNames,
-      allowSelfRegistration: data.participantType === 'self-register',
-      participants: enrichedParticipants,
-      registrationDeadline: data.registrationDeadline?.toISOString() ?? null,
-    };
-
-    try {
-      const result = await createEventAction(payload);
-      if (result?.success && result.eventId) {
-        toast.success('Event aangemaakt!');
-        router.push(`/dashboard/event/${result.eventId}`);
-      } else {
-        toast.error(result?.message || 'Fout bij aanmaken event');
-      }
-    } catch {
-      toast.error('Onbekende fout opgetreden');
-    }
+  // Voeg organizer altijd toe als participant
+  const organizerParticipant: EventParticipant = {
+    id: currentUser.id,
+    firstName: currentUser.firstName ?? '',
+    lastName: currentUser.lastName ?? '',
+    email: currentUser.email ?? '',
+    role: 'organizer',
+    status: 'accepted',
+    confirmed: true,
+    addedAt: new Date().toISOString(),
   };
+
+  // Alleen extra deelnemers toevoegen bij manual
+  const normalizeRole = (role?: string): "organizer" | "participant" =>
+  role === "organizer" ? "organizer" : "participant";
+  const enrichedParticipants: EventParticipant[] = isManual
+  ? [
+      organizerParticipant,
+      ...(prepareParticipants(data.participants)?.map(p => ({
+        ...p,
+        firstName: p.firstName ?? '',
+        lastName: p.lastName ?? '',
+        email: p.email ?? '',
+        role: (p.role === 'organizer' ? 'organizer' : 'participant') as 'organizer' | 'participant',
+        status: (p.status === 'pending' || p.status === 'accepted' || p.status === 'declined'
+          ? p.status
+          : 'pending') as 'pending' | 'accepted' | 'declined',
+        confirmed: true,
+        addedAt: p.addedAt ?? new Date().toISOString(),
+      })) || []),
+    ]
+  : [organizerParticipant];
+
+const payload: EventFormData = {
+  name: data.name,
+  startDateTime: buildStartDateTimeISO(data.date, data.time)!,
+  endDateTime: undefined,
+  organizer: currentUser.id,
+  budget: data.budget ?? 0,
+  maxParticipants: data.maxParticipants ?? 1000,
+  isLootjesEvent: data.drawNames,
+  isPublic: data.isPublic ?? false,
+  allowSelfRegistration: isSelfRegister,
+  ...(isManual && {
+    participants: enrichedParticipants,
+    registrationDeadline: data.registrationDeadline?.toISOString() ?? null,
+  }),
+};
+
+
+
+  try {
+    const result = await createEventAction(payload);
+    if (result?.success && result.eventId) {
+      toast.success('Event aangemaakt!');
+      router.push(`/dashboard/event/${result.eventId}`);
+    } else {
+      toast.error(result?.message || 'Fout bij aanmaken event');
+    }
+  } catch (err) {
+    console.error(err);
+    toast.error('Onbekende fout opgetreden');
+  }
+};
 
   // ========================================================================
   // STEP COMPONENTS

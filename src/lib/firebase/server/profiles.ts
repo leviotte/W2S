@@ -2,8 +2,40 @@
 import 'server-only';
 import { adminDb } from '@/lib/server/firebase-admin';
 import { UserProfile } from '@/types/user';
-import type { Timestamp } from 'firebase-admin/firestore';
+import { Timestamp } from 'firebase-admin/firestore';
+import type { SubProfile } from '@/types/user';
 
+// ----------------------------
+// SubProfile DB Actions
+// ----------------------------
+export async function createSubProfile(
+  userId: string,
+  data: Omit<SubProfile, 'id'>
+) {
+  const docRef = await adminDb
+    .collection('users')
+    .doc(userId)
+    .collection('subProfiles')
+    .add(data);
+
+  return { id: docRef.id, ...data };
+}
+
+export async function updateSubProfile(userId: string, subProfileId: string, data: Partial<SubProfile>) {
+  await adminDb.collection('users').doc(userId)
+    .collection('subProfiles').doc(subProfileId).update(data);
+}
+
+export async function deleteSubProfile(userId: string, subProfileId: string) {
+  await adminDb.collection('users').doc(userId)
+    .collection('subProfiles').doc(subProfileId).delete();
+}
+
+export async function getSubProfiles(userId: string) {
+  const snap = await adminDb.collection('users').doc(userId)
+    .collection('subProfiles').get();
+  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SubProfile[];
+}
 // ============================================================================
 // PROFILE MANAGERS
 // ============================================================================

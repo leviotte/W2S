@@ -1,17 +1,16 @@
-// src/app/(auth)/login/page.tsx
 import { Metadata } from 'next';
-import { LoginClient } from './_components/login-client';
+import { LoginFormServerFirst } from '@/components/auth/LoginFormServerFirst';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Inloggen | Wish2Share',
-  description: 'Log in op je Wish2Share account',
+  title: 'Login | Wish2Share',
+  description: 'Login om je account te gebruiken',
 };
 
 export default function LoginPage() {
   return (
-    <div className="container flex h-screen w-screen flex-col items-center justify-center">
+    <div className="container flex min-h-screen w-screen flex-col items-center justify-center py-8">
       <Link
         href="/"
         className="absolute left-4 top-4 md:left-8 md:top-8 flex items-center text-sm font-medium text-muted-foreground hover:text-primary"
@@ -19,10 +18,8 @@ export default function LoginPage() {
         <ArrowLeft className="mr-2 h-4 w-4" />
         Terug naar home
       </Link>
-      
-      <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[450px]">
-        <LoginClient />
-      </div>
+
+      <LoginFormServerFirst />
     </div>
   );
 }

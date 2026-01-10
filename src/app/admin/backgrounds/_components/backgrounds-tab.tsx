@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import type { BackgroundImage, BackgroundCategory, BackgroundType } from '@/types/background';
+import type { BackgroundImage, BackgroundCategory, BackgroundType } from "@/modules/dashboard/backgrounds.types";
 import {
   uploadBackgroundImage,
   deleteBackgroundImage,

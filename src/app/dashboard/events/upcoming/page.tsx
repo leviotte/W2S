@@ -5,7 +5,8 @@ import { getCurrentUser } from '@/lib/auth/actions';
 import UpcomingEventsClientPage from './_components/upcoming-events-client-page';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getEventsForUser } from '@/lib/server/actions/events';
-import type { Event } from '@/types/event';
+import type { Event, EventMessage } from '@/types/event'; // ✅ import EventMessage
+import { tsToIso } from '@/lib/client/tsToIso'; // ✅ import tsToIso helper
 import { DateTime } from 'luxon';
 
 export default async function UpcomingEventsPage() {
@@ -13,7 +14,33 @@ export default async function UpcomingEventsPage() {
   if (!currentUser?.id) redirect('/?auth=login');
 
   // Haal alle events op voor de user
-  const allEvents: Event[] = await getEventsForUser(currentUser.id);
+  type ServerEvent = Omit<Event, 'messages'> & { messages?: unknown[] };
+
+const allEventsRaw: ServerEvent[] = await getEventsForUser(currentUser.id);
+
+const allEvents: Event[] = await Promise.all(
+  allEventsRaw.map(async (ev: ServerEvent) => {
+    const messages: EventMessage[] = await Promise.all(
+      (ev.messages ?? []).map(async (msg: any) => ({
+        id: msg.id,
+        senderId: msg.senderId ?? 'unknown',
+        content: msg.content ?? '',
+        timestamp: (await tsToIso(msg.timestamp)) ?? new Date().toISOString(),
+      }))
+    );
+
+    return {
+      ...ev,
+      messages,
+      startDateTime: (await tsToIso(ev.startDateTime)) ?? new Date().toISOString(),
+      endDateTime: (await tsToIso(ev.endDateTime)) ?? new Date().toISOString(),
+      createdAt: (await tsToIso(ev.createdAt)) ?? new Date().toISOString(),
+      updatedAt: (await tsToIso(ev.updatedAt)) ?? new Date().toISOString(),
+      participants: ev.participants ?? {},
+    };
+  })
+);
+
 
   // Filter enkel de aankomende events (upcoming)
   const now = DateTime.now();

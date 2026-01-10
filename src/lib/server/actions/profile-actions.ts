@@ -7,6 +7,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/server/firebase-admin';
 import { getSession } from '@/lib/auth/session.server';
 import { addressSchema, UserProfile, userProfileSchema } from '@/types/user';
+import { updateUserProfile } from '@/lib/firebase/server/profiles';
 
 // ====================================================================
 // Type definities voor consistente responses
@@ -82,11 +83,11 @@ export async function updatePersonalInfo(prevState: FormState, formData: FormDat
     const displayName = `${firstName} ${lastName}`.trim();
     const displayName_lowercase = displayName.toLowerCase();
 
-    await adminDb.collection('users').doc(session.user.id).update({
-      ...parsed.data,
-      displayName,
-      displayName_lowercase,
-    });
+    await updateUserProfile(session.user.id, {
+  ...parsed.data,
+  displayName,
+  displayName_lowercase,
+} as Partial<UserProfile>);
 
     revalidatePath('/dashboard/profile');
     return { message: 'Gegevens succesvol bijgewerkt.', success: true };

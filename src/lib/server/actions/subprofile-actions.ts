@@ -7,6 +7,7 @@ import { getSession } from '@/lib/auth/session.server';
 import type { SubProfile } from '@/types/user';
 import { nanoid } from 'nanoid';
 import type { AuthenticatedSessionUser } from '@/types/session';
+import { serializeSubProfile } from '@/lib/utils/serializers';
 
 
 const subProfileSchema = z.object({
@@ -77,12 +78,9 @@ export async function createSubProfileAction(data: unknown) {
     revalidatePath('/dashboard/add-profile');
 
     return {
-      success: true,
-      data: {
-        id: newProfileRef.id,
-        ...newProfileData
-      }
-    };
+  success: true,
+  data: serializeSubProfile({ id: newProfileRef.id, ...newProfileData }),
+};
   } catch (error) {
     console.error("Fout bij aanmaken subprofiel:", error);
     return {
@@ -116,12 +114,15 @@ export async function getUserSubProfilesAction(): Promise<{
 
     const profiles: SubProfile[] = snapshot.docs.map(doc => {
       const data = doc.data();
-      return {
+
+      // ❗ Converteer expliciet naar het juiste SubProfile type
+      const profile: SubProfile = {
         id: doc.id,
-        userId: data.userId,
+        userId: String(data.userId),
         firstName: data.firstName || '',
         lastName: data.lastName || '',
-        displayName: data.displayName || '',
+        displayName: data.displayName || `${data.firstName || ''} ${data.lastName || ''}`.trim(),
+        displayName_lowercase: (data.displayName || `${data.firstName || ''} ${data.lastName || ''}`).toLowerCase(),
         photoURL: data.photoURL || null,
         birthdate: data.birthdate || null,
         gender: data.gender || null,
@@ -129,7 +130,9 @@ export async function getUserSubProfilesAction(): Promise<{
         isPublic: data.isPublic ?? false,
         createdAt: data.createdAt?.toDate?.() ?? new Date(),
         updatedAt: data.updatedAt?.toDate?.() ?? new Date(),
-      } as SubProfile;
+      };
+
+      return profile;
     });
 
     return { success: true, data: profiles };
@@ -138,6 +141,7 @@ export async function getUserSubProfilesAction(): Promise<{
     return { success: false, error: 'Kon profielen niet ophalen.', data: [] };
   }
 }
+
 // ============================================================================
 // GET SUBPROFILE BY ID
 // ============================================================================

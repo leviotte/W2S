@@ -1,7 +1,7 @@
 // lib/utils/serializers.ts
 
 import type { WishlistItem, Wishlist } from '@/types/wishlist';
-import type { UserProfile } from '@/types/user';
+import type { UserProfile, SubProfile } from '@/types/user';
 
 // Helper die altijd ALLE optionele velden garandeert voor TypeScript strict
 export function serializeWishlistItem(item: any): WishlistItem {
@@ -55,5 +55,16 @@ export function serializeUserProfile(data: any, idOverride?: string): UserProfil
     birthdate: data.birthdate?.toDate?.()
       ? data.birthdate.toDate().toISOString()
       : (typeof data.birthdate === 'string' ? data.birthdate : null),
+  };
+}
+export function serializeSubProfile(sub: SubProfile) {
+  return {
+    id: sub.id,
+    displayName: sub.displayName,
+    displayName_lowercase: sub.displayName_lowercase,
+    birthdate: sub.birthdate ?? null,
+    isPublic: sub.isPublic,
+    createdAt: sub.createdAt,
+    updatedAt: sub.updatedAt,
   };
 }

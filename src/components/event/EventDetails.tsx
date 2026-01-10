@@ -3,24 +3,29 @@
 import { useState, useCallback, memo } from "react";
 import { Calendar, MapPin, Edit2, Share2, Clock, Info, Phone, Mail } from "lucide-react";
 import { toast } from "sonner";
-import { format } from 'date-fns';
-
-// --- Types ---
-import type { Event, EventParticipant } from "@/types/event";
+import type { Event } from "@/types/event";
 
 // --- Components ---
 import CountdownTimer from "@/components/shared/countdown-timer";
-import EventDetailsForm from "./EventDetailsForm";
+import EventDetailsForm from "@/app/dashboard/events/_components/EventDetailsForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { toSafeEvent } from "@/lib/client/safeEvent";
+import type { EventParticipant, EventMessage } from "@/types/event";
+import type { ServerEvent } from "@/lib/server/types/event-admin";
+import type { Event as ClientEvent } from "@/types/event";
 
-// --- Props Definitie ---
+export interface EventDetailsFormProps {
+  initialData: ClientEvent; // ✅ client-safe
+  onSaved: (data: Partial<ClientEvent> & { allowDrawingNames?: boolean }) => Promise<void>;
+  onClose: () => void;
+}
 interface EventDetailsProps {
   event: Event;
   participants: EventParticipant[];
   isOrganizer: boolean;
-  updateEvent: (data: Partial<Event>) => void;
+  updateEvent: (data: Partial<Event> & { allowDrawingNames?: boolean; isInvited?: boolean }) => Promise<void>;
 }
 
 // ✅ Confirmation Modal
@@ -61,6 +66,7 @@ export default function EventDetails({ event, isOrganizer, updateEvent, particip
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
+  // ✅ Clipboard share
   const handleCopyToClipboard = useCallback(async () => {
     const base = window.location.origin;
     const link = event.allowSelfRegistration
@@ -70,30 +76,34 @@ export default function EventDetails({ event, isOrganizer, updateEvent, particip
     await navigator.clipboard.writeText(link);
     toast.success("Link gekopieerd naar het klembord!");
 
-    if (event.id) updateEvent({ isInvited: true });
+    if (event.id) await updateEvent({ isInvited: true });
   }, [event.id, event.allowSelfRegistration, updateEvent]);
 
+  // ✅ Save handler
   const handleSave = useCallback(
-    async (data: Partial<Event>) => {
-      try {
-        await updateEvent(data);
-        setIsEditing(false);
-        toast.success("Evenementdetails bijgewerkt!");
-      } catch (error) {
-        console.error("Error updating event details:", error);
-        toast.error("Kon de details niet bijwerken.");
-      }
-    },
-    [updateEvent]
-  );
+  async (data: Partial<ClientEvent> & { allowDrawingNames?: boolean }) => {
+    try {
+      // stuur server-only update via updateEvent, TS accepteert hier safe casting
+      await updateEvent({
+        ...data,
+        drawnNames: data.drawnNames ?? {}, // verplicht
+        messages: data.messages ?? [],
+      });
+      setIsEditing(false);
+      toast.success("Evenementdetails bijgewerkt!");
+    } catch (error) {
+      console.error("Error updating event details:", error);
+      toast.error("Kon de details niet bijwerken.");
+    }
+  },
+  [updateEvent]
+);
 
+  // ✅ Start drawing names
   const handleStartDrawing = useCallback(async () => {
     setIsLoading(true);
     try {
-      await updateEvent({ 
-        allowDrawingNames: true,
-        maxParticipants: participants.length 
-      });
+      await updateEvent({ allowDrawingNames: true, maxParticipants: participants.length });
       toast.success("Namen trekken is geactiveerd!");
     } catch (error) {
       console.error(error);
@@ -104,10 +114,9 @@ export default function EventDetails({ event, isOrganizer, updateEvent, particip
     }
   }, [updateEvent, participants]);
 
-  // ✅ Format ISO strings
+  // ✅ Format event date
   const formatEventDate = () => {
     if (!event.startDateTime) return "";
-
     const start = new Date(event.startDateTime);
     const end = event.endDateTime ? new Date(event.endDateTime) : null;
 
@@ -118,8 +127,7 @@ export default function EventDetails({ event, isOrganizer, updateEvent, particip
       year: "numeric",
     });
 
-    let timeStr = "";
-    timeStr = ` from ${start.getHours().toString().padStart(2,'0')}:${start.getMinutes().toString().padStart(2,'0')}`;
+    let timeStr = ` from ${start.getHours().toString().padStart(2,'0')}:${start.getMinutes().toString().padStart(2,'0')}`;
     if (end) {
       timeStr += ` to ${end.getHours().toString().padStart(2,'0')}:${end.getMinutes().toString().padStart(2,'0')}`;
     }
@@ -127,20 +135,24 @@ export default function EventDetails({ event, isOrganizer, updateEvent, particip
     return dateStr + timeStr;
   };
 
+  // ✅ Editing view
   if (isEditing) {
-    return (
-      <Card className="backdrop-blur-sm bg-white/40 shadow-lg">
-        <CardContent className="p-5">
-          <EventDetailsForm
-            initialData={event}
-            onSave={handleSave}
-            onCancel={() => setIsEditing(false)}
-          />
-        </CardContent>
-      </Card>
-    );
-  }
+  const safeEvent = toSafeEvent(event as ServerEvent);
 
+  return (
+    <Card className="backdrop-blur-sm bg-white/40 shadow-lg">
+      <CardContent className="p-5">
+        <EventDetailsForm
+          initialData={safeEvent} // ✅ client-safe
+          onSaved={handleSave}    // ✅ client-safe
+          onClose={() => setIsEditing(false)}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+  // ✅ Default view
   return (
     <>
       <ConfirmationModal
@@ -178,7 +190,7 @@ export default function EventDetails({ event, isOrganizer, updateEvent, particip
         
         <CardContent className="p-0">
           {event.startDateTime && <CountdownTimer targetDate={event.startDateTime} />}
-          
+
           <div className="mt-3 space-y-1.5">
             <div className="flex items-center">
               <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />

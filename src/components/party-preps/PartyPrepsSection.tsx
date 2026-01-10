@@ -63,14 +63,21 @@ export function PartyPrepsSection({
   const [isPending, startTransition] = useTransition();
 
   const tasks = serializeTasks(
-  (event.tasks || []).map(t => ({
-    ...t,
-    assignedParticipants: t.assignedTo, // map assignedTo → assignedParticipants
-    createdAt: new Date(),              // fallback
-    description: '',                    // fallback
+  (event.tasks || []).map((t: any) => ({
+    id: t.id ?? crypto.randomUUID(),
+    title: t.title ?? 'Nieuwe Taak',
+    description: t.description ?? '',
+    completed: t.completed ?? false,
+    assignedParticipants: t.assignedTo ?? [], // map assignedTo → assignedParticipants
+    createdAt: t.createdAt
+      ? typeof t.createdAt === 'string'
+        ? new Date(t.createdAt)
+        : t.createdAt instanceof Date
+        ? t.createdAt
+        : new Date()
+      : new Date(),
   }))
 );
-
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();

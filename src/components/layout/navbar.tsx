@@ -1,36 +1,19 @@
 // src/components/layout/navbar.tsx
-"use client";
-
-import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, Home, Search } from "lucide-react";
-import { useAuthStore } from "@/lib/store/use-auth-store";
-import { Button } from "@/components/ui/button";
+import { Home, Search } from "lucide-react";
 import { TeamSwitcher } from "@/app/profile/_components/TeamSwitcher";
+import { NavbarClient } from "./navbar.client";
 import type { UserProfile } from "@/types/user";
 
 interface NavbarProps {
-  serverUser?: UserProfile | null;
+  serverUser: UserProfile | null;
 }
 
 export function Navbar({ serverUser }: NavbarProps) {
-  const currentUserClient = useAuthStore((state) => state.currentUser);
-  const isInitialized = useAuthStore((state) => state.isInitialized);
-  const openLoginModal = useAuthStore((state) => state.openLoginModal);
-  const openRegisterModal = useAuthStore((state) => state.openRegisterModal);
-
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  // combine server-side + client-side
-  const currentUser = serverUser || currentUserClient;
-
-  // wacht tot client init of serverUser beschikbaar
-  if (!isInitialized && !serverUser) return null;
-
-  const menuItems = currentUser
+  const menuItems = serverUser
     ? [
         { label: "Dashboard", path: "/dashboard", icon: Home },
-        ...(currentUser.isAdmin
+        ...(serverUser.isAdmin
           ? [{ label: "Admin", path: "/admin", icon: Home }]
           : []),
         { label: "Zoek vrienden", path: "/search", icon: Search },
@@ -46,104 +29,37 @@ export function Navbar({ serverUser }: NavbarProps) {
             <img
               src="/wish2share.png"
               alt="Wish2Share Logo"
-              className="h-16 md:h-24 pb-2 pl-0"
+              className="h-16 md:h-24 pb-2"
             />
             <span className="ml-0 text-3xl font-bold text-chart-5">
               Wish2Share
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop */}
           <div className="hidden md:flex items-center space-x-4">
             {menuItems.map((item) => (
               <Link
                 key={item.path}
                 href={item.path}
-                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium flex items-center"
+                className="flex items-center px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900"
               >
-                {item.icon && <item.icon className="h-5 w-5 mr-1" />}
+                <item.icon className="h-5 w-5 mr-1" />
                 {item.label}
               </Link>
             ))}
 
-            {/* TeamSwitcher of Login/Register */}
-            {currentUser ? (
-              <TeamSwitcher />
-            ) : (
-              <>
-                <Button
-                  onClick={openLoginModal}
-                  className="bg-warm-olive text-white hover:bg-cool-olive"
-                >
-                  Log In
-                </Button>
-                <Button
-                  onClick={openRegisterModal}
-                  variant="outline"
-                  className="border-warm-olive text-warm-olive"
-                >
-                  Registreer
-                </Button>
-              </>
-            )}
+            {serverUser ? (
+  <TeamSwitcher serverUser={serverUser} />
+) : (
+  <NavbarClient />
+)}
           </div>
 
-          {/* Mobile menu button */}
-          <div className="md:hidden">
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-gray-600 hover:text-gray-900 p-2"
-            >
-              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </button>
-          </div>
+          {/* Mobile toggle */}
+          <NavbarClient mobile menuItems={menuItems} />
         </div>
       </div>
-
-      {/* Mobile Navigation */}
-      {isMenuOpen && (
-        <div className="md:hidden">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            {menuItems.map((item) => (
-              <Link
-                key={item.path}
-                href={item.path}
-                className="text-gray-600 hover:text-gray-900 block px-3 py-2 rounded-md text-base font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <div className="flex items-center">
-                  {item.icon && <item.icon className="h-5 w-5 mr-2" />}
-                  {item.label}
-                </div>
-              </Link>
-            ))}
-
-            {!currentUser && (
-              <div className="flex flex-col gap-2 px-3 pt-2">
-                <Button
-                  onClick={() => {
-                    openLoginModal();
-                    setIsMenuOpen(false);
-                  }}
-                  className="w-full bg-warm-olive text-white hover:bg-cool-olive"
-                >
-                  Log In
-                </Button>
-                <Button
-                  onClick={() => {
-                    openRegisterModal();
-                    setIsMenuOpen(false);
-                  }}
-                  variant="outline"
-                  className="w-full border-warm-olive text-warm-olive"
-                >
-                  Registreer
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </nav>
   );
 }

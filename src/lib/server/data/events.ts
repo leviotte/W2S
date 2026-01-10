@@ -2,8 +2,9 @@
 import 'server-only';
 import admin from 'firebase-admin';
 import { adminDb } from '@/lib/server/firebase-admin';
-import { eventSchema, type Event } from '@/types/event';
+import { eventSchema } from '@/lib/server/types/event-admin';
 import { Timestamp } from 'firebase-admin/firestore';
+import type { Event } from '@/types/event';
 
 // ============================================================================
 // FIRESTORE TIMESTAMP CONVERTER

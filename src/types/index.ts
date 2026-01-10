@@ -27,7 +27,7 @@ export * from './blog';
 export * from './social-media';
 export * from './affiliate';
 export * from './amazon';
-export * from './background';
+export * from "@/modules/dashboard/backgrounds.types";
 export * from './filters';
 export * from './inquiry';
 export * from './requests';

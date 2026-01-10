@@ -1,6 +1,7 @@
+// src/app/dashboard/profile/page.tsx
 import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/auth/get-server-session';
-import { getUserProfile, getProfileManagers } from '@/lib/firebase/server/profiles';
+import { getUserProfile } from '@/lib/firebase/server/profiles';
 import { ProfileClient } from './_components/profile-client';
 import { SessionUser } from '@/types/session';
 
@@ -26,7 +27,6 @@ export default async function ProfilePage() {
     redirect('/dashboard/profile/create');
   }
 
-  const managers = await getProfileManagers(user.id);
-
-  return <ProfileClient profile={profile} managers={managers} />;
+  // managers ophalen gebeurt nu volledig via useProfileManagers hook in ProfileClient
+  return <ProfileClient profile={profile} />;
 }

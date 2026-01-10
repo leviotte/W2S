@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { adminDb } from '@/lib/server/firebase-admin';
-import { backgroundCategorySchema } from '@/types/background';
+import { backgroundCategorySchema } from "@/modules/dashboard/backgrounds.types";
 
 // Schema voor het toevoegen, ongewijzigd
 const addCategorySchema = backgroundCategorySchema.omit({ id: true });

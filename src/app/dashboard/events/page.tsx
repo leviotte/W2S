@@ -9,39 +9,51 @@ import { Plus } from 'lucide-react';
 import EventsListSection from './_components/events-list-section';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { AuthenticatedSessionUser } from '@/types/session';
-import type { Event } from '@/types/event';
+import type { Event, EventMessage } from '@/types/event';
+import { tsToIso } from '@/lib/client/tsToIso';
 
 export const metadata = {
   title: 'Mijn Evenementen - Wish2Share',
   description: 'Beheer je aankomende en afgelopen evenementen',
 };
 
+// ServerEvent type
+type ServerEvent = Omit<Event, 'messages'> & { messages?: unknown[] };
+
 export default async function EventsPage() {
   const session = await getSession();
-
-  if (!session.user?.isLoggedIn) {
-    redirect('/?auth=login');
-  }
+  if (!session.user?.isLoggedIn) redirect('/?auth=login');
 
   const currentUser = session.user as AuthenticatedSessionUser;
+  const allEventsRaw: ServerEvent[] = await getEventsForUser(currentUser.id);
 
-  const allEvents: Event[] = await getEventsForUser(currentUser.id);
+  // Map ServerEvent → Event
+  const allEvents: Event[] = await Promise.all(
+  allEventsRaw.map(async (ev: ServerEvent) => {
+    const messages: EventMessage[] = await Promise.all(
+      (ev.messages ?? []).map(async (msg: any) => ({
+        id: msg.id,
+        senderId: msg.senderId ?? 'unknown',
+        content: msg.content ?? '',
+        timestamp: (await tsToIso(msg.timestamp)) ?? new Date().toISOString(),
+      }))
+    );
 
-  console.log('🔵 Total events fetched:', allEvents.length);
-  console.log(
-    '🔵 Events:',
-    allEvents.map((e) => ({
-      id: e.id,
-      name: e.name,
-      startDateTime: e.startDateTime,
-      organizerId: e.organizerId,
-      participantsCount: e.participants?.length ?? 0,
-    }))
-  );
+    return {
+      ...ev,
+      messages,
+      startDateTime: (await tsToIso(ev.startDateTime)) ?? new Date().toISOString(),
+      endDateTime: (await tsToIso(ev.endDateTime)) ?? new Date().toISOString(),
+      createdAt: (await tsToIso(ev.createdAt)) ?? new Date().toISOString(),
+      updatedAt: (await tsToIso(ev.updatedAt)) ?? new Date().toISOString(),
+      participants: ev.participants ?? {},
+    };
+  })
+);
 
   const now = new Date();
 
-  // ✅ Helper: date string of Date naar UTC timestamp
+  // Helper: date string of Date → UTC timestamp
   const toUTCTimestamp = (date: string | Date) => {
     const d = new Date(date);
     return Date.UTC(
@@ -57,18 +69,14 @@ export default async function EventsPage() {
 
   const nowUTC = toUTCTimestamp(now);
 
-  const upcomingEvents = allEvents
-    .filter((event) => toUTCTimestamp(event.startDateTime) >= nowUTC)
-    .sort((a, b) => toUTCTimestamp(a.startDateTime) - toUTCTimestamp(b.startDateTime));
+  // ✅ Strict types in filter & sort
+  const upcomingEvents: Event[] = allEvents
+    .filter((event: Event) => toUTCTimestamp(event.startDateTime) >= nowUTC)
+    .sort((a: Event, b: Event) => toUTCTimestamp(a.startDateTime) - toUTCTimestamp(b.startDateTime));
 
-  const pastEvents = allEvents
-    .filter((event) => toUTCTimestamp(event.startDateTime) < nowUTC)
-    .sort((a, b) => toUTCTimestamp(b.startDateTime) - toUTCTimestamp(a.startDateTime));
-
-  console.log('🔵 Split events:', {
-    upcoming: upcomingEvents.length,
-    past: pastEvents.length,
-  });
+  const pastEvents: Event[] = allEvents
+    .filter((event: Event) => toUTCTimestamp(event.startDateTime) < nowUTC)
+    .sort((a: Event, b: Event) => toUTCTimestamp(b.startDateTime) - toUTCTimestamp(a.startDateTime));
 
   return (
     <div className="min-h-screen">
@@ -137,9 +145,10 @@ export default async function EventsPage() {
   );
 }
 
+// Skeleton component
 const EventsGridSkeleton = () => (
   <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-    {[1, 2, 3].map((i) => (
+    {[1, 2, 3].map((i: number) => (
       <Skeleton key={i} className="h-96 w-full rounded-lg bg-white" />
     ))}
   </div>

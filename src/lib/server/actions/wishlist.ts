@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { nowTimestamp } from '@/lib/utils/time';
 import { getSession } from '@/lib/auth/session.server';
 import type { UserProfile } from '@/types/user';
-import type { BackgroundCategory, BackgroundImage } from '@/types/background';
+import type { BackgroundCategory, BackgroundImage } from "@/modules/dashboard/backgrounds.types";
 import type { Wishlist, WishlistItem, UpdateWishlistItemData, CreateWishlistData } from '@/types/wishlist';
 import {
   serializeWishlist,

@@ -1,6 +1,6 @@
 // src/app/dashboard/backgrounds/page.tsx
 import { adminDb } from '@/lib/server/firebase-admin';
-import { BackgroundCategory } from '@/types/background';
+import { BackgroundCategory } from "@/modules/dashboard/backgrounds.types";
 import { BackgroundCategoryManager } from './_components/background-category-manager';
 
 /**

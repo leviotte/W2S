@@ -3,7 +3,7 @@
 
 import { useState, useTransition } from 'react';
 import { useFormState } from 'react-dom';
-import { BackgroundCategory } from '@/types/background';
+import { BackgroundCategory } from "@/modules/dashboard/backgrounds.types";
 import { addCategoryAction, deleteCategoryAction } from '../_actions/category-actions';
 import { toast } from 'sonner';
 

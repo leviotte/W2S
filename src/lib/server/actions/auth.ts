@@ -7,6 +7,11 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 /* ============================================================================
+ * SCHEMAS
+ * ========================================================================== */
+const passwordResetSchema = z.object({ email: z.string().email() });
+
+/* ============================================================================
  * TYPES
  * ========================================================================== */
 export interface RegisterFormData {
@@ -63,23 +68,20 @@ function extractSessionData(data: {
 /* ============================================================================
  * PASSWORD RESET
  * ========================================================================== */
-const passwordResetSchema = z.object({ email: z.string().email() });
-
 export async function sendPasswordResetEmail(email: string): Promise<void> {
-  // Verifieer dat de gebruiker bestaat
+  passwordResetSchema.parse({ email });
+
   const user = await adminAuth.getUserByEmail(email).catch(() => null);
   if (!user) throw new Error('Geen gebruiker gevonden met dit e-mailadres.');
 
-  // Genereer een password reset link via Firebase
   const resetLink = await adminAuth.generatePasswordResetLink(email);
-
-  // TODO: Verstuur e-mail via je eigen e-mail provider
-  // Voor een state-of-the-art SaaS: via SendGrid/SES/SMTP
   console.log(`[Auth] 🔑 Password reset link voor ${email}: ${resetLink}`);
+
+  // TODO: Stuur e-mail via SendGrid/SES/SMTP
 }
 
 /* ============================================================================
- * REGISTRATION / LOGIN / SOCIAL LOGIN / LOGOUT
+ * REGISTRATION
  * ========================================================================== */
 export async function completeRegistrationAction(data: {
   idToken: string;
@@ -119,69 +121,31 @@ export async function completeRegistrationAction(data: {
 
     await adminDb.collection('users').doc(uid).set(userProfile);
     console.log(`[Auth] ✅ User registered (pending email verification): ${email}`);
+
     return { success: true, data: { userId: uid, redirectTo: '/' } };
   } catch (error: any) {
-    console.error('[Auth] Registration completion error:', error);
+    console.error('[Auth] Registration error:', error);
     return { success: false, error: error.message || 'Registratie mislukt' };
   }
 }
 
-export async function completeLoginAction(idToken: string): Promise<AuthActionResult> {
-  try {
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
-    const uid = decodedToken.uid;
-
-    const userDoc = await adminDb.collection('users').doc(uid).get();
-    if (!userDoc.exists) return { success: false, error: 'Gebruiker niet gevonden.' };
-
-    const userData = userDoc.data()!;
-    const firebaseUser = await adminAuth.getUser(uid);
-    if (!firebaseUser.emailVerified) return { success: false, error: 'E-mail niet geverifieerd.' };
-
-    if (!userData.emailVerified) {
-      await adminDb.collection('users').doc(uid).update({
-        emailVerified: true,
-        updatedAt: new Date().toISOString(),
-      });
-    }
-
-    const sessionData = extractSessionData({
-      id: uid,
-      email: userData.email,
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      displayName: userData.displayName,
-      photoURL: userData.photoURL,
-      username: userData.username,
-      isAdmin: userData.isAdmin,
-      isPartner: userData.isPartner,
-    });
-
-    const sessionSize = JSON.stringify(sessionData).length;
-    if (sessionSize > 1000) throw new Error(`Session data too large: ${sessionSize} bytes`);
-
-    await createSession(sessionData);
-    revalidatePath('/dashboard');
-
-    const redirectTo = userData.isAdmin ? '/admin' : '/dashboard';
-    return { success: true, data: { userId: uid, redirectTo } };
-  } catch (error: any) {
-    console.error('[Auth] Login error:', error);
-    return { success: false, error: error.message || 'Login mislukt' };
-  }
-}
-
+/* ============================================================================
+ * LOGIN WITH SOCIAL ID TOKEN (SERVER ONLY)
+ * ========================================================================== */
 export async function completeSocialLoginAction(
   idToken: string,
-  provider: 'google' | 'apple'
+  provider: 'google' | 'apple' | 'password'
 ): Promise<AuthActionResult> {
+  if (!idToken) return { success: false, error: 'Geen ID token ontvangen' };
+
   try {
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     const uid = decodedToken.uid;
     const email = decodedToken.email;
-    if (!email) return { success: false, error: 'Geen email gevonden in social account' };
+    if (!email) return { success: false, error: 'Geen e-mail in social account' };
 
     let userDoc = await adminDb.collection('users').doc(uid).get();
+
     if (!userDoc.exists) {
       const firebaseUser = await adminAuth.getUser(uid);
       const displayName = firebaseUser.displayName || email.split('@')[0];
@@ -230,14 +194,16 @@ export async function completeSocialLoginAction(
     await createSession(sessionData);
     revalidatePath('/dashboard');
 
-    const redirectTo = userData.isAdmin ? '/admin' : '/dashboard';
-    return { success: true, data: { userId: uid, redirectTo } };
+    return { success: true, data: { userId: uid, redirectTo: userData.isAdmin ? '/admin' : '/dashboard' } };
   } catch (error: any) {
     console.error('[Auth] Social login error:', error);
     return { success: false, error: error.message || 'Social login mislukt' };
   }
 }
 
+/* ============================================================================
+ * LOGOUT
+ * ========================================================================== */
 export async function logoutAction(): Promise<AuthActionResult> {
   try {
     await destroySession();

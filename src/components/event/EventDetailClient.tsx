@@ -1,4 +1,3 @@
-// src/components/event/EventDetailClient.tsx
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -9,27 +8,30 @@ import { toast } from 'sonner';
 import { MessageSquareMore } from 'lucide-react';
 
 import type { Event, EventParticipant, EventMessage } from '@/types/event';
-import type { SessionUser, AuthenticatedSessionUser } from '@/types/session';
+import type { AuthenticatedSessionUser } from '@/types/session';
 import type { Message } from '@/types/message';
+import type { Wishlist } from '@/types/wishlist';
 
 import { useEventParticipants } from '@/hooks/useEventParticipants';
 import { useEventMessages } from '@/hooks/useEventMessages';
 
-import EventDetails from '@/components/event/EventDetails';
+import EventDetails from './EventDetails';
 import DrawnNameSection from './DrawnNameSection';
 import { PartyPrepsSection } from '../party-preps/PartyPrepsSection';
 import AdvancedEventProgressChecklist from './EventProgressChecklist';
-import ParticipantProgress from '@/components/event/ParticipantProgress';
+import ParticipantProgress from './ParticipantProgress';
 import EventWishlistsSection from './EventWishlistSection';
-import GroupChat from '@/components/event/GroupChat';
-import ExclusionModal from '@/components/event/ExclusionModal';
+import GroupChat from './GroupChat';
+import ExclusionModal from './ExclusionModal';
 import WishlistRequestDialog from '@/app/wishlist/_components/WishlistRequestDialog';
 import { LoadingSpinner } from '../ui/loading-spinner';
+import { tsToIso } from '@/lib/client/tsToIso';
+
 
 interface EventDetailClientProps {
   eventId: string;
   initialEvent: Event;
-  sessionUser: AuthenticatedSessionUser; // strikt type
+  sessionUser: AuthenticatedSessionUser;
 }
 
 export default function EventDetailClient({
@@ -46,9 +48,9 @@ export default function EventDetailClient({
 
   const [event, setEvent] = useState<Event>(initialEvent);
   const [currentUserId, setCurrentUserId] = useState<string>(sessionUser.id);
-  const [wishlists, setWishlists] = useState<Record<string, any>>({});
+  const [wishlists, setWishlists] = useState<Record<string, Wishlist>>({});
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [exclusions, setExclusions] = useState<Record<string, string[]>>({});
+  const [exclusions, setExclusions] = useState<Record<string, string[]>>(initialEvent.exclusions ?? {});
 
   // ============================
   // ACTIVE PROFILE
@@ -80,7 +82,7 @@ export default function EventDetailClient({
   }, []);
 
   const participantsRecordToArray = useCallback(
-    (participants: Record<string, EventParticipant> | EventParticipant[] | undefined) => {
+    (participants: Record<string, EventParticipant> | EventParticipant[] | undefined): EventParticipant[] => {
       if (!participants) return [];
       if (Array.isArray(participants)) return participants;
       return Object.entries(participants).map(([id, p]) => ({ ...p, id }));
@@ -88,49 +90,85 @@ export default function EventDetailClient({
     []
   );
 
-  // Converteer EventMessages -> Message[]
   const mapMessages = useCallback(
-    (messages: EventMessage[] | undefined): Message[] => {
-      if (!messages) return [];
-      return messages.map((msg) => ({
-        id: msg.id,
-        userId: msg.senderId,
-        userName: 'Unknown User', // fallback, kan eventueel uit participants gehaald worden
-        text: msg.content ?? '',
-        timestamp: msg.timestamp ?? new Date().toISOString(),
-        isAnonymous: false,
-        edited: false,
-        read: false,
-        senderId: msg.senderId,
+  (
+    messages: EventMessage[] | undefined,
+    participants: Record<string, EventParticipant> = {}
+  ): Message[] => {
+    if (!messages) return [];
+
+    return messages.map((msg) => ({
+      id: msg.id,
+      userId: msg.senderId ?? 'unknown',
+      userName: participants[msg.senderId ?? '']?.firstName ?? 'Unknown User',
+      text: msg.content ?? '',
+      timestamp: msg.timestamp ?? new Date().toISOString(),
+      isAnonymous: false,
+      edited: false,
+      read: false,
+      senderId: msg.senderId ?? 'unknown',
+    }));
+  },
+  []
+);
+
+// ============================
+// REALTIME EVENT LISTENER (async tsToIso)
+// ============================
+useEffect(() => {
+  if (!eventId) return;
+
+  const unsubscribe = onSnapshot(doc(db, 'events', eventId), (docSnap) => {
+    if (!docSnap.exists()) return;
+    const rawData = docSnap.data() as Partial<Event>;
+
+    // async inner function om tsToIso te gebruiken
+    async function convertAndSet() {
+      const converted: Event = {
+        id: docSnap.id,
+        name: rawData.name ?? '',
+        organizer: rawData.organizer ?? '',
+        organizerId: rawData.organizerId ?? rawData.organizer ?? '',
+        startDateTime: (await tsToIso(rawData.startDateTime)) ?? '',
+        endDateTime: (await tsToIso(rawData.endDateTime)) ?? null,
+        location: rawData.location ?? null,
+        theme: rawData.theme ?? null,
+        backgroundImage: rawData.backgroundImage ?? null,
+        additionalInfo: rawData.additionalInfo ?? null,
+        organizerPhone: rawData.organizerPhone ?? null,
+        organizerEmail: rawData.organizerEmail ?? null,
+        budget: rawData.budget ?? 0,
+        maxParticipants: rawData.maxParticipants ?? 1000,
+        isLootjesEvent: !!rawData.isLootjesEvent,
+        isPublic: !!rawData.isPublic,
+        allowSelfRegistration: !!rawData.allowSelfRegistration,
+        participants: rawData.participants ?? {},
+        currentParticipantCount: Object.keys(rawData.participants ?? {}).length,
+        messages: rawData.messages ?? [],
+        tasks: rawData.tasks ?? [],
+        drawnNames: rawData.drawnNames ?? {},
+        lastReadTimestamps: rawData.lastReadTimestamps ?? {},
+        createdAt: (await tsToIso(rawData.createdAt)) ?? new Date().toISOString(),
+        updatedAt: (await tsToIso(rawData.updatedAt)) ?? new Date().toISOString(),
+        eventComplete: !!rawData.eventComplete,
+        exclusions: rawData.exclusions ?? {},
+      };
+
+      // Nested timestamp conversion
+      converted.messages = (converted.messages as EventMessage[]).map((m) => ({
+        ...m,
+        timestamp: convertFirestoreTimestamps(m.timestamp) ?? new Date().toISOString(),
       }));
-    },
-    []
-  );
 
-  // ============================
-  // REALTIME EVENT LISTENER
-  // ============================
-  useEffect(() => {
-    if (!eventId) return;
+      setEvent(converted);
+      setExclusions(converted.exclusions ?? {});
+    }
 
-    const unsubscribe = onSnapshot(doc(db, 'events', eventId), (docSnap) => {
-      if (!docSnap.exists()) return;
+    convertAndSet(); // call async inner function
+  });
 
-      const rawData = { id: docSnap.id, ...docSnap.data() };
-      const converted = convertFirestoreTimestamps(rawData);
-
-      const participantsArray = participantsRecordToArray(converted.participants);
-      const messagesArray = mapMessages(converted.messages);
-
-      setEvent({
-        ...converted,
-        participants: participantsArray,
-        messages: messagesArray,
-      } as Event);
-    });
-
-    return () => unsubscribe();
-  }, [eventId, convertFirestoreTimestamps, participantsRecordToArray, mapMessages]);
+  return () => unsubscribe();
+}, [eventId, convertFirestoreTimestamps]);
 
   // ============================
   // PARTICIPANTS HOOK
@@ -141,25 +179,23 @@ export default function EventDetailClient({
   // WISHLISTS LISTENER
   // ============================
   useEffect(() => {
-    if (!participants?.length) return;
+    const participantsArray = participantsRecordToArray(event.participants);
+    if (!participantsArray.length) return;
 
-    const wishlistIds = participants
+    const wishlistIds = participantsArray
       .filter((p) => p.wishlistId)
       .map((p) => p.wishlistId as string);
 
     const unsubscribers = wishlistIds.map((wishlistId) =>
       onSnapshot(doc(db, 'wishlists', wishlistId), (docSnap) => {
-        if (docSnap.exists()) setWishlists((prev) => ({ ...prev, [wishlistId]: docSnap.data() }));
+        if (docSnap.exists()) {
+          setWishlists((prev) => ({ ...prev, [wishlistId]: docSnap.data() as Wishlist }));
+        }
       })
     );
 
     return () => unsubscribers.forEach((u) => u());
-  }, [participants]);
-
-  // ============================
-  // EXCLUSIONS
-  // ============================
-  useEffect(() => setExclusions(event?.exclusions ?? {}), [event?.exclusions]);
+  }, [event.participants]);
 
   // ============================
   // ACCESS CONTROL
@@ -167,22 +203,22 @@ export default function EventDetailClient({
   useEffect(() => {
     if (!event || !currentUserId) return;
     const isOrganizer = event.organizer === currentUserId;
-    const isParticipant = event.participants?.some((p) => p.id === currentUserId);
+    const isParticipant = participantsRecordToArray(event.participants).some((p) => p.id === currentUserId);
     if (!isOrganizer && !isParticipant) router.push('/404');
   }, [event, currentUserId, router]);
 
-  const isOrganizer = event?.organizer === currentUserId;
-  const drawnParticipantId = event?.drawnNames?.[currentUserId ?? ''];
+  const isOrganizer = event.organizer === currentUserId;
+  const drawnParticipantId = event.drawnNames?.[currentUserId ?? ''] ?? undefined;
 
   const participantsToBeDrawn = useMemo(() => {
     if (!currentUserId || !participants) return [];
-    const excludedIds = event?.exclusions?.[currentUserId] ?? [];
+    const excludedIds = exclusions[currentUserId] ?? [];
     return participants.filter((p) => p.id !== currentUserId && !excludedIds.includes(p.id));
-  }, [participants, event?.exclusions, currentUserId]);
+  }, [participants, exclusions, currentUserId]);
 
   const canShowExclusion = useMemo(() => {
-    if (!event?.isLootjesEvent) return false;
-    const hasDrawnNames = event?.drawnNames && Object.keys(event.drawnNames).length > 0;
+    if (!event.isLootjesEvent) return false;
+    const hasDrawnNames = event.drawnNames && Object.keys(event.drawnNames).length > 0;
     const hasEnoughParticipants = (participants?.length ?? 0) > 3;
     return !hasDrawnNames && hasEnoughParticipants;
   }, [event, participants]);
@@ -191,7 +227,7 @@ export default function EventDetailClient({
   // EVENT UPDATES
   // ============================
   const handleUpdateEvent = useCallback(async (data: Partial<Event>) => {
-    if (!event?.id) return;
+    if (!event.id) return;
     try {
       await updateDoc(doc(db, 'events', event.id), data);
       toast.success('Event bijgewerkt!');
@@ -199,7 +235,7 @@ export default function EventDetailClient({
       console.error(err);
       toast.error('Kon event niet bijwerken');
     }
-  }, [event?.id]);
+  }, [event.id]);
 
   const handleNameDrawn = useCallback(
     async (drawnName: string) => {
@@ -224,7 +260,7 @@ export default function EventDetailClient({
   // ============================
   // CHAT
   // ============================
-  const { sendMessage, editMessage, deleteMessage } = useEventMessages(event?.messages ?? []);
+  const { sendMessage, editMessage, deleteMessage } = useEventMessages(event.messages);
 
   const handleSendMessage = useCallback(
     async (text: string, isAnonymous: boolean, gifUrl?: string) => {
@@ -258,14 +294,14 @@ export default function EventDetailClient({
         <div className="lg:col-span-1 space-y-6">
           <EventDetails
             event={event}
-            participants={participants ?? []}
+            participants={participantsRecordToArray(event.participants)}
             isOrganizer={isOrganizer}
             updateEvent={handleUpdateEvent}
           />
           {event.isLootjesEvent && (
             <DrawnNameSection
               event={event}
-              participants={participants ?? []}
+              participants={participantsRecordToArray(event.participants)}
               drawnParticipantId={drawnParticipantId}
               onNameDrawn={handleNameDrawn}
               currentUserId={currentUserId}
@@ -274,7 +310,7 @@ export default function EventDetailClient({
           <PartyPrepsSection
             event={event}
             isOrganizer={isOrganizer}
-            participants={participants ?? []}
+            participants={participantsRecordToArray(event.participants)}
             currentUserId={currentUserId}
           />
         </div>
@@ -284,7 +320,7 @@ export default function EventDetailClient({
           {isOrganizer ? (
             <AdvancedEventProgressChecklist
               event={event}
-              participants={participants ?? []}
+              participants={participantsRecordToArray(event.participants)}
               currentUserId={currentUserId}
               isOrganizer={isOrganizer}
               wishlists={wishlists}
@@ -292,19 +328,19 @@ export default function EventDetailClient({
           ) : (
             <ParticipantProgress
               event={event}
-              participants={participants ?? []}
+              participants={participantsRecordToArray(event.participants)}
               currentUserId={currentUserId}
               wishlists={wishlists}
               drawnParticipantId={drawnParticipantId}
             />
           )}
           <EventWishlistsSection
-            participants={participants ?? []}
+            participants={participantsRecordToArray(event.participants)}
             currentUserId={currentUserId}
             eventId={event.id}
-            maxPrice={event.budget}
+            maxPrice={event.budget ?? 0}
             organizer={event.organizer}
-            isDrawNames={event.isLootjesEvent}
+            isDrawNames={!!event.isLootjesEvent}
             event={event}
           />
         </div>
@@ -313,9 +349,9 @@ export default function EventDetailClient({
         <div className="flex flex-col gap-5">
           {event.isLootjesEvent && isOrganizer && canShowExclusion && (
             <ExclusionModal
-              isOpen={true}
+              isOpen
               exclusions={exclusions}
-              participants={participants ?? []}
+              participants={participantsRecordToArray(event.participants)}
               onClose={() => {}}
               onSave={handleSaveExclusions}
             />

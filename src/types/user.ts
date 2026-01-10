@@ -1,3 +1,4 @@
+// src/types/user.ts
 import { z } from 'zod';
 import { addressSchema, type Address, type AddressNullable } from './address';
 
@@ -44,7 +45,13 @@ export const userProfileSchema = baseProfileSchema.extend({
   socials: socialLinksSchema.nullable().optional(),
 });
 
-export const subProfileSchema = baseProfileSchema;
+export const subProfileSchema = baseProfileSchema.extend({
+  displayName_lowercase: z.string().min(1),
+  isPublic: z.boolean().default(true),
+  createdAt: timestampSchema.default(() => new Date()),
+  updatedAt: timestampSchema.default(() => new Date()),
+  address: addressSchema.optional().nullable(),
+});
 
 export const sessionUserSchema = z.object({
   id: z.string(),

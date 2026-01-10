@@ -1,24 +1,18 @@
-import { Event, EventParticipant, EventMessage } from './event';
+// src/lib/server/types/event-normalize.ts
+'use server';
+import { Event, EventParticipant, EventMessage } from '@/types/event';
 import { Timestamp } from 'firebase-admin/firestore';
+import { tsToIso } from '@/lib/server/firebase-timestamp';
 
 /**
- * 🔹 Converteer Firestore Timestamp of Date naar ISO string
- */
-function toISO(value: any): string | null {
-  if (!value) return null;
-  if (value instanceof Timestamp) return value.toDate().toISOString();
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === 'string') return value;
-  return null;
-}
-
-/**
- * 🔹 Normaliseer een deelnemer object
+ * 🔹 Normaliseer een participant object
  */
 function normalizeParticipant(participant: any): EventParticipant {
   return {
     ...participant,
-    addedAt: toISO(participant.addedAt) ?? undefined,
+    addedAt: participant.addedAt instanceof Timestamp
+      ? participant.addedAt.toDate().toISOString()
+      : participant.addedAt ?? new Date().toISOString(),
   };
 }
 
@@ -28,28 +22,44 @@ function normalizeParticipant(participant: any): EventParticipant {
 function normalizeMessage(message: any): EventMessage {
   return {
     ...message,
-    timestamp: toISO(message.timestamp) ?? new Date().toISOString(),
+    timestamp: message.timestamp instanceof Timestamp
+      ? message.timestamp.toDate().toISOString()
+      : message.timestamp ?? new Date().toISOString(),
   };
 }
 
 /**
  * 🔹 Normaliseer een Event object
- * Alle Firestore Timestamps of Dates worden ISO-strings
- * Optionele velden blijven optioneel, default arrays/objects worden gehandhaafd
+ * Timestamps (Firestore Timestamp | string) worden ISO-string
+ * deelnemers blijven Record<string, EventParticipant>
  */
-export function normalizeEvent(event: any): Event {
+export async function normalizeEvent(event: any): Promise<Event> {
+  const participants: Record<string, EventParticipant> = {};
+  if (event.participants) {
+    for (const [key, participant] of Object.entries(event.participants)) {
+      participants[key] = normalizeParticipant(participant);
+    }
+  }
+
+  const messages: EventMessage[] = (event.messages ?? []).map(normalizeMessage);
+
   return {
     ...event,
-    date: toISO(event.date) ?? new Date().toISOString(),
-    createdAt: toISO(event.createdAt) ?? new Date().toISOString(),
-    updatedAt: toISO(event.updatedAt) ?? new Date().toISOString(),
-    registrationDeadline: toISO(event.registrationDeadline),
-    participants: (event.participants
-      ? Object.values(event.participants).map(normalizeParticipant)
-      : []) as EventParticipant[],
-    messages: (event.messages ?? []).map(normalizeMessage),
+    startDateTime: (await tsToIso(event.startDateTime)) ?? new Date().toISOString(),
+    endDateTime: (await tsToIso(event.endDateTime)) ?? null,
+    createdAt: (await tsToIso(event.createdAt)) ?? new Date().toISOString(),
+    updatedAt: (await tsToIso(event.updatedAt)) ?? new Date().toISOString(),
+    participants,
+    currentParticipantCount: Object.keys(participants).length,
+    messages,
     tasks: event.tasks ?? [],
-    lastReadTimestamps: event.lastReadTimestamps ?? {},
     drawnNames: event.drawnNames ?? {},
+    lastReadTimestamps: event.lastReadTimestamps ?? {},
+    eventComplete: !!event.eventComplete,
+    
+    // ✅ default voor optionele velden
+    isLootjesEvent: event.isLootjesEvent ?? false,
+    allowDrawingNames: event.allowDrawingNames ?? false,
+    isInvited: event.isInvited ?? false,
   };
 }

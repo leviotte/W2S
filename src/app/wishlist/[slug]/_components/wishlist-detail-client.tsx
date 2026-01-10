@@ -21,7 +21,7 @@ import {
   undoPurchaseWishlistItemAction,
 } from "@/lib/server/actions/wishlist";
 import type { WishlistItem } from "@/types/wishlist";
-import type { BackgroundImage, BackgroundCategory } from "@/types/background";
+import type { BackgroundImage, BackgroundCategory } from "@/modules/dashboard/backgrounds.types";
 import type { UserProfile } from "@/types/user";
 import type { ProductWithInclusion } from "@/types/product";
 import {

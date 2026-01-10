@@ -4,7 +4,7 @@
 import { revalidateTag } from 'next/cache';
 import { adminDb, adminStorage } from '@/lib/server/firebase-admin';
 import { requireAuth } from '@/lib/auth/actions';
-import type { BackgroundType } from '@/types/background';
+import type { BackgroundType } from "@/modules/dashboard/backgrounds.types";
 
 // ============================================================================
 // TYPES

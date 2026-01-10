@@ -1,7 +1,8 @@
+// src/lib/server/data/backgrounds.ts
 import 'server-only';
 import { adminDb, adminStorage } from '@/lib/server/firebase-admin';
 import { unstable_cache as cache } from 'next/cache';
-import type { BackgroundImage, BackgroundCategory, BackgroundType } from '@/types/background';
+import type { BackgroundImage, BackgroundCategory, BackgroundType } from "@/modules/dashboard/backgrounds.types";
 
 // ============================================================================
 // HELPERS
