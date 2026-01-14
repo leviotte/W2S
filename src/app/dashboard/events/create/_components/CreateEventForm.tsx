@@ -38,19 +38,20 @@ export const eventSchema = z.object({
   participantType: z.enum(['manual','self-register']),
   isPublic: z.boolean(),
   participants: z.array(z.object({
-    id: z.string(),
-    firstName: z.string().optional(),
-    lastName: z.string().optional(),
-    email: z.string().optional(),
-    confirmed: z.boolean().optional(),
-    role: z.enum(['organizer','participant']).optional(),
-    status: z.enum(['pending','accepted','declined']).optional(),
-    addedAt: z.string().optional(),
-    wishlistId: z.string().optional(),
-    photoURL: z.string().optional(),
-    profileId: z.string().optional(),
-    name: z.string().optional(),
-  })).optional(),
+  id: z.string(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  email: z.string().optional(),
+  confirmed: z.boolean().optional(),
+  role: z.enum(['organizer','participant']).optional(),
+  status: z.enum(['pending','accepted','declined']).optional(),
+  addedAt: z.string().optional(),
+  wishlistId: z.string().optional(),
+  photoURL: z.string().optional(),
+  profileId: z.string().optional(),
+  name: z.string().optional(),
+})).optional().default([]),
+
 });
 
 export type EventFormData = {
@@ -242,25 +243,23 @@ export default function CreateEventForm({ currentUser, profiles }: CreateEventFo
   role === "organizer" ? "organizer" : "participant";
   const enrichedParticipants: EventParticipant[] = isManual
   ? [
-      organizerParticipant,
-      ...(prepareParticipants(data.participants)?.map(p => ({
+      ...[organizerParticipant, ...prepareParticipants(data.participants)].map(p => ({
         ...p,
         firstName: p.firstName ?? '',
         lastName: p.lastName ?? '',
         email: p.email ?? '',
-        role: (p.role === 'organizer' ? 'organizer' : 'participant') as 'organizer' | 'participant',
-        status: (p.status === 'pending' || p.status === 'accepted' || p.status === 'declined'
-          ? p.status
-          : 'pending') as 'pending' | 'accepted' | 'declined',
-        confirmed: true,
-        addedAt: p.addedAt ?? new Date().toISOString(),
-      })) || []),
+        role: (p.role === 'organizer' ? 'organizer' : 'participant') as "organizer" | "participant",
+status: (['pending','accepted','declined'].includes(p.status ?? '') ? p.status! : 'pending') as "pending" | "accepted" | "declined",
+addedAt: p.addedAt ?? new Date().toISOString() as string,
+      }))
+      // Dedup op ID
+      .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i)
     ]
   : [organizerParticipant];
 
 const payload: EventFormData = {
   name: data.name,
-  startDateTime: buildStartDateTimeISO(data.date, data.time)!,
+  startDateTime: buildStartDateTimeISO(data.date, data.time) ?? new Date().toISOString(),
   endDateTime: undefined,
   organizer: currentUser.id,
   budget: data.budget ?? 0,

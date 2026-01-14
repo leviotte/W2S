@@ -1,5 +1,5 @@
 // src/app/admin/page.tsx
-import { getServerSession } from '@/lib/auth/get-server-session';
+import { getSession } from '@/lib/auth/session.server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,10 +9,11 @@ import {
   FileText, 
   Image, 
   MessageSquare, 
-  BarChart3, 
-  Settings,
+  BarChart3,
   Store
 } from 'lucide-react';
+import type { AuthenticatedSessionUser } from '@/types/session';
+import type { UserProfile } from '@/types/user';
 
 export const metadata = {
   title: 'Admin Dashboard | Wish2Share',
@@ -20,11 +21,41 @@ export const metadata = {
 };
 
 export default async function AdminPage() {
-  const session = await getServerSession();
+  // 🔹 Helper om AuthenticatedSessionUser → UserProfile te mappen
+  const mapSessionToUserProfile = (user: AuthenticatedSessionUser | null): UserProfile | null => {
+    if (!user) return null;
 
-  if (!session.user.isLoggedIn || !session.user.isAdmin) {
-  redirect('/');
-}
+    return {
+      id: user.id,
+      userId: user.id,
+      firstName: user.firstName ?? '',
+      lastName: user.lastName ?? '',
+      email: user.email,
+      address: null,
+      isPublic: false,
+      isAdmin: user.isAdmin ?? false,
+      isPartner: user.isPartner ?? false,
+      sharedWith: [],
+      createdAt: user.createdAt ? new Date(user.createdAt) : new Date(),
+      updatedAt: user.lastActivity ? new Date(user.lastActivity) : new Date(),
+      displayName: user.displayName ?? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
+      photoURL: user.photoURL ?? null,
+      birthdate: null,
+      gender: null,
+      username: user.username ?? null,
+      phone: null,
+      socials: null,
+    };
+  };
+
+  // 🔹 Haal session op van server
+  const { user: sessionUser } = await getSession();
+  const currentUser = mapSessionToUserProfile(sessionUser);
+
+  // 🔹 Check admin rechten
+  if (!currentUser || !currentUser.isAdmin) {
+    redirect('/');
+  }
 
   const adminSections = [
     {
@@ -83,7 +114,7 @@ export default async function AdminPage() {
       <div className="space-y-2">
         <h1 className="text-4xl font-bold tracking-tight">Admin Dashboard</h1>
         <p className="text-muted-foreground text-lg">
-          Welkom terug, {session.user.displayName || session.user.email}
+          Welkom terug, {currentUser.displayName || currentUser.email}
         </p>
       </div>
 

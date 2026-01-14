@@ -1,14 +1,13 @@
 // src/app/api/logout/route.ts
 import { NextResponse } from 'next/server';
-import { getServerSession } from '@/lib/auth/get-server-session';
-import { destroySession } from '@/lib/auth/session.server'; // destroySession blijft, want dat moet nog de cookie verwijderen
+import { getSession, destroySession } from '@/lib/auth/session.server';
 
 export async function POST() {
   try {
-    const { user } = await getServerSession(); // altijd een SessionUser
+    const { user } = await getSession(); // altijd een SessionUser of null
 
     // Alleen vernietigen als ingelogd
-    if (user.isLoggedIn) {
+    if (user) {
       await destroySession();
     }
 

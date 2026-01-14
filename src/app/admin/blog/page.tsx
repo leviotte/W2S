@@ -1,14 +1,12 @@
 // src/app/admin/blog/page.tsx
-import { getServerSession } from '@/lib/auth/get-server-session';
+import { getSession } from '@/lib/auth/session.server';
 import { redirect } from 'next/navigation';
 import { BlogTab } from './_components/blog-tab';
 
 export default async function AdminBlogPage() {
-  const session = await getServerSession();
-
-  if (!session.user.isLoggedIn || !session.user.isAdmin) {
-  redirect('/');
-}
+const session = await getSession();
+const user = session?.user;
+if (!user || !user.isAdmin) redirect('/');
 
   return <BlogTab />;
 }

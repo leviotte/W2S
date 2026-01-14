@@ -1,13 +1,11 @@
 // src/app/admin/accounts/page.tsx
-import { getServerSession } from '@/lib/auth/get-server-session';
+import { getSession } from '@/lib/auth/session.server';
 import { redirect } from 'next/navigation';
 
 export default async function AdminAccountsPage() {
-  const session = await getServerSession();
-
-  if (!session.user.isLoggedIn || !session.user.isAdmin) {
-  redirect('/');
-}
+  const session = await getSession();
+const user = session?.user;
+if (!user || !user.isAdmin) redirect('/');
 
   return (
     <div className="space-y-6">

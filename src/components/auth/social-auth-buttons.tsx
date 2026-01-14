@@ -1,34 +1,46 @@
 // src/components/auth/social-auth-buttons.tsx
 'use client';
+
 import { useState, startTransition } from 'react';
 import { signInWithPopup, GoogleAuthProvider, OAuthProvider } from 'firebase/auth';
 import { toast } from 'sonner';
-import { completeSocialLoginAction } from '@/lib/server/actions/auth';
 import { getClientAuth } from '@/lib/client/firebase';
 import { useRouter } from 'next/navigation';
+import type { AuthActionResult } from '@/lib/server/actions/auth';
+import { completeSocialLoginAction } from '@/lib/server/actions/auth';
 
 export function SocialAuthButtons() {
   const [loading, setLoading] = useState<'google' | 'apple' | null>(null);
   const router = useRouter();
 
-  const handleLogin = (providerName: 'google' | 'apple') => {
+  const handleSocialLogin = (providerName: 'google' | 'apple') => {
     startTransition(async () => {
       setLoading(providerName);
       try {
         const auth = getClientAuth();
-        const provider = providerName === 'google' ? new GoogleAuthProvider() : new OAuthProvider('apple.com');
-        const result = await signInWithPopup(auth, provider);
-        const idToken = await result.user.getIdToken();
+        const provider =
+          providerName === 'google'
+            ? new GoogleAuthProvider()
+            : new OAuthProvider('apple.com');
 
-        const actionResult = await completeSocialLoginAction(idToken, providerName);
-        if (actionResult.success) {
+        // 🔹 Firebase popup login
+        const firebaseResult = await signInWithPopup(auth, provider);
+        const idToken = await firebaseResult.user.getIdToken();
+
+        // 🔹 Server-side login (session wordt server-side gezet)
+        const result: AuthActionResult = await completeSocialLoginAction(
+          idToken,
+          providerName
+        );
+
+        if (result.success) {
           toast.success('Login succesvol!');
-          router.push(actionResult.data?.redirectTo ?? '/dashboard');
+          router.push(result.data?.redirectTo ?? '/dashboard');
         } else {
-          toast.error(actionResult.error ?? 'Login mislukt');
+          toast.error(result.error ?? 'Login mislukt');
         }
       } catch (err: any) {
-        toast.error(err.message || `${providerName} login mislukt`);
+        toast.error(err?.message ?? `${providerName} login mislukt`);
       } finally {
         setLoading(null);
       }
@@ -36,11 +48,19 @@ export function SocialAuthButtons() {
   };
 
   return (
-    <div className="grid grid-cols-2 gap-3">
-      <button onClick={() => handleLogin('google')} disabled={!!loading}>
+    <div className="grid grid-cols-2 gap-4" suppressHydrationWarning>
+      <button
+        onClick={() => handleSocialLogin('google')}
+        disabled={!!loading}
+        className="px-4 py-2 border rounded"
+      >
         {loading === 'google' ? 'Loading…' : 'Google'}
       </button>
-      <button onClick={() => handleLogin('apple')} disabled={!!loading}>
+      <button
+        onClick={() => handleSocialLogin('apple')}
+        disabled={!!loading}
+        className="px-4 py-2 border rounded"
+      >
         {loading === 'apple' ? 'Loading…' : 'Apple'}
       </button>
     </div>

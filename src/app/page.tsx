@@ -3,6 +3,7 @@ import Hero from '@/components/landing/hero';
 import SearchButton from '@/components/shared/search-button';
 import HowItWorks from '@/components/landing/HowItWorks';
 
+
 export const metadata = {
   title: 'Wish2Share - Deel je wensen, deel geluk',
   description: 'De perfecte site om evenementen te organiseren, cadeaus uit te wisselen en wishlists te maken. Maak cadeaus geven leuk en gemakkelijk!',

@@ -1,7 +1,5 @@
-'use client';
-
 // src/components/landing/hero-actions.tsx
-
+'use client';
 
 import { Gift, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';

@@ -1,7 +1,7 @@
 // src/app/dashboard/event/[eventId]/request/[participantId]/page.tsx
 import { Suspense } from 'react';
 import { notFound, redirect } from 'next/navigation';
-import { getServerSession } from '@/lib/auth/get-server-session';
+import { getSession } from '@/lib/auth/session.server';
 import { getEventByIdAction } from '@/lib/server/actions/events';
 import WishlistRequestClient from '@/app/wishlist/_components/WishlistRequestClient';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -14,8 +14,9 @@ interface PageProps {
 }
 
 export default async function WishlistRequestPage({ params, searchParams }: PageProps) {
-  const session = await getServerSession();
-  if (!session) redirect('/auth/login');
+  const { user: sessionUser } = await getSession();
+if (!sessionUser) redirect('/auth/login');
+
 
   const { eventId, participantId } = await params;
   const { type = 'wishlist' } = await searchParams;
@@ -55,7 +56,7 @@ export default async function WishlistRequestPage({ params, searchParams }: Page
       <WishlistRequestClient
         event={event}
         participant={participant}
-        currentUser={session.user}
+        currentUser={sessionUser}
         type={type as 'invitation' | 'drawn' | 'wishlist' | 'crossOff'}
       />
     </Suspense>

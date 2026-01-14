@@ -4,16 +4,6 @@ import { z } from 'zod';
 import { eventParticipantSchema, type EventParticipant } from '@/types/event';
 
 // =======================
-// TIMESTAMP HELPERS
-// =======================
-
-export const tsToIso = (val: Timestamp | string | null | undefined): string | null =>
-  val instanceof Timestamp ? val.toDate().toISOString() : val ?? null;
-
-export const isoToTs = (val: string | null | undefined): Timestamp | null =>
-  val ? Timestamp.fromDate(new Date(val)) : null;
-
-// =======================
 // BACKGROUNDS / CATEGORIES
 // =======================
 
@@ -115,28 +105,43 @@ export function normalizeEvent(data: any): ServerEvent {
     name: data.name,
     organizer: data.organizer,
     organizerId: data.organizerId ?? data.organizer,
-    startDateTime: tsToIso(data.startDateTime) ?? '',
-    endDateTime: tsToIso(data.endDateTime),
+
+    // 🔴 VERPLICHT – ONTBRAK
+    startDateTime: data.startDateTime,
+    endDateTime: data.endDateTime ?? null,
+
     location: data.location ?? null,
     theme: data.theme ?? null,
     backgroundImage: data.backgroundImage ?? null,
     additionalInfo: data.additionalInfo ?? null,
     organizerPhone: data.organizerPhone ?? null,
     organizerEmail: data.organizerEmail ?? null,
+
     budget: data.budget ?? 0,
     maxParticipants: data.maxParticipants ?? 1000,
+
     isLootjesEvent: !!data.isLootjesEvent,
     isPublic: !!data.isPublic,
     allowSelfRegistration: !!data.allowSelfRegistration,
+
     participants,
-    currentParticipantCount: Object.keys(participants).length,
+    currentParticipantCount:
+      typeof data.currentParticipantCount === 'number'
+        ? data.currentParticipantCount
+        : Object.keys(participants).length,
+
     messages: data.messages ?? [],
     tasks: data.tasks ?? [],
     drawnNames: data.drawnNames ?? {},
     lastReadTimestamps: data.lastReadTimestamps ?? {},
-    createdAt: tsToIso(data.createdAt) ?? '',
-    updatedAt: tsToIso(data.updatedAt) ?? '',
+
+    // 🔴 VERPLICHT – ONTBRAK
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
+
     eventComplete: !!data.eventComplete,
+    registrationDeadline: data.registrationDeadline ?? null,
+    allowDrawingNames: data.allowDrawingNames ?? false,
   };
 }
 

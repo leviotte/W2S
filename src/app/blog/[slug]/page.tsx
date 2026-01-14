@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getPostAction, getAllPostsAction } from '@/lib/server/actions/blog';
-import { getCurrentUser } from '@/lib/auth/actions';
 import { PostContent } from './_components/post-content';
+import { getCurrentUserProfileFromSession } from '@/lib/server/actions/user-actions';
 
 type Props = { params: { slug: string } };
 
@@ -44,9 +44,9 @@ export const revalidate = 300;
 
 export default async function BlogPostPage({ params }: Props) {
   const [postResult, currentUser] = await Promise.all([
-    getPostAction(params.slug),
-    getCurrentUser().catch(() => null),
-  ]);
+  getPostAction(params.slug),
+  getCurrentUserProfileFromSession().catch(() => null), // ✅ server-first, type-safe
+]);
   const post = postResult?.success ? postResult.post : null;
 
   if (!post) notFound();

@@ -4,7 +4,7 @@ import 'server-only';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 
-import { getServerSession } from '@/lib/auth/get-server-session';
+import { getSession } from '@/lib/auth/session.server';
 import { getDashboardStats } from '@/lib/server/data/dashboard-stats';
 import {
   getFollowersAction,
@@ -58,7 +58,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   // ------------------------------
   // GET SERVER SESSION
   // ------------------------------
-  const session = await getServerSession();
+  const session = await getSession();
 
   if (!session?.user || !isLoggedInUser(session.user)) {
     redirect('/?auth=login');

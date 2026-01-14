@@ -2,6 +2,7 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/actions';
 import { getUserSubProfilesAction } from '@/lib/server/actions/subprofile-actions';
+import { getUserProfileAction } from '@/lib/server/actions/user-actions';
 import CreateEventForm from './_components/CreateEventForm';
 import type { EventProfileOption } from '@/types/event';
 
@@ -11,33 +12,35 @@ export const metadata = {
 };
 
 export default async function CreateEventPage() {
-  // ✅ STATE-OF-THE-ART: Eén call voor volledige user data
-  const currentUser = await getCurrentUser();
+  const sessionUser = await getCurrentUser();
+
+  if (!sessionUser) {
+    redirect('/?modal=login&callbackUrl=/dashboard/events/create');
+  }
+
+  // ✅ Gebruik bestaande actie → volledig UserProfile
+  const currentUser = await getUserProfileAction(sessionUser.id);
 
   if (!currentUser) {
     redirect('/?modal=login&callbackUrl=/dashboard/events/create');
   }
 
-  // ✅ Nu werkt dit! currentUser heeft firstName, lastName, etc.
   const subProfilesResult = await getUserSubProfilesAction();
   const subProfiles = subProfilesResult.success ? subProfilesResult.data || [] : [];
 
-  // ✅ TYPE-SAFE MAPPING: Combineer main + sub profiles
   const allProfiles: EventProfileOption[] = [
-    // Main profile (jijzelf)
     {
       id: currentUser.id,
-      firstName: currentUser.firstName, // ✅ Nu beschikbaar!
-      lastName: currentUser.lastName,   // ✅ Nu beschikbaar!
+      firstName: currentUser.firstName || '',
+      lastName: currentUser.lastName || '',
       displayName: currentUser.displayName || `${currentUser.firstName} ${currentUser.lastName}`,
       photoURL: currentUser.photoURL || null,
       isMainProfile: true,
     },
-    // Sub-profiles (kinderen/anderen)
     ...subProfiles.map(p => ({
       id: p.id,
-      firstName: p.firstName,
-      lastName: p.lastName,
+      firstName: p.firstName || '',
+      lastName: p.lastName || '',
       displayName: p.displayName || `${p.firstName} ${p.lastName}`,
       photoURL: p.photoURL || null,
       isMainProfile: false,
@@ -54,7 +57,7 @@ export default async function CreateEventPage() {
           Organiseer een evenement, trek lootjes of maak een Secret Santa
         </p>
       </div>
-      
+
       <CreateEventForm currentUser={currentUser} profiles={allProfiles} />
     </div>
   );

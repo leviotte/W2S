@@ -3,7 +3,7 @@
 
 import { revalidateTag } from 'next/cache';
 import { adminDb, adminStorage } from '@/lib/server/firebase-admin';
-import { requireAuth } from '@/lib/auth/actions';
+import { requireAdmin } from '@/lib/auth/actions';
 import type { BackgroundType } from "@/modules/dashboard/backgrounds.types";
 
 // ============================================================================
@@ -27,7 +27,7 @@ export async function addBackgroundCategory(
 ): Promise<ActionResult<{ id: string; name: string }>> {
   try {
     // Auth check (alleen admins kunnen categorieën toevoegen)
-    const user = await requireAuth();
+    const user = await requireAdmin();
     
     if (!name.trim()) {
       return { success: false, error: 'Categorie naam is verplicht' };
@@ -63,7 +63,7 @@ export async function deleteBackgroundCategory(
   categoryId: string
 ): Promise<ActionResult> {
   try {
-    await requireAuth();
+    await requireAdmin();
 
     await adminDb.collection('backgroundCategories').doc(categoryId).delete();
 
@@ -89,7 +89,7 @@ export async function uploadBackgroundImage(
   formData: FormData
 ): Promise<ActionResult<{ id: string; url: string }>> {
   try {
-    await requireAuth();
+    await requireAdmin();
 
     const title = formData.get('title') as string;
     const category = formData.get('category') as string;
@@ -159,7 +159,7 @@ export async function deleteBackgroundImage(
   imageUrl: string
 ): Promise<ActionResult> {
   try {
-    await requireAuth();
+    await requireAdmin();
 
     const collectionName = `${type.charAt(0).toUpperCase() + type.slice(1)}BackImages`;
 
@@ -197,7 +197,7 @@ export async function toggleBackgroundLive(
   imageId: string
 ): Promise<ActionResult> {
   try {
-    await requireAuth();
+    await requireAdmin();
 
     const collectionName = `${type.charAt(0).toUpperCase() + type.slice(1)}BackImages`;
     const imageRef = adminDb.collection(collectionName).doc(imageId);

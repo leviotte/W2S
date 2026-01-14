@@ -5,6 +5,7 @@ import { adminAuth, adminDb } from '@/lib/server/firebase-admin';
 import { createSession, destroySession } from '@/lib/auth/session.server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { redirect } from 'next/navigation';
 
 /* ============================================================================
  * SCHEMAS
@@ -135,51 +136,55 @@ export async function completeRegistrationAction(data: {
 export async function completeSocialLoginAction(
   idToken: string,
   provider: 'google' | 'apple' | 'password'
-): Promise<AuthActionResult> {
-  if (!idToken) return { success: false, error: 'Geen ID token ontvangen' };
+): Promise<never> {
+  if (!idToken) {
+    throw new Error('Geen ID token ontvangen');
+  }
 
-  try {
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
-    const uid = decodedToken.uid;
-    const email = decodedToken.email;
-    if (!email) return { success: false, error: 'Geen e-mail in social account' };
+  const decodedToken = await adminAuth.verifyIdToken(idToken);
+  const uid = decodedToken.uid;
+  const email = decodedToken.email;
+  if (!email) {
+    throw new Error('Geen e-mail in account');
+  }
 
-    let userDoc = await adminDb.collection('users').doc(uid).get();
+  let userDoc = await adminDb.collection('users').doc(uid).get();
 
-    if (!userDoc.exists) {
-      const firebaseUser = await adminAuth.getUser(uid);
-      const displayName = firebaseUser.displayName || email.split('@')[0];
-      const [firstName, ...lastNameParts] = displayName.split(' ');
-      const lastName = lastNameParts.join(' ') || firstName;
+  if (!userDoc.exists) {
+    const firebaseUser = await adminAuth.getUser(uid);
+    const displayName = firebaseUser.displayName || email.split('@')[0];
+    const [firstName, ...lastNameParts] = displayName.split(' ');
+    const lastName = lastNameParts.join(' ') || firstName;
 
-      const newProfile = {
-        firstName,
-        lastName,
-        firstName_lower: firstName.toLowerCase(),
-        lastName_lower: lastName.toLowerCase(),
-        email,
-        displayName,
-        photoURL: firebaseUser.photoURL || null,
-        username: null,
-        birthdate: null,
-        gender: null,
-        country: null,
-        location: null,
-        isAdmin: email === 'leviotte@icloud.com',
-        isPartner: false,
-        emailVerified: true,
-        notifications: { email: true },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        authProvider: provider,
-      };
+    await adminDb.collection('users').doc(uid).set({
+      firstName,
+      lastName,
+      firstName_lower: firstName.toLowerCase(),
+      lastName_lower: lastName.toLowerCase(),
+      email,
+      displayName,
+      photoURL: firebaseUser.photoURL || null,
+      username: null,
+      birthdate: null,
+      gender: null,
+      country: null,
+      location: null,
+      isAdmin: email === 'leviotte@icloud.com',
+      isPartner: false,
+      emailVerified: true,
+      notifications: { email: true },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      authProvider: provider,
+    });
 
-      await adminDb.collection('users').doc(uid).set(newProfile);
-      userDoc = await adminDb.collection('users').doc(uid).get();
-    }
+    userDoc = await adminDb.collection('users').doc(uid).get();
+  }
 
-    const userData = userDoc.data()!;
-    const sessionData = extractSessionData({
+  const userData = userDoc.data()!;
+
+  await createSession(
+    extractSessionData({
       id: uid,
       email: userData.email,
       firstName: userData.firstName,
@@ -189,16 +194,11 @@ export async function completeSocialLoginAction(
       username: userData.username,
       isAdmin: userData.isAdmin,
       isPartner: userData.isPartner,
-    });
+    })
+  );
 
-    await createSession(sessionData);
-    revalidatePath('/dashboard');
-
-    return { success: true, data: { userId: uid, redirectTo: userData.isAdmin ? '/admin' : '/dashboard' } };
-  } catch (error: any) {
-    console.error('[Auth] Social login error:', error);
-    return { success: false, error: error.message || 'Social login mislukt' };
-  }
+  // 🔥 CRUCIAAL: server redirect
+  redirect(userData.isAdmin ? '/admin' : '/dashboard');
 }
 
 /* ============================================================================

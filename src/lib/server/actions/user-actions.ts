@@ -4,6 +4,7 @@
 import { adminDb } from '@/lib/server/firebase-admin';
 import { userProfileSchema, type UserProfile, generateDisplayName } from '@/types/user';
 import { Timestamp } from 'firebase-admin/firestore';
+import { getSession } from '@/lib/auth/session.server';
 
 
 export async function getUserProfileAction(userId: string): Promise<(UserProfile & { id: string }) | null> {
@@ -114,4 +115,9 @@ export async function ensureUserProfileAction(input: {
   await userRef.set(validation.data);
 
   return validation.data;
+}
+export async function getCurrentUserProfileFromSession(): Promise<(UserProfile & { id: string }) | null> {
+  const { user } = await getSession();
+  if (!user?.id || !user.isLoggedIn) return null;
+  return getUserProfileAction(user.id);
 }

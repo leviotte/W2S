@@ -3,7 +3,7 @@
 
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/server/firebase-admin';
-import { getServerSession } from '@/lib/auth/get-server-session';
+import { getSession } from '@/lib/auth/session.server';
 
 import type { Session, AuthenticatedSessionUser } from '@/types/session';
 import { revalidatePath, revalidateTag } from '@/lib/utils/revalidate';
@@ -69,13 +69,13 @@ function fromFirestoreTimestamp(timestamp: any): Date {
 /**
  * ✅ Helper om AuthenticatedSessionUser te garanderen
  */
-function requireAuthUser(session: Session): AuthenticatedSessionUser {
-  if (!session.user?.isLoggedIn) {
+export async function requireAuthUser(): Promise<AuthenticatedSessionUser> {
+  const { user } = await getSession();
+  if (!user?.isLoggedIn) {
     throw new Error('Authenticatie vereist');
   }
-  return session.user;
+  return user;
 }
-
 // ============================================================================
 // GET POST ACTION
 // ============================================================================
@@ -167,7 +167,7 @@ for (const doc of snapshot.docs as FirebaseFirestore.QueryDocumentSnapshot<BlogP
 
 export async function createPostAction(data: unknown) {
   try {
-    const session = requireAuthUser(await getServerSession());
+    const session = await requireAuthUser();
 
     const validationResult = createPostSchema.safeParse(data);
     if (!validationResult.success) {
@@ -211,7 +211,7 @@ export async function createPostAction(data: unknown) {
 
 export async function updatePostAction(data: unknown) {
   try {
-    const session = requireAuthUser(await getServerSession());
+    const session = await requireAuthUser();
 
     const validationResult = updatePostSchema.safeParse(data);
     if (!validationResult.success) {
@@ -261,7 +261,7 @@ export async function deletePostAction(postId: string) {
   try {
     if (!postId) return { success: false, error: 'Post ID ontbreekt' };
 
-    const session = requireAuthUser(await getServerSession());
+    const session = await requireAuthUser();
 
     const postRef = adminDb.collection('posts').doc(postId);
     const postDoc = await postRef.get();
@@ -309,7 +309,7 @@ export async function incrementViewCountAction(postId: string) {
 
 export async function toggleLikeAction(postId: string) {
   try {
-    const session = requireAuthUser(await getServerSession());
+    const session = await requireAuthUser();
     const userId = session.id;
 
     const postRef = adminDb.collection('posts').doc(postId);
@@ -340,7 +340,7 @@ export async function toggleLikeAction(postId: string) {
 
 export async function addCommentAction(postId: string, content: string) {
   try {
-    const session = requireAuthUser(await getServerSession());
+    const session = await requireAuthUser();
 
     if (!content.trim()) return { success: false, error: 'Reactie mag niet leeg zijn' };
 

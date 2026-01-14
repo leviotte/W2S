@@ -1,5 +1,5 @@
 // src/app/admin/social-media/page.tsx
-import { getServerSession } from '@/lib/auth/get-server-session';
+import { getSession } from '@/lib/auth/session.server';
 import { redirect } from 'next/navigation';
 import { getCachedSocialMediaAccounts } from '@/lib/server/data/social-media';
 import { SocialMediaManager } from './_components/social-media-manager';
@@ -10,11 +10,9 @@ export const metadata = {
 };
 
 export default async function AdminSocialMediaPage() {
-  const session = await getServerSession();
-
-  if (!session.user.isLoggedIn || !session.user.isAdmin) {
-  redirect('/');
-}
+  const session = await getSession();
+const user = session?.user;
+if (!user || !user.isAdmin) redirect('/');
 
   const accounts = await getCachedSocialMediaAccounts();
 
