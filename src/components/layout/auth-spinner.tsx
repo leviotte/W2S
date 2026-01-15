@@ -3,14 +3,7 @@
 import { HashLoader } from 'react-spinners';
 
 /**
- * MENTOR'S OPMERKING: De "Gold Standard" Spinner
- *
- * Dit is nu een puur presentatie-component. Het toont enkel een spinner,
- * gecentreerd op het scherm. De logica WANNEER deze getoond wordt, zit
- * volledig in de <AuthProvider>. Deze kijkt naar de 'isInitialized' state.
- *
- * Dit houdt onze componenten simpel, gefocust en herbruikbaar. Het heeft
- * geen 'children' of interne state meer nodig.
+
  */
 export function AuthSpinner() {
   return (

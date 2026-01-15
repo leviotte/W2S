@@ -10,11 +10,11 @@ import GroupChatServer from './GroupChatServer';
 import ExclusionModalServer from './ExclusionModalServer';
 import WishlistRequestDialogServer from '@/app/wishlist/_components/WishlistRequestDialogServer';
 
-import type { Event, EventParticipant, AuthenticatedSessionUser } from '@/types/event';
+import type { Event as AppEvent, EventParticipant, AuthenticatedSessionUser } from '@/types/event';
 import { useMemo } from 'react';
 
 interface EventDetailServerProps {
-  event: Event;
+  event: AppEvent;
   sessionUser: AuthenticatedSessionUser;
   participantId?: string;
   openWishlistRequestModal?: boolean;
@@ -128,6 +128,8 @@ export default function EventDetailServer({
         <div className="flex flex-col gap-5">
           {event.isLootjesEvent && isOrganizer && canShowExclusion && (
   <ExclusionModalServer
+  isOpen={canShowExclusion} // of een aparte state
+  onClose={() => {}}
   eventId={event.id}
   participants={participants}
   exclusions={event.exclusions ?? {}}
@@ -143,7 +145,7 @@ export default function EventDetailServer({
 
       {openWishlistRequestModal && wishlistParticipant && (
   <WishlistRequestDialogServer
-    event={event}
+    event={event} // event is gegarandeerd aanwezig
     participant={wishlistParticipant}
   />
 )}
