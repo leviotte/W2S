@@ -1,5 +1,6 @@
 // src/app/admin/page.tsx
-import { getSession } from '@/lib/auth/session.server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,42 +22,38 @@ export const metadata = {
 };
 
 export default async function AdminPage() {
-  // 🔹 Helper om AuthenticatedSessionUser → UserProfile te mappen
-  const mapSessionToUserProfile = (user: AuthenticatedSessionUser | null): UserProfile | null => {
-    if (!user) return null;
-
-    return {
-      id: user.id,
-      userId: user.id,
-      firstName: user.firstName ?? '',
-      lastName: user.lastName ?? '',
-      email: user.email,
-      address: null,
-      isPublic: false,
-      isAdmin: user.isAdmin ?? false,
-      isPartner: user.isPartner ?? false,
-      sharedWith: [],
-      createdAt: user.createdAt ? new Date(user.createdAt) : new Date(),
-      updatedAt: user.lastActivity ? new Date(user.lastActivity) : new Date(),
-      displayName: user.displayName ?? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
-      photoURL: user.photoURL ?? null,
-      birthdate: null,
-      gender: null,
-      username: user.username ?? null,
-      phone: null,
-      socials: null,
-    };
-  };
-
-  // 🔹 Haal session op van server
-  const { user: sessionUser } = await getSession();
-  const currentUser = mapSessionToUserProfile(sessionUser);
+  // 🔹 Haal session op via Auth.js
+  const session = await getServerSession(authOptions);
+  const user = session?.user;
 
   // 🔹 Check admin rechten
-  if (!currentUser || !currentUser.isAdmin) {
+  if (!user || user.role !== 'admin') {
     redirect('/');
   }
 
+  // 🔹 Map Auth.js session → UserProfile met veilige fallbacks
+  const currentUser: UserProfile = {
+    id: user.id,
+    userId: user.id,
+    email: user.email ?? 'unknown@example.com',
+    firstName: user.name?.split(' ')[0] ?? 'Gebruiker',
+    lastName: user.name?.split(' ').slice(1).join(' ') ?? '',
+    displayName: user.name ?? user.email?.split('@')[0] ?? 'Gebruiker',
+    address: null,
+    isPublic: false,
+    isAdmin: true,   // want we hebben al checked role
+    isPartner: false,
+    sharedWith: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    photoURL: null,
+    birthdate: null,
+    gender: null,
+    username: null,
+    phone: null,
+    socials: null,
+  };
+  
   const adminSections = [
     {
       title: 'Metrics',

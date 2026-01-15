@@ -3,8 +3,9 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 
-import { getSession } from '@/lib/auth/session.server';
-import type { AuthenticatedSessionUser } from '@/types/session';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
+
 import type { UserProfile } from '@/types/user';
 
 import { ThemeProvider } from '@/components/providers/theme-provider';
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
 /* ============================================================================
  * HELPER: Session → UserProfile
  * ========================================================================== */
-const mapSessionToUserProfile = (user: AuthenticatedSessionUser | null): UserProfile | null => {
+const mapSessionToUserProfile = (user: any): UserProfile | null => {
   if (!user) return null;
 
   return {
@@ -53,8 +54,9 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // 🔹 Haal session op van server
-  const { user: sessionUser } = await getSession();
+  // 🔹 Haal session op via Auth.js / NextAuth
+  const session = await getServerSession(authOptions);
+  const sessionUser = session?.user ?? null;
 
   // 🔹 Map session → UserProfile zodat Navbar types kloppen
   const currentUser = mapSessionToUserProfile(sessionUser);

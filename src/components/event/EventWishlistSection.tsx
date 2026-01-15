@@ -13,6 +13,15 @@ import { EventWishlistLinkModalClient } from '@/app/event/_components/EventWishl
 import { fetchEventParticipantsWithWishlists } from '@/lib/server/actions/events';
 import { addEventParticipantAction, deleteEventParticipantAction } from '@/lib/server/actions/events';
 
+type WishlistForModal = {
+  id: string;
+  name: string;
+  userId: string;
+  isPublic: boolean;
+  items: Wishlist['items'];
+  eventId: string;
+};
+
 interface EventWishlistsSectionProps {
   participants: EventParticipant[];
   currentUserId: string;
@@ -43,6 +52,17 @@ export default function EventWishlistsSection({
     lastName: '',
     email: '',
   });
+
+  const wishlistsForModal: WishlistForModal[] = Array.isArray(event?.wishlists)
+  ? event.wishlists.map((w: Wishlist) => ({
+      id: w.id,
+      name: w.name,
+      userId: w.ownerId || w.userId,
+      isPublic: w.isPublic,
+      items: w.items,
+      eventId: w.eventId ?? eventId,
+    }))
+  : [];
 
   // ================================
   // Fetch participants
@@ -121,7 +141,10 @@ const handleRemoveParticipant = async (participantId: string) => {
     }
 
     if (participant.wishlistId) {
-      const wishlist = event?.wishlists?.find(w => w.id === participant.wishlistId);
+      const wishlist = Array.isArray(event?.wishlists)
+  ? event.wishlists.find((w: Wishlist) => w.id === participant.wishlistId)
+  : undefined;
+
       if (wishlist) {
         router.push(
           `/dashboard/wishlist/${wishlist.slug}/${eventId}?tab=wishlists&subTab=event-details`
@@ -141,23 +164,16 @@ const handleRemoveParticipant = async (participantId: string) => {
     <>
       {/* Wishlist Link Modal */}
       {showLinkModal && (
-        <EventWishlistLinkModalClient
-          wishlists={(event?.wishlists ?? []).map((w: Wishlist) => ({
-            id: w.id,
-            name: w.name,
-            userId: w.ownerId || w.userId,
-            isPublic: w.isPublic,
-            items: w.items,
-            eventId: w.eventId!,
-          }))}
-          userId={currentUserId}
-          participantId={selectedParticipantId}
-          eventId={eventId}
-          onSuccess={(wishlistId: string) => {
-            setEventParticipants(prev =>
-              prev.map(p => (p.id === selectedParticipantId ? { ...p, wishlistId } : p))
-            );
-            setShowLinkModal(false);
+  <EventWishlistLinkModalClient
+    wishlists={wishlistsForModal} // <-- nu getypt en veilig
+    userId={currentUserId}
+    participantId={selectedParticipantId}
+    eventId={eventId}
+    onSuccess={(wishlistId: string) => {
+      setEventParticipants(prev =>
+        prev.map(p => (p.id === selectedParticipantId ? { ...p, wishlistId } : p))
+      );
+      setShowLinkModal(false);
     }}
   />
 )}

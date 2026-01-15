@@ -1,6 +1,7 @@
 // src/app/dashboard/event/[eventId]/page.tsx
 import { notFound, redirect } from "next/navigation";
-import { getSession } from "@/lib/auth/session.server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import { adminDb } from "@/lib/server/firebase-admin";
 import type { Event, EventParticipant } from "@/types/event";
 import { eventSchema } from "@/lib/server/types/event-admin";
@@ -12,13 +13,13 @@ import EventDetailServer from "@/components/event/EventDetailServer";
 function convertFirestoreTimestamps(obj: any): any {
   if (obj === null || obj === undefined) return obj;
 
-  if (obj && typeof obj === 'object' && '_seconds' in obj && '_nanoseconds' in obj) {
+  if (obj && typeof obj === "object" && "_seconds" in obj && "_nanoseconds" in obj) {
     return new Date(obj._seconds * 1000 + obj._nanoseconds / 1000000).toISOString();
   }
 
   if (Array.isArray(obj)) return obj.map(convertFirestoreTimestamps);
 
-  if (typeof obj === 'object') {
+  if (typeof obj === "object") {
     const converted: any = {};
     for (const key in obj) {
       if (Object.prototype.hasOwnProperty.call(obj, key)) {
@@ -44,17 +45,17 @@ async function getEventData(eventId: string): Promise<Event | null> {
 
     // Fix participants
     const participants: Record<string, EventParticipant> = {};
-    if (serializedData.participants && typeof serializedData.participants === 'object') {
+    if (serializedData.participants && typeof serializedData.participants === "object") {
       for (const [id, pRaw] of Object.entries(serializedData.participants)) {
         const p = pRaw as Partial<EventParticipant>;
         participants[id] = {
           id,
-          firstName: p.firstName || '',
-          lastName: p.lastName || '',
-          email: p.email ?? '',
+          firstName: p.firstName || "",
+          lastName: p.lastName || "",
+          email: p.email ?? "",
           confirmed: p.confirmed ?? false,
-          role: p.role || 'participant',
-          status: p.status || 'accepted',
+          role: p.role || "participant",
+          status: p.status || "accepted",
           addedAt: p.addedAt ?? new Date().toISOString(),
           wishlistId: p.wishlistId ?? undefined,
           photoURL: p.photoURL ?? undefined,
@@ -84,23 +85,26 @@ interface PageProps {
 export default async function EventPage({ params }: PageProps) {
   const { id: eventId } = params;
 
-  const session = await getSession();
-  if (!session?.user?.isLoggedIn) {
+  // ✅ Gebruik NextAuth
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
     redirect(`/login?returnUrl=/dashboard/event/${eventId}`);
   }
 
   const initialEvent = await getEventData(eventId);
   if (!initialEvent) notFound();
 
-  // ✅ Inject `isLoggedIn: true` zodat types matchen
-  const sessionUser = { ...session.user, isLoggedIn: true as const };
+  // ✅ Typesafe sessieUser voor EventDetailServer
+  const sessionUser = {
+    ...session.user,
+    isLoggedIn: true as const,
+  };
 
   return (
     <EventDetailServer
-  event={initialEvent}
-  sessionUser={sessionUser}
-/>
-
+      event={initialEvent}
+      sessionUser={sessionUser}
+    />
   );
 }
 

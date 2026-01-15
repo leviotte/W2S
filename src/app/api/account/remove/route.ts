@@ -1,6 +1,7 @@
 // src/app/api/account/remove/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth/session.server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
 import { removeFieldAction } from '@/lib/server/actions/account-actions';
 import { z } from 'zod';
 
@@ -16,18 +17,27 @@ const removeSchema = z.object({
 ========================== */
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSession();
-if (!session.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // 🔹 Haal session op via NextAuth
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
 
-const body = await req.json();
-const { field } = removeSchema.parse(body);
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-// 🔑 Gebruik session.user.id ipv session.id
-const account = await removeFieldAction(session.user.id, field);
+    // 🔹 Parse request body
+    const body = await req.json();
+    const { field } = removeSchema.parse(body);
 
-return NextResponse.json({ success: true, account });
+    // 🔹 Voer actie uit
+    const account = await removeFieldAction(userId, field);
+
+    return NextResponse.json({ success: true, account });
   } catch (err: any) {
     console.error('[API] /account/remove error:', err);
-    return NextResponse.json({ success: false, error: err.message || 'Server error' }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: err.message || 'Server error' },
+      { status: 500 }
+    );
   }
 }

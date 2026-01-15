@@ -1,7 +1,9 @@
+// src/app/dashboard/wishlists/create/actions.ts
 'use server';
 
 import { z } from 'zod';
-import { getSession } from '@/lib/auth/session.server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
 import { adminDb } from '@/lib/server/firebase-admin';
 
 const schema = z.object({
@@ -13,14 +15,17 @@ const schema = z.object({
 });
 
 export async function createWishlistAction(input: unknown) {
-  const { user } = await getSession();
-  if (!user) throw new Error('UNAUTHENTICATED');
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    throw new Error('UNAUTHENTICATED');
+  }
 
   const data = schema.parse(input);
 
   await adminDb.collection('wishlists').add({
     ...data,
-    userId: user.id,
+    userId: session.user.id,
     createdAt: new Date().toISOString(),
   });
 }

@@ -1,6 +1,7 @@
 // src/app/dashboard/add-profile/page.tsx
 import { AddProfileForm } from "@/app/profile/_components/AddProfileForm";
-import { getSession } from "@/lib/auth/session.server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import { redirect } from "next/navigation";
 
 export const metadata = {
@@ -9,9 +10,11 @@ export const metadata = {
 };
 
 export default async function AddProfilePage() {
-  const session = await getSession();
+  // Haal sessie op via NextAuth
+  const session = await getServerSession(authOptions);
 
-  if (!session.user?.isLoggedIn) {
+  // Redirect als gebruiker niet ingelogd is
+  if (!session?.user?.id) {
     redirect("/");
   }
 

@@ -1,15 +1,12 @@
-// src/lib/server/actions/blog.ts
 'use server';
 
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/server/firebase-admin';
-import { getSession } from '@/lib/auth/session.server';
-
-import type { Session, AuthenticatedSessionUser } from '@/types/session';
 import { revalidatePath, revalidateTag } from '@/lib/utils/revalidate';
 import { z } from 'zod';
 import { productSchema } from '@/types/product';
 import { BlogPost } from '@/types/blog';
+import { requireAuthUser, type AuthUser } from './user-actions';
 
 // ============================================================================
 // ZOD SCHEMAS
@@ -67,15 +64,28 @@ function fromFirestoreTimestamp(timestamp: any): Date {
 }
 
 /**
- * ✅ Helper om AuthenticatedSessionUser te garanderen
+ * Haal ingelogde gebruiker op via NextAuth en TS-safe
  */
-export async function requireAuthUser(): Promise<AuthenticatedSessionUser> {
-  const { user } = await getSession();
-  if (!user?.isLoggedIn) {
-    throw new Error('Authenticatie vereist');
-  }
-  return user;
+async function getAuthUser(): Promise<AuthUser> {
+  const userProfile = await requireAuthUser();
+
+  if (!userProfile) throw new Error('User niet ingelogd');
+
+  const authUser: AuthUser = {
+    id: userProfile.id,
+    role: (userProfile as any).role || 'user', // fallback
+    email: userProfile.email,
+    name: userProfile.displayName || `${userProfile.firstName} ${userProfile.lastName}`,
+    displayName: userProfile.displayName || `${userProfile.firstName} ${userProfile.lastName}`,
+    firstName: userProfile.firstName,
+    lastName: userProfile.lastName,
+    photoURL: userProfile.photoURL ?? null,
+    isAdmin: userProfile.isAdmin,
+  };
+
+  return authUser;
 }
+
 // ============================================================================
 // GET POST ACTION
 // ============================================================================
@@ -85,9 +95,7 @@ export async function getPostAction(postId: string): Promise<{ success: boolean;
     const postRef = adminDb.collection('posts').doc(postId);
     const postDoc = await postRef.get();
 
-    if (!postDoc.exists) {
-      return { success: false, error: 'Post niet gevonden' };
-    }
+    if (!postDoc.exists) return { success: false, error: 'Post niet gevonden' };
 
     const d = postDoc.data()!;
     const post: BlogPost = {
@@ -103,6 +111,7 @@ export async function getPostAction(postId: string): Promise<{ success: boolean;
       createdAt: d.createdAt ? fromFirestoreTimestamp(d.createdAt) : new Date(),
       updatedAt: d.updatedAt ? fromFirestoreTimestamp(d.updatedAt) : undefined,
     };
+
     return { success: true, post };
   } catch (error) {
     console.error('Error in getPostAction:', error);
@@ -131,28 +140,24 @@ export async function getAllPostsAction(options?: {
     if (options?.limit) query = query.limit(options.limit);
 
     const snapshot = await query.get();
-const posts: BlogPost[] = [];
+    const posts: BlogPost[] = [];
 
-for (const doc of snapshot.docs as FirebaseFirestore.QueryDocumentSnapshot<BlogPost>[]) {
-  const d = doc.data();
-  posts.push({
-    id: doc.id,
-    slug: d.slug ?? doc.id,
-    headTitle: d.headTitle ?? '',
-    headDescription: d.headDescription ?? '',
-    subDescription: d.subDescription ?? '',
-    headImage: d.headImage ?? '',
-    sections: d.sections ?? [],
-    author: d.author ?? undefined,
-    views: d.views ?? undefined,
-    createdAt: d.createdAt
-      ? fromFirestoreTimestamp(d.createdAt)
-      : new Date(),
-    updatedAt: d.updatedAt
-      ? fromFirestoreTimestamp(d.updatedAt)
-      : undefined,
-  });
-}
+    for (const doc of snapshot.docs as FirebaseFirestore.QueryDocumentSnapshot<BlogPost>[]) {
+      const d = doc.data();
+      posts.push({
+        id: doc.id,
+        slug: d.slug ?? doc.id,
+        headTitle: d.headTitle ?? '',
+        headDescription: d.headDescription ?? '',
+        subDescription: d.subDescription ?? '',
+        headImage: d.headImage ?? '',
+        sections: d.sections ?? [],
+        author: d.author ?? undefined,
+        views: d.views ?? undefined,
+        createdAt: d.createdAt ? fromFirestoreTimestamp(d.createdAt) : new Date(),
+        updatedAt: d.updatedAt ? fromFirestoreTimestamp(d.updatedAt) : undefined,
+      });
+    }
 
     return { success: true, posts };
   } catch (error) {
@@ -167,7 +172,7 @@ for (const doc of snapshot.docs as FirebaseFirestore.QueryDocumentSnapshot<BlogP
 
 export async function createPostAction(data: unknown) {
   try {
-    const session = await requireAuthUser();
+    const session = await getAuthUser();
 
     const validationResult = createPostSchema.safeParse(data);
     if (!validationResult.success) {
@@ -179,7 +184,7 @@ export async function createPostAction(data: unknown) {
       };
     }
 
-    const userName = session.displayName || `${session.firstName} ${session.lastName}`;
+    const userName = session.displayName || session.name || session.email;
 
     const newPost = {
       ...validationResult.data,
@@ -211,7 +216,7 @@ export async function createPostAction(data: unknown) {
 
 export async function updatePostAction(data: unknown) {
   try {
-    const session = await requireAuthUser();
+    const session = await getAuthUser();
 
     const validationResult = updatePostSchema.safeParse(data);
     if (!validationResult.success) {
@@ -232,7 +237,7 @@ export async function updatePostAction(data: unknown) {
 
     const existingData = postDoc.data();
     const isAuthor = existingData?.authorId === session.id;
-    const isAdmin = session.isAdmin;
+    const isAdmin = session.role === 'admin';
 
     if (!isAuthor && !isAdmin) return { success: false, error: 'Geen toestemming' };
 
@@ -261,7 +266,7 @@ export async function deletePostAction(postId: string) {
   try {
     if (!postId) return { success: false, error: 'Post ID ontbreekt' };
 
-    const session = await requireAuthUser();
+    const session = await getAuthUser();
 
     const postRef = adminDb.collection('posts').doc(postId);
     const postDoc = await postRef.get();
@@ -270,7 +275,7 @@ export async function deletePostAction(postId: string) {
 
     const postData = postDoc.data();
     const isAuthor = postData?.authorId === session.id;
-    const isAdmin = session.isAdmin;
+    const isAdmin = session.role === 'admin';
 
     if (!isAuthor && !isAdmin) return { success: false, error: 'Geen toestemming' };
 
@@ -309,7 +314,7 @@ export async function incrementViewCountAction(postId: string) {
 
 export async function toggleLikeAction(postId: string) {
   try {
-    const session = await requireAuthUser();
+    const session = await getAuthUser();
     const userId = session.id;
 
     const postRef = adminDb.collection('posts').doc(postId);
@@ -340,14 +345,14 @@ export async function toggleLikeAction(postId: string) {
 
 export async function addCommentAction(postId: string, content: string) {
   try {
-    const session = await requireAuthUser();
+    const session = await getAuthUser();
 
     if (!content.trim()) return { success: false, error: 'Reactie mag niet leeg zijn' };
 
     const comment = {
       id: adminDb.collection('temp').doc().id,
       userId: session.id,
-      userName: session.displayName || `${session.firstName} ${session.lastName}`,
+      userName: session.displayName || `${session.firstName} ${session.lastName}` || session.name || session.email,
       userPhoto: session.photoURL || null,
       content: content.trim(),
       createdAt: Timestamp.now(),

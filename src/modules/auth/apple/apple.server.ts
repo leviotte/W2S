@@ -1,38 +1,25 @@
-import jwt from 'jsonwebtoken';
-import jwksClient from 'jwks-rsa';
+// src/lib/server/apple-auth.ts
+'use server';
 
-const client = jwksClient({
-  jwksUri: 'https://appleid.apple.com/auth/keys',
-});
+import { signIn } from 'next-auth/react';
 
-function getKey(header: any, callback: any) {
-  client.getSigningKey(header.kid, function (err, key) {
-    const signingKey = key?.getPublicKey();
-    callback(err, signingKey);
-  });
-}
-
-export async function verifyAppleIdToken(idToken: string): Promise<{
-  sub: string;
-  email: string;
-}> {
-  return new Promise((resolve, reject) => {
-    jwt.verify(
-      idToken,
-      getKey,
-      {
-        algorithms: ['RS256'],
-        issuer: 'https://appleid.apple.com',
-      },
-      (err, decoded: any) => {
-        if (err) return reject(err);
-        if (!decoded?.email) return reject('No email in Apple token');
-
-        resolve({
-          sub: decoded.sub,
-          email: decoded.email,
-        });
-      }
-    );
-  });
-}
+/**
+ * Apple login via NextAuth
+ * Single source of truth: auth.js / authOptions
+ */
+export const appleSignInServer = {
+  /**
+   * Start Apple login
+   * Valt volledig terug op NextAuth Apple-provider
+   */
+  async signIn(): Promise<void> {
+    try {
+      await signIn('apple', {
+        callbackUrl: '/dashboard', // fallback na succesvolle login
+      });
+    } catch (err: any) {
+      console.error('[Apple Login] Fout bij aanmelden:', err);
+      throw new Error(err?.message || 'Apple login mislukt');
+    }
+  },
+};

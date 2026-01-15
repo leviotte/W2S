@@ -5,9 +5,11 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/server/firebase-admin';
-import { getSession } from '@/lib/auth/session.server';
 import { addressSchema, UserProfile, userProfileSchema } from '@/types/user';
 import { updateUserProfile } from '@/lib/firebase/server/profiles';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
+import type { AuthenticatedSessionUser } from '@/types/session';
 
 // ====================================================================
 // Type definities voor consistente responses
@@ -50,6 +52,32 @@ const RemoveManagerSchema = z.object({
 // Helper Functies
 // ====================================================================
 
+// ✅ Helper: haal ingelogde gebruiker op via NextAuth en converteer naar AuthenticatedSessionUser
+async function getAuthenticatedUser(): Promise<AuthenticatedSessionUser> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) throw new Error('Authenticatie mislukt.');
+
+  const userId = session.user.id;
+  const userDoc = await adminDb.collection('users').doc(userId).get();
+  const userData = userDoc.exists ? userDoc.data() : {};
+
+  return {
+    isLoggedIn: true,
+    id: userId,
+    email: session.user.email || '',
+    displayName: session.user.name || userData?.displayName || 'Gebruiker',
+    isAdmin: userData?.isAdmin ?? false,
+    isPartner: userData?.isPartner ?? false,
+    firstName: userData?.firstName,
+    lastName: userData?.lastName,
+    photoURL: userData?.photoURL ?? null,
+    username: userData?.username ?? null,
+    createdAt: userData?.createdAt?.toMillis?.(),
+    lastActivity: userData?.lastActivity?.toMillis?.(),
+  };
+}
+
+// Haal meerdere gebruikersprofielen op
 async function getUserProfiles(ids: string[]): Promise<UserProfile[]> {
   if (ids.length === 0) return [];
   const userDocs = await Promise.all(ids.map(id => adminDb.collection('users').doc(id).get()));
@@ -63,8 +91,9 @@ async function getUserProfiles(ids: string[]): Promise<UserProfile[]> {
 // ====================================================================
 
 export async function updatePersonalInfo(prevState: FormState, formData: FormData): Promise<FormState> {
-  const session = await getSession();
-  if (!session.user?.isLoggedIn) return { message: 'Authenticatie mislukt.', success: false };
+  let user: AuthenticatedSessionUser;
+  try { user = await getAuthenticatedUser(); } 
+  catch { return { message: 'Authenticatie mislukt.', success: false }; }
 
   const rawData = {
     firstName: formData.get('firstName'),
@@ -83,11 +112,11 @@ export async function updatePersonalInfo(prevState: FormState, formData: FormDat
     const displayName = `${firstName} ${lastName}`.trim();
     const displayName_lowercase = displayName.toLowerCase();
 
-    await updateUserProfile(session.user.id, {
-  ...parsed.data,
-  displayName,
-  displayName_lowercase,
-} as Partial<UserProfile>);
+    await updateUserProfile(user.id, {
+      ...parsed.data,
+      displayName,
+      displayName_lowercase,
+    } as Partial<UserProfile>);
 
     revalidatePath('/dashboard/profile');
     return { message: 'Gegevens succesvol bijgewerkt.', success: true };
@@ -98,8 +127,9 @@ export async function updatePersonalInfo(prevState: FormState, formData: FormDat
 }
 
 export async function updateAddress(prevState: FormState, formData: FormData): Promise<FormState> {
-  const session = await getSession();
-  if (!session.user?.isLoggedIn) return { message: 'Authenticatie mislukt.', success: false };
+  let user: AuthenticatedSessionUser;
+  try { user = await getAuthenticatedUser(); } 
+  catch { return { message: 'Authenticatie mislukt.', success: false }; }
 
   const parsed = addressSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) {
@@ -109,7 +139,7 @@ export async function updateAddress(prevState: FormState, formData: FormData): P
   }
 
   try {
-    await adminDb.collection('users').doc(session.user.id).update({ address: parsed.data });
+    await adminDb.collection('users').doc(user.id).update({ address: parsed.data });
     revalidatePath('/dashboard/profile');
     return { message: 'Adres bijgewerkt.', success: true };
   } catch (error) {
@@ -119,12 +149,13 @@ export async function updateAddress(prevState: FormState, formData: FormData): P
 }
 
 export async function addManagerByEmailAction(prevState: FormState, formData: FormData): Promise<FormState> {
-  const session = await getSession();
-  if (!session.user?.isLoggedIn) return { message: 'Authenticatie mislukt.', success: false };
+  let user: AuthenticatedSessionUser;
+  try { user = await getAuthenticatedUser(); } 
+  catch { return { message: 'Authenticatie mislukt.', success: false }; }
 
   const parsed = AddManagerSchema.safeParse({
     email: formData.get('email'),
-    profileId: session.user.id,
+    profileId: user.id,
   });
 
   if (!parsed.success) {
@@ -151,12 +182,13 @@ export async function addManagerByEmailAction(prevState: FormState, formData: Fo
 }
 
 export async function removeManagerByIdAction(prevState: FormState, formData: FormData): Promise<FormState> {
-  const session = await getSession();
-  if (!session.user?.isLoggedIn) return { message: 'Authenticatie mislukt.', success: false };
+  let user: AuthenticatedSessionUser;
+  try { user = await getAuthenticatedUser(); } 
+  catch { return { message: 'Authenticatie mislukt.', success: false }; }
 
   const parsed = RemoveManagerSchema.safeParse({
     managerId: formData.get('managerId'),
-    profileId: session.user.id,
+    profileId: user.id,
   });
 
   if (!parsed.success) return { message: 'Ongeldige data.', success: false };
@@ -180,15 +212,16 @@ export async function removeManagerByIdAction(prevState: FormState, formData: Fo
 // ====================================================================
 
 export async function updatePhotoURL(photoURL: string): Promise<ActionResponse<null>> {
-  const session = await getSession();
-  if (!session.user?.isLoggedIn) return { success: false, error: 'Authenticatie mislukt.' };
+  let user: AuthenticatedSessionUser;
+  try { user = await getAuthenticatedUser(); } 
+  catch { return { success: false, error: 'Authenticatie mislukt.' }; }
 
   if (!z.string().url().safeParse(photoURL).success) return { success: false, error: 'Ongeldige foto URL.' };
 
   try {
-    await adminDb.collection('users').doc(session.user.id).update({ photoURL });
+    await adminDb.collection('users').doc(user.id).update({ photoURL });
     revalidatePath('/dashboard/profile');
-    if (session.user.username) revalidatePath(`/profile/${session.user.username}`);
+    if (user.username) revalidatePath(`/profile/${user.username}`);
     return { success: true, data: null };
   } catch (error) {
     console.error('Fout bij bijwerken foto:', error);
@@ -197,13 +230,14 @@ export async function updatePhotoURL(photoURL: string): Promise<ActionResponse<n
 }
 
 export async function togglePublicStatus(isPublic: boolean): Promise<ToggleStatusResponse> {
-  const session = await getSession();
-  if (!session.user?.isLoggedIn) return { success: false, error: 'Authenticatie mislukt.' };
+  let user: AuthenticatedSessionUser;
+  try { user = await getAuthenticatedUser(); } 
+  catch { return { success: false, error: 'Authenticatie mislukt.' }; }
 
   const newStatus = !!isPublic;
 
   try {
-    await adminDb.collection('users').doc(session.user.id).update({ isPublic: newStatus });
+    await adminDb.collection('users').doc(user.id).update({ isPublic: newStatus });
     revalidatePath('/dashboard/profile');
     return {
       success: true,
@@ -257,8 +291,11 @@ export async function searchUsersAction(query: string): Promise<ActionResponse<U
 }
 
 export async function addManagerAction(profileId: string, managerId: string): Promise<ActionResponse<null>> {
-  const session = await getSession();
-  if (!session.user?.isLoggedIn || session.user.id !== profileId) return { success: false, error: 'Ongeautoriseerd' };
+  let user: AuthenticatedSessionUser;
+  try { user = await getAuthenticatedUser(); } 
+  catch { return { success: false, error: 'Ongeautoriseerd' }; }
+
+  if (user.id !== profileId) return { success: false, error: 'Ongeautoriseerd' };
   if (profileId === managerId) return { success: false, error: 'Je kan jezelf niet toevoegen.' };
 
   try {
@@ -275,8 +312,11 @@ export async function addManagerAction(profileId: string, managerId: string): Pr
 }
 
 export async function removeManagerAction(profileId: string, managerId: string): Promise<ActionResponse<null>> {
-  const session = await getSession();
-  if (!session.user?.isLoggedIn || session.user.id !== profileId) return { success: false, error: 'Ongeautoriseerd' };
+  let user: AuthenticatedSessionUser;
+  try { user = await getAuthenticatedUser(); } 
+  catch { return { success: false, error: 'Ongeautoriseerd' }; }
+
+  if (user.id !== profileId) return { success: false, error: 'Ongeautoriseerd' };
 
   try {
     await adminDb.collection('users').doc(profileId).update({

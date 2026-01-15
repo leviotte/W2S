@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { adminDb } from '@/lib/server/firebase-admin';
-import { getSession } from '@/lib/auth/session.server';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import type { SubProfile } from '@/types/user';
 import { nanoid } from 'nanoid';
 import type { AuthenticatedSessionUser } from '@/types/session';
@@ -31,13 +32,13 @@ const subProfileSchema = z.object({
 type SubProfileData = z.infer<typeof subProfileSchema>;
 
 export async function createSubProfileAction(data: unknown) {
-  const session = await getSession();
-  if (!session.user?.isLoggedIn) {
-    return { success: false, error: 'Authenticatie vereist.' };
-  }
-  // Vanaf hier gegarandeerd: session.user is AuthenticatedSessionUser
-  const userId = (session.user as AuthenticatedSessionUser).id;
+  const session = await getServerSession(authOptions);
 
+if (!session?.user?.id) {
+  return { success: false, error: 'Authenticatie vereist.' };
+}
+
+const userId = session.user.id;
   const validation = subProfileSchema.safeParse(data);
   if (!validation.success) {
     return {
@@ -124,12 +125,13 @@ export async function getUserSubProfilesAction(): Promise<{
   error?: string;
   data: SubProfile[];
 }> {
-  const session = await getSession();
-  if (!session.user?.isLoggedIn) {
-    return { success: false, error: 'Authenticatie vereist.', data: [] };
-  }
-  const userId = (session.user as AuthenticatedSessionUser).id;
+  const session = await getServerSession(authOptions);
 
+if (!session?.user?.id) {
+  return { success: false, error: 'Authenticatie vereist.', data: [] };
+}
+
+const userId = session.user.id;
   try {
     const snapshot = await adminDb
       .collection('profiles')
@@ -172,12 +174,13 @@ export async function getUserSubProfilesAction(): Promise<{
 // ============================================================================
 
 export async function getSubProfileByIdAction(profileId: string) {
-  const session = await getSession();
-  if (!session.user?.isLoggedIn) {
-    return { success: false, error: 'Authenticatie vereist.', data: null };
-  }
-  const userId = (session.user as AuthenticatedSessionUser).id;
+  const session = await getServerSession(authOptions);
 
+if (!session?.user?.id) {
+  return { success: false, error: 'Authenticatie vereist.' };
+}
+
+const userId = session.user.id;
   try {
     const profileDoc = await adminDb.collection('profiles').doc(profileId).get();
 
@@ -215,12 +218,13 @@ export async function updateSubProfileAction(
   profileId: string, 
   updates: Partial<SubProfileData>
 ) {
-  const session = await getSession();
-  if (!session.user?.isLoggedIn) {
-    return { success: false, error: 'Authenticatie vereist.' };
-  }
-  const userId = (session.user as AuthenticatedSessionUser).id;
+  const session = await getServerSession(authOptions);
 
+if (!session?.user?.id) {
+  return { success: false, error: 'Authenticatie vereist.' };
+}
+
+const userId = session.user.id;
   try {
     const profileRef = adminDb.collection('profiles').doc(profileId);
     const profileDoc = await profileRef.get();
@@ -267,12 +271,13 @@ export async function updateSubProfileAction(
 // ============================================================================
 
 export async function deleteSubProfileAction(profileId: string) {
-  const session = await getSession();
-  if (!session.user?.isLoggedIn) {
-    return { success: false, error: 'Authenticatie vereist.' };
-  }
-  const userId = (session.user as AuthenticatedSessionUser).id;
+  const session = await getServerSession(authOptions);
 
+if (!session?.user?.id) {
+  return { success: false, error: 'Authenticatie vereist.' };
+}
+
+const userId = session.user.id;
   try {
     const profileRef = adminDb.collection('profiles').doc(profileId);
     const profileDoc = await profileRef.get();

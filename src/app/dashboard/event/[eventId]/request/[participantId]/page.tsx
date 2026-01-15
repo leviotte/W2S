@@ -1,7 +1,9 @@
 // src/app/dashboard/event/[eventId]/request/[participantId]/page.tsx
 import { Suspense } from 'react';
 import { notFound, redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth/session.server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
+
 import { getEventByIdAction } from '@/lib/server/actions/events';
 import WishlistRequestClient from '@/app/wishlist/_components/WishlistRequestClient';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -14,13 +16,22 @@ interface PageProps {
 }
 
 export default async function WishlistRequestPage({ params, searchParams }: PageProps) {
-  const { user: sessionUser } = await getSession();
-if (!sessionUser) redirect('/auth/login');
+  // ------------------------------
+  // GET SERVER SESSION
+  // ------------------------------
+  const session = await getServerSession(authOptions);
+  const sessionUser = session?.user;
+  if (!sessionUser?.id) redirect('/auth/login');
 
-
+  // ------------------------------
+  // ROUTE PARAMS
+  // ------------------------------
   const { eventId, participantId } = await params;
   const { type = 'wishlist' } = await searchParams;
 
+  // ------------------------------
+  // EVENT DATA
+  // ------------------------------
   const result = await getEventByIdAction(eventId);
   if (!result.success || !result.data) notFound();
 
@@ -48,6 +59,9 @@ if (!sessionUser) redirect('/auth/login');
     };
   })();
 
+  // ------------------------------
+  // PARTICIPANT CHECK
+  // ------------------------------
   const participant = Object.values(event.participants).find((p) => p.id === participantId);
   if (!participant) notFound();
 
@@ -63,8 +77,9 @@ if (!sessionUser) redirect('/auth/login');
   );
 }
 
+// ============================================================================
 export async function generateMetadata({ params }: PageProps) {
-  const { eventId } = await params;
+  await params; // Behoud typing
   return {
     title: 'Vraag een wishlist aan - Wish2Share',
     description: 'Nodig een deelnemer uit om een wishlist aan te maken',

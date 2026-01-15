@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { Separator } from "@/components/ui/separator";
 import PageTitle from "@/components/layout/page-title";
 
-import { getSession } from "@/lib/auth/session.server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import { adminDb } from "@/lib/server/firebase-admin";
 import type { SocialLinks, UserProfile } from "@/types/user";
 
@@ -16,6 +17,9 @@ export const metadata = {
   description: "Beheer je profiel- en accountinstellingen.",
 };
 
+// ============================================================================
+// HELPER: FETCH USER SETTINGS
+// ============================================================================
 async function getUserSettings(uid: string) {
   try {
     const userDoc = await adminDb.collection("users").doc(uid).get();
@@ -37,11 +41,13 @@ async function getUserSettings(uid: string) {
   }
 }
 
+// ============================================================================
+// PAGE COMPONENT
+// ============================================================================
 export default async function SettingsPage() {
-  const session = await getSession();
+  const session = await getServerSession(authOptions);
 
-  // ✅ Typesafe union-check
-  if (!session.user?.isLoggedIn) redirect("/?auth=login");
+  if (!session?.user?.id) redirect("/?auth=login");
 
   const settings = await getUserSettings(session.user.id);
   if (!settings) redirect("/dashboard");

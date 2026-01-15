@@ -1,9 +1,10 @@
 // src/app/dashboard/profile/page.tsx
 import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth/session.server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
+
 import { getUserProfile } from '@/lib/firebase/server/profiles';
 import { ProfileClient } from './_components/profile-client';
-import { SessionUser } from '@/types/session';
 
 export const metadata = {
   title: 'Profiel | Wish2Share',
@@ -11,17 +12,18 @@ export const metadata = {
 };
 
 export default async function ProfilePage() {
-  const { user: sessionUser } = await getSession();
+  // ------------------------------
+  // GET SESSION VIA AUTH.JS
+  // ------------------------------
+  const session = await getServerSession(authOptions);
+  const user = session?.user;
+  if (!user?.id) {
+    redirect('/auth/login?redirect=/dashboard/profile');
+  }
 
-// Check of de user ingelogd is
-if (!sessionUser) {
-  redirect('/auth/login?redirect=/dashboard/profile');
-}
-
-// Nu weten we zeker dat user ingelogd is
-const user = sessionUser;
-
-  // id gebruiken i.p.v uid
+  // ------------------------------
+  // FETCH PROFILE
+  // ------------------------------
   const profile = await getUserProfile(user.id);
   if (!profile) {
     redirect('/dashboard/profile/create');

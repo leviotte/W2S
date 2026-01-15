@@ -1,21 +1,31 @@
 // src/lib/auth/actions.ts
 'use server';
 
-import { getSession, isAdmin } from './session.server';
-import type { AuthenticatedSessionUser } from '@/types/session';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
 
-export async function getCurrentUser(): Promise<AuthenticatedSessionUser | null> {
-  const { user } = await getSession();
-  return user;
+/**
+ * Haalt de huidige ingelogde user op (of null)
+ */
+export async function getCurrentUser() {
+  const session = await getServerSession(authOptions);
+  return session?.user ?? null;
 }
 
-// ===============================
-// requireAdmin helper
-// ===============================
-export async function requireAdmin(): Promise<AuthenticatedSessionUser> {
-  const { user } = await getSession();
-  if (!user?.isLoggedIn || !user.isAdmin) {
-    throw new Error('Admin access vereist');
+/**
+ * Vereist admin rechten
+ * Gooi error als gebruiker geen admin is
+ */
+export async function requireAdmin() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user) {
+    throw new Error('Niet ingelogd');
   }
-  return user;
+
+  if (session.user.role !== 'admin') {
+    throw new Error('Admin toegang vereist');
+  }
+
+  return session.user;
 }

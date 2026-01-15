@@ -7,7 +7,7 @@ import ChatInputClient from "../chat/ChatInputClient";
 import type { Message } from "@/types";
 import type { EventMessage } from "@/types/event";
 import { useScrollToBottom } from "@/hooks/useScrollToBottom";
-import { X } from "lucide-react";
+import { X as XIcon } from "lucide-react";
 import { mapEventMessagesToMessages } from "@/hooks/useEventMessages";
 
 interface GroupChatProps {
@@ -54,14 +54,10 @@ export default function GroupChat({
       {/* Header */}
       <div className="border-b-[1.5px] border-black px-5 py-4 flex flex-row justify-between items-center space-x-3 rounded-t-lg">
         <h2 className="text-lg font-semibold">Groepsberichten</h2>
-        <button
-          onClick={onClose}
-          className="flex flex-row gap-1 items-center text-white focus:outline-none xs:hidden"
-          aria-label="Close chat"
-        >
-          close
-          <X className="hover:text-[#b34c4c]" />
-        </button>
+        <button onClick={onClose}>
+  close
+  <XIcon className="hover:text-[#b34c4c]" />
+</button>
       </div>
 
       {/* Messages Container */}

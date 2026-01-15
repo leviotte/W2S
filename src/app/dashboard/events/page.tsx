@@ -1,14 +1,15 @@
 // src/app/dashboard/events/page.tsx
 import { Suspense } from 'react';
-import { getSession } from '@/lib/auth/session.server';
-import { getEventsForUser } from '@/lib/server/actions/events';
 import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
+
+import { getEventsForUser } from '@/lib/server/actions/events';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import EventsListSection from './_components/events-list-section';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { AuthenticatedSessionUser } from '@/types/session';
 import type { Event, EventMessage } from '@/types/event';
 import { tsToIso } from '@/lib/client/tsToIso';
 
@@ -21,39 +22,46 @@ export const metadata = {
 type ServerEvent = Omit<Event, 'messages'> & { messages?: unknown[] };
 
 export default async function EventsPage() {
-  const session = await getSession();
-  if (!session.user?.isLoggedIn) redirect('/?auth=login');
+  // ------------------------------
+  // GET SERVER SESSION
+  // ------------------------------
+  const session = await getServerSession(authOptions);
+  const currentUser = session?.user;
+  if (!currentUser?.id) redirect('/?auth=login');
 
-  const currentUser = session.user as AuthenticatedSessionUser;
+  // ------------------------------
+  // GET EVENTS
+  // ------------------------------
   const allEventsRaw: ServerEvent[] = await getEventsForUser(currentUser.id);
 
-  // Map ServerEvent → Event
   const allEvents: Event[] = await Promise.all(
-  allEventsRaw.map(async (ev: ServerEvent) => {
-    const messages: EventMessage[] = await Promise.all(
-      (ev.messages ?? []).map(async (msg: any) => ({
-        id: msg.id,
-        senderId: msg.senderId ?? 'unknown',
-        content: msg.content ?? '',
-        timestamp: (await tsToIso(msg.timestamp)) ?? new Date().toISOString(),
-      }))
-    );
+    allEventsRaw.map(async (ev: ServerEvent) => {
+      const messages: EventMessage[] = await Promise.all(
+        (ev.messages ?? []).map(async (msg: any) => ({
+          id: msg.id,
+          senderId: msg.senderId ?? 'unknown',
+          content: msg.content ?? '',
+          timestamp: (await tsToIso(msg.timestamp)) ?? new Date().toISOString(),
+        }))
+      );
 
-    return {
-      ...ev,
-      messages,
-      startDateTime: (await tsToIso(ev.startDateTime)) ?? new Date().toISOString(),
-      endDateTime: (await tsToIso(ev.endDateTime)) ?? new Date().toISOString(),
-      createdAt: (await tsToIso(ev.createdAt)) ?? new Date().toISOString(),
-      updatedAt: (await tsToIso(ev.updatedAt)) ?? new Date().toISOString(),
-      participants: ev.participants ?? {},
-    };
-  })
-);
+      return {
+        ...ev,
+        messages,
+        startDateTime: (await tsToIso(ev.startDateTime)) ?? new Date().toISOString(),
+        endDateTime: (await tsToIso(ev.endDateTime)) ?? new Date().toISOString(),
+        createdAt: (await tsToIso(ev.createdAt)) ?? new Date().toISOString(),
+        updatedAt: (await tsToIso(ev.updatedAt)) ?? new Date().toISOString(),
+        participants: ev.participants ?? {},
+      };
+    })
+  );
 
-  const now = new Date();
+  // ------------------------------
+  // SORT EVENTS
+  // ------------------------------
+  const nowUTC = new Date().getTime();
 
-  // Helper: date string of Date → UTC timestamp
   const toUTCTimestamp = (date: string | Date) => {
     const d = new Date(date);
     return Date.UTC(
@@ -67,17 +75,17 @@ export default async function EventsPage() {
     );
   };
 
-  const nowUTC = toUTCTimestamp(now);
-
-  // ✅ Strict types in filter & sort
   const upcomingEvents: Event[] = allEvents
-    .filter((event: Event) => toUTCTimestamp(event.startDateTime) >= nowUTC)
-    .sort((a: Event, b: Event) => toUTCTimestamp(a.startDateTime) - toUTCTimestamp(b.startDateTime));
+    .filter((event) => toUTCTimestamp(event.startDateTime) >= nowUTC)
+    .sort((a, b) => toUTCTimestamp(a.startDateTime) - toUTCTimestamp(b.startDateTime));
 
   const pastEvents: Event[] = allEvents
-    .filter((event: Event) => toUTCTimestamp(event.startDateTime) < nowUTC)
-    .sort((a: Event, b: Event) => toUTCTimestamp(b.startDateTime) - toUTCTimestamp(a.startDateTime));
+    .filter((event) => toUTCTimestamp(event.startDateTime) < nowUTC)
+    .sort((a, b) => toUTCTimestamp(b.startDateTime) - toUTCTimestamp(a.startDateTime));
 
+  // ------------------------------
+  // RENDER
+  // ------------------------------
   return (
     <div className="min-h-screen">
       <div className="container mx-auto px-4 py-8 max-w-7xl">

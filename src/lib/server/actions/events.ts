@@ -2,7 +2,8 @@
 'use server';
 
 import { adminDb } from '@/lib/server/firebase-admin';
-import { getSession } from '@/lib/auth/session.server';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import { Timestamp } from 'firebase-admin/firestore';
 import type { Event, CreateEventInput, EventFormData, EventParticipant } from '@/types/event';
 import type { BackImages, Category } from '@/lib/server/types/event-admin';
@@ -19,20 +20,14 @@ export const participantSchema = z.object({
 });
 
 // =======================
-// AUTH UTILITY
-// =======================
-function isLoggedInUser(user: any): user is { id: string; email?: string } {
-  return user && typeof user.id === 'string';
-}
-
-// =======================
 // CREATE EVENT
 // =======================
 export async function createEventAction(eventData: CreateEventInput) {
-  const session = await getSession();
-  if (!isLoggedInUser(session?.user)) return { success: false, message: 'Niet geauthenticeerd' };
+  const session = await getServerSession(authOptions);
+const user = session?.user;
+if (!user?.id) return { success: false, message: 'Niet geauthenticeerd' };
+const userId = user.id;
 
-  const userId = session.user.id;
   const eventId = crypto.randomUUID();
   const now = await tsToIso(Timestamp.now())!;
 
@@ -72,37 +67,30 @@ export async function createEventAction(eventData: CreateEventInput) {
 // =======================
 // UPDATE EVENT
 // =======================
-export async function updateEventAction(eventId: string, data: EventFormData) {
-  const session = await getSession();
-  if (!isLoggedInUser(session?.user)) return { success: false, message: 'Niet geauthenticeerd' };
+export async function updateEventAction(
+  eventId: string,
+  data: Partial<EventFormData> & { exclusions?: Record<string, string[]> }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return { success: false, message: "Niet geauthenticeerd" };
+  const userId = session.user.id;
 
-  const eventRef = adminDb.collection('events').doc(eventId);
+  const eventRef = adminDb.collection("events").doc(eventId);
   const snap = await eventRef.get();
-  if (!snap.exists) return { success: false, message: 'Event niet gevonden' };
+  if (!snap.exists) return { success: false, message: "Event niet gevonden" };
 
   const existingEvent = await normalizeEvent({ id: snap.id, ...snap.data() });
-  if (existingEvent.organizer !== session.user.id) return { success: false, message: 'Alleen de organizer kan updaten' };
+  if (existingEvent.organizer !== session.user.id)
+    return { success: false, message: "Alleen de organizer kan updaten" };
 
-  const updateDoc = {
-    name: data.name.trim(),
-    startDateTime: data.startDateTime,
-    endDateTime: data.endDateTime ?? null,
-    location: data.location ?? null,
-    theme: data.theme ?? null,
-    backgroundImage: data.backgroundImage ?? null,
-    additionalInfo: data.additionalInfo ?? null,
-    organizerPhone: data.organizerPhone ?? null,
-    organizerEmail: data.organizerEmail ?? null,
-    budget: data.budget,
-    maxParticipants: data.maxParticipants,
-    isLootjesEvent: data.isLootjesEvent,
-    isPublic: data.isPublic,
-    allowSelfRegistration: data.allowSelfRegistration,
-    updatedAt: await tsToIso(Timestamp.now())!,
+  // Merge existingEvent + data, zodat je flexibel velden kunt updaten
+  const updateDoc: Partial<Event> = {
+    ...data,
+    updatedAt: (await tsToIso(Timestamp.now())) || undefined,
   };
 
   await eventRef.update(updateDoc);
-  return { success: true, message: 'Evenement bijgewerkt!' };
+  return { success: true, message: "Evenement bijgewerkt!" };
 }
 
 // =======================
@@ -154,8 +142,9 @@ export async function getEventsForUser(userId: string): Promise<ServerEvent[]> {
 // DELETE EVENT
 // =======================
 export async function deleteEventAction(eventId: string) {
-  const session = await getSession();
-  if (!isLoggedInUser(session?.user)) return { success: false, message: 'Niet geauthenticeerd' };
+  const session = await getServerSession(authOptions);
+if (!session?.user?.id) return { success: false, message: 'Niet geauthenticeerd' };
+const userId = session.user.id;
 
   const eventRef = adminDb.collection('events').doc(eventId);
   const doc = await eventRef.get();
@@ -264,8 +253,9 @@ function normalizeTasks(tasks: unknown[]): { id: string; assignedTo: string[]; c
 }
 
 export async function updateEventTasksAction(eventId: string, tasks: unknown[]) {
-  const session = await getSession();
-  if (!isLoggedInUser(session?.user)) return { success: false, message: 'Niet geauthenticeerd' };
+  const session = await getServerSession(authOptions);
+if (!session?.user?.id) return { success: false, message: 'Niet geauthenticeerd' };
+const userId = session.user.id;
 
   const eventRef = adminDb.collection('events').doc(eventId);
   const doc = await eventRef.get();
@@ -328,8 +318,9 @@ export async function toggleTaskAction(eventId: string, taskId: string) {
 // JOIN EVENT
 // =======================
 export async function joinEventAction(input: { eventId: string; profileId: string }) {
-  const session = await getSession();
-  if (!isLoggedInUser(session?.user)) return { success: false, error: 'Niet geauthenticeerd' };
+  const session = await getServerSession(authOptions);
+if (!session?.user?.id) return { success: false, message: 'Niet geauthenticeerd' };
+const userId = session.user.id;
 
   const { eventId, profileId } = input;
   const eventRef = adminDb.collection('events').doc(eventId);

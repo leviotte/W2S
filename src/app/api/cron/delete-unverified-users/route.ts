@@ -5,8 +5,6 @@ import { ONE_DAY_IN_MILLISECONDS } from '@/lib/constants';
 import type { UserRecord } from 'firebase-admin/auth';
 
 export async function GET() {
-  // Beveilig de route, zodat deze alleen door Vercel's Cron kan worden aangeroepen
-  // In productie zou je hier een 'secret' token checken
 
   try {
     const listUsersResult = await adminAuth.listUsers(1000); // Max 1000 per keer

@@ -4,7 +4,6 @@
 import { adminDb } from '@/lib/server/firebase-admin';
 import { revalidatePath } from 'next/cache';
 import { nowTimestamp } from '@/lib/utils/time';
-import { getSession } from '@/lib/auth/session.server';
 import type { UserProfile } from '@/types/user';
 import type { BackgroundCategory, BackgroundImage } from "@/modules/dashboard/backgrounds.types";
 import type { Wishlist, WishlistItem, UpdateWishlistItemData, CreateWishlistData } from '@/types/wishlist';
@@ -13,6 +12,9 @@ import {
   serializeWishlistItem,
   serializeUserProfile,
 } from '@/lib/utils/serializers';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
+import type { AuthenticatedSessionUser } from '@/types/session';
 
 export interface ActionResult<T = any> {
   success: boolean;
@@ -23,14 +25,43 @@ export interface ActionResult<T = any> {
 }
 
 // ============================================================================
+// NextAuth Helper
+// ============================================================================
+
+async function getAuthenticatedUser(): Promise<AuthenticatedSessionUser> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) throw new Error('Authenticatie mislukt.');
+
+  const userId = session.user.id;
+  const userDoc = await adminDb.collection('users').doc(userId).get();
+  const userData = userDoc.exists ? userDoc.data() : {};
+
+  return {
+    isLoggedIn: true,
+    id: userId,
+    email: session.user.email || '',
+    displayName: session.user.name || userData?.displayName || 'Gebruiker',
+    isAdmin: userData?.isAdmin ?? false,
+    isPartner: userData?.isPartner ?? false,
+    firstName: userData?.firstName,
+    lastName: userData?.lastName,
+    photoURL: userData?.photoURL ?? null,
+    username: userData?.username ?? null,
+    createdAt: userData?.createdAt?.toMillis?.(),
+    lastActivity: userData?.lastActivity?.toMillis?.(),
+  };
+}
+// ============================================================================
 // CREATE / UPDATE WISHLIST
 // ============================================================================
 
 export async function createWishlistAction({
-  userId,
   data,
-}: { userId: string; data: CreateWishlistData }): Promise<ActionResult<{ id: string; slug: string }>> {
+}: { data: CreateWishlistData }): Promise<ActionResult<{ id: string; slug: string }>> {
   try {
+    const sessionUser = await getAuthenticatedUser();
+    const userId = sessionUser.id;
+
     const slugBase = data.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
@@ -45,7 +76,7 @@ export async function createWishlistAction({
     const finalSlug = existingSnapshot.empty ? slugBase : `${slugBase}-${Date.now()}`;
 
     const wishlistData: Wishlist = {
-      id: '', // Firestore auto-ID
+      id: '',
       userId,
       ownerId: userId,
       ownerName: data.ownerName,
@@ -70,7 +101,6 @@ export async function createWishlistAction({
 
     const docRef = await adminDb.collection('wishlists').add(wishlistData);
 
-    // Event linking
     if (data.eventId && data.participantId) {
       await linkWishlistToEventAction({
         eventId: data.eventId,
@@ -254,11 +284,13 @@ export async function deleteWishlistItemAction(wishlistId: string, itemId: strin
 
 export async function reserveItemAction(
   wishlistId: string,
-  itemId: string,
-  userId: string,
-  userName: string
+  itemId: string
 ): Promise<ActionResult> {
   try {
+    const sessionUser = await getAuthenticatedUser();
+    const userId = sessionUser.id;
+    const userName = sessionUser.displayName;
+
     const docRef = adminDb.collection('wishlists').doc(wishlistId);
     const docSnap = await docRef.get();
     if (!docSnap.exists) return { success: false, error: 'Wishlist niet gevonden' };
@@ -289,10 +321,12 @@ export async function reserveItemAction(
 
 export async function markItemPurchasedAction(
   wishlistId: string,
-  itemId: string,
-  purchasedBy: string
+  itemId: string
 ): Promise<ActionResult> {
   try {
+    const sessionUser = await getAuthenticatedUser();
+    const purchasedBy = sessionUser.id;
+
     const docRef = adminDb.collection('wishlists').doc(wishlistId);
     const docSnap = await docRef.get();
     if (!docSnap.exists) return { success: false, error: 'Wishlist niet gevonden' };
@@ -348,10 +382,11 @@ export async function linkWishlistToEventAction({
   }
 }
 
-export async function getWishlistsByOwnerId(
-  ownerId: string
-): Promise<{ success: true; data: Wishlist[] } | { success: false; error: string }> {
+export async function getWishlistsByOwnerId(): Promise<{ success: true; data: Wishlist[] } | { success: false; error: string }> {
   try {
+    const sessionUser = await getAuthenticatedUser();
+    const ownerId = sessionUser.id;
+
     const snapshot = await adminDb
       .collection('wishlists')
       .where('userId', '==', ownerId)
@@ -368,6 +403,7 @@ export async function getWishlistsByOwnerId(
     return { success: false, error: 'Kon wishlists niet ophalen.' };
   }
 }
+
 export async function updateWishlistBackgroundAction(
   wishlistId: string,
   backgroundImage: string

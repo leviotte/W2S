@@ -4,7 +4,8 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Gift } from 'lucide-react';
 
-import { getSession } from '@/lib/auth/session.server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
 import { adminDb } from '@/lib/server/firebase-admin';
 import { type Wishlist, type WishlistItem } from '@/types/wishlist';
 import { cookies } from 'next/headers';
@@ -13,11 +14,10 @@ import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { WishlistGrid } from './_components/wishlist-grid';
 
-// 👇 Helper om alle optionele velden veilig te serializeren
+// 👇 Helper: serializeer individuele wishlist items veilig
 function serializeWishlistItem(item: any): WishlistItem {
   return {
     ...item,
-    // these fields kunnen (zeker na oudere Firestore migraties) ontbreken:
     addedAt:
       typeof item.addedAt === 'string'
         ? item.addedAt
@@ -30,10 +30,10 @@ function serializeWishlistItem(item: any): WishlistItem {
         : item.updatedAt?.toDate?.()
         ? item.updatedAt.toDate().toISOString()
         : undefined,
-    // ... eventueel meer fallback veldjes
   };
 }
 
+// 👇 Helper: serializeer volledige wishlist
 function serializeWishlistDashboard(data: any, idOverride?: string): Wishlist {
   return {
     ...(idOverride ? { id: idOverride } : {}),
@@ -62,6 +62,7 @@ function serializeWishlistDashboard(data: any, idOverride?: string): Wishlist {
   };
 }
 
+// 👇 Haal alle wishlists op voor de actieve gebruiker en profiel
 async function loadWishlists(userId: string, activeProfileId: string): Promise<Wishlist[]> {
   try {
     let query = adminDb.collection('wishlists').orderBy('createdAt', 'desc');
@@ -73,27 +74,28 @@ async function loadWishlists(userId: string, activeProfileId: string): Promise<W
 
     const snapshot = await query.get();
     if (snapshot.empty) return [];
-    return snapshot.docs.map(doc =>
-      serializeWishlistDashboard(doc.data(), doc.id)
-    );
-  } catch {
+
+    return snapshot.docs.map(doc => serializeWishlistDashboard(doc.data(), doc.id));
+  } catch (error) {
+    console.error('Fout bij laden wishlists:', error);
     return [];
   }
 }
 
 export default async function WishlistsDashboardPage() {
-  const session = await getSession();
+  const session = await getServerSession(authOptions);
 
-  // ✅ Typesafe: Discrimineer altijd expliciet!
-  if (!session.user?.isLoggedIn) {
+  if (!session?.user?.id) {
     redirect('/?auth=login');
   }
-  const currentUser = session.user;
+
+  // Converteer sessie naar type dat we intern gebruiken
+  const userId = session.user.id;
 
   const cookieStore = await cookies();
   const activeProfileId = cookieStore.get('activeProfile')?.value || 'main-account';
 
-  const wishlists = await loadWishlists(currentUser.id, activeProfileId);
+  const wishlists = await loadWishlists(userId, activeProfileId);
 
   return (
     <div className="container mx-auto p-4">

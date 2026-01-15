@@ -3,144 +3,147 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { getSession } from '@/lib/auth/session.server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
 import { adminDb, adminAuth } from '@/lib/server/firebase-admin';
 import { userProfileSchema, socialLinksSchema, type SocialLinks } from '@/types/user';
 import { passwordChangeSchema } from '@/lib/validators/settings';
 import type { AuthenticatedSessionUser } from '@/types/session';
 
-// --- State Definities voor useFormState ---
+/* ============================================================================
+ * Helper: Haal ingelogde gebruiker op via NextAuth en Firebase
+ * ========================================================================== */
+async function getAuthenticatedUser(): Promise<AuthenticatedSessionUser> {
+  const session = await getServerSession(authOptions);
 
-export type PasswordFormState = {
-  success: boolean;
-  message: string;
-  errors?: {
-    newPassword?: string[];
-    confirmNewPassword?: string[];
+  if (!session?.user?.id) {
+    throw new Error('Authenticatie mislukt. Log opnieuw in.');
+  }
+
+  const id = session.user.id;
+  const email = session.user.email ?? '';
+  const nameFallback = session.user.name ?? email.split('@')[0];
+
+  // Haal extra info uit Firebase
+  const userDoc = await adminDb.collection('users').doc(id).get();
+  const userData = userDoc.exists ? userDoc.data() : {};
+
+  return {
+    isLoggedIn: true,
+    id,
+    email,
+    displayName: nameFallback,
+    isAdmin: userData?.isAdmin ?? false,
+    isPartner: userData?.isPartner ?? false,
+    firstName: userData?.firstName ?? '',
+    lastName: userData?.lastName ?? '',
+    photoURL: userData?.photoURL ?? null,
+    username: userData?.username ?? null,
+    createdAt: userData?.createdAt?.toMillis?.(),
+    lastActivity: userData?.lastActivity?.toMillis?.(),
   };
-};
+}
 
-export type ProfileInfoFormState = {
-  success: boolean;
-  message: string;
-  errors?: {
-    displayName?: string[];
-    username?: string[];
-  };
-};
-
-// --- Action 1: Wachtwoord Wijzigen (voor useFormState) ---
-
+/* ============================================================================
+ * Action: Wachtwoord Wijzigen
+ * ========================================================================== */
 export async function updateUserPassword(
-  prevState: PasswordFormState, 
+  prevState: { success: boolean; message: string; errors?: Record<string, string[]> },
   formData: FormData
-): Promise<PasswordFormState> {
-  const session = await getSession();
-  if (!session.user?.isLoggedIn) {
-    return { success: false, message: 'Authenticatie mislukt. Log opnieuw in.' };
-  }
-  const userId = (session.user as AuthenticatedSessionUser).id;
-
-  const rawData = Object.fromEntries(formData.entries());
-  const parsed = passwordChangeSchema.safeParse(rawData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      message: 'Validatiefout. Controleer de ingevulde velden.',
-      errors: parsed.error.flatten().fieldErrors,
-    };
-  }
-  const { newPassword } = parsed.data;
-
+): Promise<{ success: boolean; message: string; errors?: Record<string, string[]> }> {
   try {
-    await adminAuth.updateUser(userId, { password: newPassword });
+    const user = await getAuthenticatedUser();
+
+    const rawData = Object.fromEntries(formData.entries());
+    const parsed = passwordChangeSchema.safeParse(rawData);
+
+    if (!parsed.success) {
+      return {
+        success: false,
+        message: 'Validatiefout. Controleer de ingevulde velden.',
+        errors: parsed.error.flatten().fieldErrors,
+      };
+    }
+
+    const { newPassword } = parsed.data;
+
+    await adminAuth.updateUser(user.id, { password: newPassword });
+
     return { success: true, message: 'Je wachtwoord is succesvol bijgewerkt.' };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Fout bij bijwerken van wachtwoord:', error);
-    return { success: false, message: 'Er is een onverwachte serverfout opgetreden.' };
+    return { success: false, message: error.message || 'Er is een onverwachte serverfout opgetreden.' };
   }
 }
 
-// --- Action 2: Profiel Informatie Updaten (voor useFormState) ---
-// Deze kun je later gebruiken met een vergelijkbaar formulier als de PasswordChangeSection
-
+/* ============================================================================
+ * Action: Profiel Informatie Updaten
+ * ========================================================================== */
 export async function updateProfileInfo(
-  prevState: ProfileInfoFormState,
+  prevState: { success: boolean; message: string; errors?: Record<string, string[]> },
   formData: FormData
-): Promise<ProfileInfoFormState> {
-    const session = await getSession();
-    if (!session.user?.isLoggedIn) {
-        return { success: false, message: 'Authenticatie mislukt.' };
-    }
-    const userId = (session.user as AuthenticatedSessionUser).id;
+): Promise<{ success: boolean; message: string; errors?: Record<string, string[]> }> {
+  try {
+    const user = await getAuthenticatedUser();
 
     const dataToUpdate = {
-        displayName: formData.get('displayName'),
-        username: formData.get('username'),
-        isPublic: formData.get('isPublic') === 'on',
+      displayName: formData.get('displayName')?.toString() ?? '',
+      username: formData.get('username')?.toString() ?? '',
+      isPublic: formData.get('isPublic') === 'on',
     };
 
-    const validatedFields = userProfileSchema.pick({
-        displayName: true,
-        username: true,
-        isPublic: true,
-    }).safeParse(dataToUpdate);
+    const validatedFields = userProfileSchema
+      .pick({ displayName: true, username: true, isPublic: true })
+      .safeParse(dataToUpdate);
 
     if (!validatedFields.success) {
-        return { 
-            success: false, 
-            message: 'Ongeldige data.', 
-            errors: validatedFields.error.flatten().fieldErrors 
-        };
+      return {
+        success: false,
+        message: 'Ongeldige data.',
+        errors: validatedFields.error.flatten().fieldErrors,
+      };
     }
 
-    try {
-        const userRef = adminDb.collection('users').doc(userId);
-        await userRef.update(validatedFields.data);
+    const userRef = adminDb.collection('users').doc(user.id);
+    await userRef.update(validatedFields.data);
 
-        revalidatePath('/dashboard/settings');
-        if (validatedFields.data.username) {
-            revalidatePath(`/profile/${validatedFields.data.username}`);
-        }
-        
-        return { success: true, message: 'Profiel succesvol bijgewerkt.' };
-
-    } catch (error) {
-        console.error('Fout bij updaten profiel:', error);
-        return { success: false, message: 'Gebruikersnaam is mogelijk al in gebruik.' };
+    revalidatePath('/dashboard/settings');
+    if (validatedFields.data.username) {
+      revalidatePath(`/profile/${validatedFields.data.username}`);
     }
+
+    return { success: true, message: 'Profiel succesvol bijgewerkt.' };
+  } catch (error: any) {
+    console.error('Fout bij updaten profiel:', error);
+    return { success: false, message: error.message || 'Gebruikersnaam is mogelijk al in gebruik.' };
+  }
 }
 
-
-// --- Action 3: Sociale Links Updaten (voor direct aanroepen vanuit Client Component) ---
-
-export async function updateSocialLinks(data: SocialLinks): Promise<{ success: boolean; message: string; }> {
-    const session = await getSession();
-    if (!session.user?.isLoggedIn) {
-        throw new Error('Authenticatie mislukt. Log opnieuw in.');
-    }
-    const userId = (session.user as AuthenticatedSessionUser).id;
+/* ============================================================================
+ * Action: Sociale Links Updaten
+ * ========================================================================== */
+export async function updateSocialLinks(
+  data: SocialLinks
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const user = await getAuthenticatedUser();
 
     const validatedFields = socialLinksSchema.safeParse(data);
     if (!validatedFields.success) {
-        throw new Error('Ongeldige links opgegeven.');
+      throw new Error('Ongeldige links opgegeven.');
     }
 
-    try {
-        const userRef = adminDb.collection('users').doc(userId);
-        await userRef.update({
-            socials: validatedFields.data
-        });
-        
-        revalidatePath('/dashboard/settings');
-        if (session.user.username) {
-            revalidatePath(`/profile/${session.user.username}`);
-        }
+    const userRef = adminDb.collection('users').doc(user.id);
+    await userRef.update({ socials: validatedFields.data });
 
-        return { success: true, message: 'Sociale links succesvol opgeslagen!' };
-    } catch (error) {
-        console.error('Fout bij updaten social links:', error);
-        throw new Error('Kon de links niet opslaan op de server.');
+    revalidatePath('/dashboard/settings');
+    if (user.username) {
+      revalidatePath(`/profile/${user.username}`);
     }
+
+    return { success: true, message: 'Sociale links succesvol opgeslagen!' };
+  } catch (error: any) {
+    console.error('Fout bij updaten social links:', error);
+    throw new Error(error.message || 'Kon de links niet opslaan op de server.');
+  }
 }

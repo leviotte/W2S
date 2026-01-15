@@ -1,11 +1,18 @@
 // src/app/admin/accounts/page.tsx
-import { getSession } from '@/lib/auth/session.server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
 import { redirect } from 'next/navigation';
 
 export default async function AdminAccountsPage() {
-  const session = await getSession();
-const user = session?.user;
-if (!user || !user.isAdmin) redirect('/');
+  // Haal de huidige sessie op via NextAuth
+  const session = await getServerSession(authOptions);
+
+  const user = session?.user;
+
+  // Redirect als gebruiker niet ingelogd is of geen admin
+  if (!user || user.role !== 'admin') {
+    redirect('/');
+  }
 
   return (
     <div className="space-y-6">

@@ -1,9 +1,9 @@
 'use server';
 
-import { revalidatePath, revalidateTag } from '@/lib/utils/revalidate';
 import { adminDb } from '@/lib/server/firebase-admin';
-import { requireAdmin } from '@/lib/auth/actions';
+import { revalidateTag } from '@/lib/utils/revalidate';
 import type { UpdateSocialMediaInput, SocialPlatform } from '@/types/social-media';
+import { requireAdminUser, type AuthUser } from './user-actions';
 
 // ============================================================================
 // TYPES
@@ -14,6 +14,20 @@ type ActionResult<T = void> =
   | { success: false; error: string };
 
 // ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Vul author velden automatisch in van ingelogde admin
+ */
+function buildAuthor(currentUser: AuthUser) {
+  return {
+    id: currentUser.id,
+    name: currentUser.displayName || currentUser.firstName || 'Admin',
+  };
+}
+
+// ============================================================================
 // UPDATE OR CREATE SOCIAL MEDIA ACCOUNTS
 // ============================================================================
 
@@ -21,27 +35,23 @@ export async function updateSocialMediaAccounts(
   input: UpdateSocialMediaInput
 ): Promise<ActionResult> {
   try {
-    const currentUser = await requireAdmin();
+    const currentUser = await requireAdminUser();
 
-    // Get existing account or create new
     const accountsRef = adminDb.collection('accounts');
     const snapshot = await accountsRef.limit(1).get();
 
     const accountData = {
       ...input,
       updatedAt: new Date(),
-      author: {
-        id: currentUser.id,
-        name: currentUser.displayName || currentUser.firstName || 'Admin',
-      },
+      author: buildAuthor(currentUser),
     };
 
     if (!snapshot.empty) {
-      // Update existing
+      // Update existing account
       const docId = snapshot.docs[0].id;
       await accountsRef.doc(docId).set(accountData, { merge: true });
     } else {
-      // Create new
+      // Create new account
       await accountsRef.add({
         ...accountData,
         createdAt: new Date(),
@@ -66,7 +76,7 @@ export async function updateSinglePlatform(
   url: string | null
 ): Promise<ActionResult> {
   try {
-    const currentUser = await requireAdmin();
+    const currentUser = await requireAdminUser();
 
     if (!url || url.trim() === '') {
       return { success: false, error: 'URL is verplicht' };
@@ -78,10 +88,7 @@ export async function updateSinglePlatform(
     const updateData = {
       [platform]: url.trim(),
       updatedAt: new Date(),
-      author: {
-        id: currentUser.id,
-        name: currentUser.displayName || currentUser.firstName || 'Admin',
-      },
+      author: buildAuthor(currentUser),
     };
 
     if (!snapshot.empty) {
@@ -107,11 +114,9 @@ export async function updateSinglePlatform(
 // REMOVE PLATFORM
 // ============================================================================
 
-export async function removePlatform(
-  platform: SocialPlatform
-): Promise<ActionResult> {
+export async function removePlatform(platform: SocialPlatform): Promise<ActionResult> {
   try {
-    await requireAdmin();
+    await requireAdminUser();
 
     const accountsRef = adminDb.collection('accounts');
     const snapshot = await accountsRef.limit(1).get();
@@ -141,7 +146,7 @@ export async function removePlatform(
 
 export async function removeAllPlatforms(): Promise<ActionResult> {
   try {
-    await requireAdmin();
+    await requireAdminUser();
 
     const accountsRef = adminDb.collection('accounts');
     const snapshot = await accountsRef.limit(1).get();

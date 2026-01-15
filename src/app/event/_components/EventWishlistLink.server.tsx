@@ -1,5 +1,6 @@
 // src/app/event/_components/EventWishlistLink.server.tsx
-import { getSession } from '@/lib/auth/session.server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
 import { getWishlistsByOwnerId } from '@/lib/server/actions/wishlist';
 import { WishlistLinkModalClient } from '@/app/_components/WishlistLinkModal.client';
 import type { Wishlist } from '@/types/wishlist';
@@ -19,10 +20,15 @@ export default async function EventWishlistLinkServer({
   modalOpen,
   onModalChange,
 }: Props) {
-  const session = await getSession();
-  if (!session.user?.isLoggedIn) return null;
+  // ✅ Haal sessie op via NextAuth
+  const session = await getServerSession(authOptions);
+
+  // ❌ Als geen sessie, return null
+  if (!session?.user?.id) return null;
 
   const userId = session.user.id;
+
+  // ✅ Haal alle wishlists van deze gebruiker op
   const result = await getWishlistsByOwnerId(userId);
   if (!result.success) throw new Error('Kon wishlists niet ophalen');
 
@@ -30,13 +36,13 @@ export default async function EventWishlistLinkServer({
 
   return (
     <WishlistLinkModalClient
-  open={modalOpen}
-  onOpenChange={onModalChange}
-  eventId={eventId}
-  eventName={eventName}
-  participantId={participantId ?? ''} // ✅ fallback naar lege string
-  wishlists={wishlists}
-  userId={userId}
-/>
+      open={modalOpen}
+      onOpenChange={onModalChange}
+      eventId={eventId}
+      eventName={eventName}
+      participantId={participantId ?? ''} // fallback naar lege string
+      wishlists={wishlists}
+      userId={userId}
+    />
   );
 }

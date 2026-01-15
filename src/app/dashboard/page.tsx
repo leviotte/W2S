@@ -1,10 +1,11 @@
 // src/app/dashboard/page.tsx
 import 'server-only';
-
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 
-import { getSession } from '@/lib/auth/session.server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
+
 import { getDashboardStats } from '@/lib/server/data/dashboard-stats';
 import {
   getFollowersAction,
@@ -20,59 +21,39 @@ import { UserAvatar } from '@/components/shared/user-avatar';
 /* ============================================================================
  * NEXT.JS CONFIG (ISR)
  * ========================================================================== */
-
 export const revalidate = 60;
 
 /* ============================================================================
  * METADATA
  * ========================================================================== */
-
 export const metadata = {
   title: 'Dashboard | Wish2Share',
   description: 'Jouw persoonlijk dashboard',
 };
 
 /* ============================================================================
- * TYPES
- * ========================================================================== */
-
-interface DashboardPageProps {
-  searchParams?: {
-    tab?: 'user';
-    subTab?: 'followers' | 'following';
-  };
-}
-
-// Type guard om ingelogde user te detecteren
-function isLoggedInUser(
-  user: any
-): user is { id: string; firstName?: string; displayName: string } {
-  return user && !('isLoggedIn' in user && user.isLoggedIn === false);
-}
-
-/* ============================================================================
  * PAGE
  * ========================================================================== */
-
-export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+export default async function DashboardPage({ searchParams }: { searchParams?: { tab?: 'user'; subTab?: 'followers' | 'following' } }) {
   // ------------------------------
-  // GET SERVER SESSION
+  // GET SERVER SESSION (NextAuth)
   // ------------------------------
-  const session = await getSession();
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
 
-  if (!session?.user || !isLoggedInUser(session.user)) {
+  if (!userId) {
     redirect('/?auth=login');
   }
 
-  const user = session.user;
+  const user = session!.user;
 
   // ------------------------------
   // PROFILE CONTEXT
   // ------------------------------
   const activeProfileId = await getActiveProfileId();
   const isProfile = activeProfileId !== 'main-account';
-  const userId = isProfile ? activeProfileId : user.id;
-  const profileName = isProfile ? 'Profile' : user.firstName || user.displayName;
+  const profileId = isProfile ? activeProfileId : user.id;
+  const profileName = isProfile ? 'Profile' : user.name || user.email;
 
   // ------------------------------
   // ROUTE PARAMS
@@ -84,7 +65,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   // FOLLOWERS TAB
   // ============================================================================
   if (tab === 'user' && subTab === 'followers') {
-    const result = await getFollowersAction(userId);
+    const result = await getFollowersAction(profileId);
 
     if (!result.success) {
       return (
@@ -134,7 +115,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   // FOLLOWING TAB
   // ============================================================================
   if (tab === 'user' && subTab === 'following') {
-    const result = await getFollowingAction(userId);
+    const result = await getFollowingAction(profileId);
 
     if (!result.success) {
       return (
@@ -183,7 +164,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   // ============================================================================
   // DEFAULT DASHBOARD
   // ============================================================================
-  const { events, wishlists, follows } = await getDashboardStats(userId);
+  const { events, wishlists, follows } = await getDashboardStats(profileId);
 
   return (
     <div className="container max-w-4xl mx-auto p-4">

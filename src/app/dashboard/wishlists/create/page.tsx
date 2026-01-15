@@ -2,7 +2,8 @@
 import 'server-only';
 
 import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth/session.server';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import { adminDb } from '@/lib/server/firebase-admin';
 import CreateWishlistForm from './[eventId]/[participantId]/CreateWishlistForm';
 import type { BackgroundCategory, BackgroundImage } from "@/modules/dashboard/backgrounds.types";
@@ -17,8 +18,9 @@ interface PageProps {
 }
 
 export default async function Page({ searchParams }: PageProps) {
-  const { user } = await getSession();
-  if (!user) redirect('/auth/login');
+  const session = await getServerSession(authOptions);
+
+if (!session) redirect("/login");
 
   const eventId = searchParams?.event ?? searchParams?.eventId;
   const participantId = searchParams?.participant ?? searchParams?.participantId;
