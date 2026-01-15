@@ -401,3 +401,34 @@ export async function fetchEventParticipantsWithWishlists(
 
   return { success: true, data: enriched };
 }
+export async function getOrganizedEventCount(userId: string) {
+  if (!userId) return { onGoing: 0, past: 0, all: 0 };
+
+  try {
+    const snapshot = await adminDb
+      .collection('events')
+      .where('organizerId', '==', userId)
+      .get();
+
+    const now = Date.now();
+    let onGoing = 0;
+    let past = 0;
+
+    snapshot.forEach(doc => {
+      const dateValue = doc.data().date;
+      const eventDate =
+        typeof dateValue?.toMillis === 'function' ? dateValue.toMillis() : dateValue;
+      if (eventDate >= now) onGoing++;
+      else past++;
+    });
+
+    return {
+      onGoing,
+      past,
+      all: snapshot.size,
+    };
+  } catch (error) {
+    console.error('Error fetching organized event count:', error);
+    return { onGoing: 0, past: 0, all: 0 };
+  }
+}

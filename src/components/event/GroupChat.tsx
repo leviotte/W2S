@@ -3,7 +3,7 @@
 
 import { useMemo } from "react";
 import MessageList from "../chat/MessageList";
-import ChatInput from "../chat/ChatInput";
+import ChatInputClient from "../chat/ChatInputClient";
 import type { Message } from "@/types";
 import type { EventMessage } from "@/types/event";
 import { useScrollToBottom } from "@/hooks/useScrollToBottom";
@@ -79,7 +79,7 @@ export default function GroupChat({
       </div>
 
       {/* Input */}
-      <ChatInput onSendMessage={onSendMessage} />
+      <ChatInputClient onSendMessage={onSendMessage} />
     </div>
   );
 }

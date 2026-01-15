@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Upload } from 'lucide-react';
 
 import { updatePhotoURL } from '@/lib/server/actions/profile-actions';
-import { uploadFile } from '@/lib/client/storage';
+import { uploadFileAction } from '@/lib/server/actions/storage-actions'; // server-side action
 import type { UserProfile } from '@/types/user';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -34,7 +34,7 @@ export default function PhotoForm({ profile }: PhotoFormProps) {
   };
 
   const handleSubmit = (e: FormEvent) => {
-    e.preventDefault(); 
+    e.preventDefault();
     if (!file) {
       toast.error('Selecteer eerst een bestand.');
       return;
@@ -42,16 +42,17 @@ export default function PhotoForm({ profile }: PhotoFormProps) {
 
     startTransition(async () => {
       try {
-        const photoURL = await uploadFile(file, `profile-pictures/${profile.id}/${file.name}`);
+        // Server-first upload
+        const photoURL = await uploadFileAction(file, `profile-pictures/${profile.id}/${file.name}`);
         const result = await updatePhotoURL(photoURL);
 
         if (result.success) {
-          toast.success("Profielfoto succesvol bijgewerkt!"); 
+          toast.success("Profielfoto succesvol bijgewerkt!");
           setFile(null);
           setPreviewUrl(null);
           if (fileInputRef.current) fileInputRef.current.value = '';
         } else {
-          toast.error(result.error); 
+          toast.error(result.error);
         }
       } catch (error) {
         toast.error('Upload mislukt. Probeer het opnieuw.');
@@ -68,14 +69,14 @@ export default function PhotoForm({ profile }: PhotoFormProps) {
           <CardDescription>Een duidelijke foto helpt anderen je te herkennen.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-4">
-          <UserAvatar 
-            src={previewUrl ?? profile.photoURL} 
+          <UserAvatar
+            src={previewUrl ?? profile.photoURL}
             name={profile.displayName}
-            className="h-32 w-32" 
+            className="h-32 w-32"
           />
-          <Button 
-            type="button" 
-            variant="outline" 
+          <Button
+            type="button"
+            variant="outline"
             onClick={() => fileInputRef.current?.click()}
           >
             <Upload className="mr-2 h-4 w-4" /> Wijzig Foto

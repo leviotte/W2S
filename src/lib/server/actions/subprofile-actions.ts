@@ -8,6 +8,8 @@ import type { SubProfile } from '@/types/user';
 import { nanoid } from 'nanoid';
 import type { AuthenticatedSessionUser } from '@/types/session';
 import { serializeSubProfile } from '@/lib/utils/serializers';
+import { adminStorage } from '@/lib/server/firebase-admin';
+
 
 
 const subProfileSchema = z.object({
@@ -22,7 +24,7 @@ const subProfileSchema = z.object({
     postalCode: z.string().optional().nullable(),
     country: z.string().optional().nullable(),
   }).optional().nullable(),
-  photoURL: z.string().optional().nullable(),
+  imageFile: z.instanceof(File).optional().nullable(),
   email: z.string().email().optional().nullable(), // ← Indien in formulier
 });
 
@@ -46,6 +48,24 @@ export async function createSubProfileAction(data: unknown) {
   }
 
   const profileData = validation.data;
+  let photoURL: string | null = null;
+
+if (profileData.imageFile) {
+  const buffer = Buffer.from(await profileData.imageFile.arrayBuffer());
+  const bucket = adminStorage.bucket();
+
+  const filePath = `public/profilePictures/${userId}/${Date.now()}_${profileData.imageFile.name}`;
+  const file = bucket.file(filePath);
+
+  await file.save(buffer, {
+    contentType: profileData.imageFile.type,
+    resumable: false,
+    public: true,
+  });
+
+  photoURL = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+}
+
   const displayName = `${profileData.firstName} ${profileData.lastName}`.trim();
   const managersArr = [userId];
 
@@ -57,11 +77,16 @@ export async function createSubProfileAction(data: unknown) {
     }];
   }
 
-  try {
-    const profilesRef = adminDb.collection('profiles');
-    const newProfileData = {
-      ...profileData,
-      userId: userId, // MAIN LINK!
+  const profilesRef = adminDb.collection('profiles');
+
+try {
+  const { imageFile, ...safeProfileData } = profileData;
+
+
+const newProfileData = {
+  ...safeProfileData,
+  photoURL,
+  userId,
       displayName,
       displayName_lowercase: displayName.toLowerCase(),
       isPublic: false,

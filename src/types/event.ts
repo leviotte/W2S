@@ -23,6 +23,16 @@ export const eventParticipantSchema = z.object({
 
 export type EventParticipant = z.infer<typeof eventParticipantSchema>;
 
+// ==========================
+// SESSION USER
+// ==========================
+export interface AuthenticatedSessionUser {
+  id: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+}
+
 // ============================================================================
 // EVENT TYPES
 // ============================================================================
@@ -112,9 +122,18 @@ export interface Event {
   updatedAt: string;
   eventComplete: boolean;
   exclusions?: Record<string, string[]>;
-  wishlists?: Wishlist[];
+  wishlists?: Record<string, Wishlist>;
   isInvited?: boolean;
   allowDrawingNames?: boolean;
   registrationDeadline?: string | null;
-  
+}
+
+// ==========================
+// EVENT MESSAGE
+// ==========================
+export interface EventMessage {
+  id: string;
+  senderId: string;
+  content: string;
+  timestamp: string;
 }

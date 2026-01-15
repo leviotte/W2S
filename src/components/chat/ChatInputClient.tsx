@@ -1,18 +1,14 @@
-/**
- * components/chat/ChatInput.tsx
- * 
- * FINALE VERSIE: Nu met de correcte 'onGifSelect' prop voor de GifPicker.
- */
+// src/components/chat/ChatInputClient.tsx
 "use client";
 
-import React, { useState, useRef } from 'react';
-import { Send, Smile, Image as ImageIcon } from 'lucide-react';
-import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
-import { IGif } from '@giphy/js-types';
+import React, { useState, useRef } from "react";
+import { Send, Smile, Image as ImageIcon } from "lucide-react";
+import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
+import { IGif } from "@giphy/js-types";
 
-import { useClickOutside } from '@/hooks/useClickOutside';
-import AutoGrowTextarea from '@/components/chat/AutoGrowTextarea';
-import GifPicker from '@/components/chat/GifPicker';
+import { useClickOutside } from "@/hooks/useClickOutside";
+import AutoGrowTextarea from "@/components/chat/AutoGrowTextarea";
+import GifPicker from "@/components/chat/GifPicker";
 
 interface ChatInputProps {
   onSendMessage: (
@@ -22,8 +18,8 @@ interface ChatInputProps {
   ) => Promise<void>;
 }
 
-export default function ChatInput({ onSendMessage }: ChatInputProps) {
-  const [message, setMessage] = useState('');
+export default function ChatInputClient({ onSendMessage }: ChatInputProps) {
+  const [message, setMessage] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
@@ -33,24 +29,20 @@ export default function ChatInput({ onSendMessage }: ChatInputProps) {
   const gifButtonRef = useRef<HTMLButtonElement>(null);
   const gifPickerRef = useRef<HTMLDivElement>(null);
 
-  useClickOutside([emojiButtonRef, emojiPickerRef], () => {
-    setShowEmojiPicker(false);
-  });
-
-  useClickOutside([gifButtonRef, gifPickerRef], () => {
-    setShowGifPicker(false);
-  });
+  useClickOutside([emojiButtonRef, emojiPickerRef], () => setShowEmojiPicker(false));
+  useClickOutside([gifButtonRef, gifPickerRef], () => setShowGifPicker(false));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
 
+    const formattedMessage = message.charAt(0).toUpperCase() + message.slice(1);
+
     try {
-      const formattedMessage = message.charAt(0).toUpperCase() + message.slice(1);
       await onSendMessage(formattedMessage, isAnonymous);
-      setMessage('');
+      setMessage("");
     } catch (error) {
-      console.error('Bericht versturen mislukt:', error);
+      console.error("Bericht versturen mislukt:", error);
     }
   };
 
@@ -62,10 +54,10 @@ export default function ChatInput({ onSendMessage }: ChatInputProps) {
   const handleGifSelect = async (gif: IGif) => {
     try {
       const gifUrl = gif.images.fixed_height.url;
-      await onSendMessage('', isAnonymous, gifUrl);
-      setShowGifPicker(false); // GifPicker sluit nu zichzelf, maar dit is extra veilig.
+      await onSendMessage("", isAnonymous, gifUrl);
+      setShowGifPicker(false);
     } catch (error) {
-      console.error('GIF verzenden mislukt:', error);
+      console.error("GIF verzenden mislukt:", error);
     }
   };
 
@@ -99,7 +91,6 @@ export default function ChatInput({ onSendMessage }: ChatInputProps) {
 
             {showGifPicker && (
               <div ref={gifPickerRef} className="absolute bottom-full right-0 mb-2 z-50">
-                {/* DE FIX: 'onSelect' is nu 'onGifSelect' */}
                 <GifPicker
                   onGifSelect={handleGifSelect}
                   onClose={() => setShowGifPicker(false)}

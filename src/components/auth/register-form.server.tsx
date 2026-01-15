@@ -16,9 +16,6 @@ const schema = z.object({
 
 export async function RegisterFormServer(data: unknown) {
   const parsed = schema.safeParse(data);
-  if (!parsed.success) {
-    return { success: false, error: 'Ongeldige registratie data' };
-  }
-
+  if (!parsed.success) return { success: false, error: 'Ongeldige registratie data' };
   return completeRegistrationAction(parsed.data);
 }

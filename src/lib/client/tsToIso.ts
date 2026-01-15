@@ -1,9 +1,17 @@
 // src/lib/client/tsToIso.ts
-import type { Timestamp } from 'firebase/firestore'; // gebruik client Timestamp
+'use server';
 
-export async function tsToIso(val: Timestamp | string | null | undefined): Promise<string | null> {
+import { Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
+
+/**
+ * Convert admin Timestamp | string | Date | null to ISO string
+ */
+export async function tsToIso(val: AdminTimestamp | string | Date | null | undefined): Promise<string | null> {
   if (!val) return null;
-  if (typeof (val as any)?.toDate === 'function') return (val as any).toDate().toISOString();
+
+  if (val instanceof AdminTimestamp) return val.toDate().toISOString();
+  if (val instanceof Date) return val.toISOString();
   if (typeof val === 'string') return val;
+
   return null;
 }

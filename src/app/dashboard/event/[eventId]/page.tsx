@@ -4,7 +4,7 @@ import { getSession } from "@/lib/auth/session.server";
 import { adminDb } from "@/lib/server/firebase-admin";
 import type { Event, EventParticipant } from "@/types/event";
 import { eventSchema } from "@/lib/server/types/event-admin";
-import EventDetailClient from "@/components/event/EventDetailClient";
+import EventDetailServer from "@/components/event/EventDetailServer";
 
 // ============================================================================
 // HELPER: RECURSIVE Firestore Timestamp converter
@@ -96,11 +96,11 @@ export default async function EventPage({ params }: PageProps) {
   const sessionUser = { ...session.user, isLoggedIn: true as const };
 
   return (
-    <EventDetailClient
-      eventId={eventId}
-      initialEvent={initialEvent}
-      sessionUser={sessionUser}
-    />
+    <EventDetailServer
+  event={initialEvent}
+  sessionUser={sessionUser}
+/>
+
   );
 }
 

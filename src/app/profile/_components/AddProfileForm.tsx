@@ -11,7 +11,8 @@ import { PhotoSection } from "./PhotoSection";
 import { DateInput } from "@/app/profile/_components/DateInput";
 import { toast } from "sonner";
 import { LoadingSpinner } from "../../../components/ui/loading-spinner";
-import { createSubProfileAction } from "@/lib/server/actions/subprofile-actions"; // ✅ GEBRUIK BESTAANDE ACTION
+import { createSubProfileAction } from "@/lib/server/actions/subprofile-actions";
+
 
 const RequiredFieldMarker = () => {
   return (
@@ -80,25 +81,15 @@ export function AddProfileForm() {
     try {
       let avatarURL: string | null = null;
 
-      // Upload image to Firebase Storage if selected
-      if (imageFile) {
-        const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
-        const { storage } = await import("@/lib/client/firebase");
-        
-        const storageRef = ref(storage, `public/profilePictures/${Date.now()}_${imageFile.name}`);
-        const snapshot = await uploadBytes(storageRef, imageFile);
-        avatarURL = await getDownloadURL(snapshot.ref);
-      }
-
       // ✅ GEBRUIK BESTAANDE ACTION
       const result = await createSubProfileAction({
-        firstName,
-        lastName,
-        birthdate,
-        gender: gender || undefined,
-        address,
-        photoURL: avatarURL,
-      });
+  firstName,
+  lastName,
+  birthdate,
+  gender: gender || undefined,
+  address,
+  imageFile,
+});
 
       if (result.success) {
         toast.success(`Profiel voor ${firstName} is succesvol aangemaakt!`);

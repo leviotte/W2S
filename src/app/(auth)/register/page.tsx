@@ -19,7 +19,7 @@ export default function RegisterPage() {
         <ArrowLeft className="mr-2 h-4 w-4" />
         Terug naar home
       </Link>
-      
+
       <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[500px]">
         <RegisterClient />
       </div>
